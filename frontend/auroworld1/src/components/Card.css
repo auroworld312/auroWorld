@@ -1,0 +1,24 @@
+.my-card {
+  background-color: #ffffff; 
+  border-radius: 12px; 
+  padding: 16px; 
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); 
+  
+  display: flex;
+  flex-direction: column; 
+  gap: 12px; 
+}
+
+
+/* Light gray border */
+.my-card.default-border {
+  border: 1px solid #e5e5e5;
+}
+
+
+/* Dark thick frame */
+.my-card.dark-border {
+  border: 1.5px solid #3b3b3b;
+  box-shadow: none; 
+}

@@ -1,0 +1,49 @@
+# # Use official Java image
+# FROM maven:3.9.6-eclipse-temurin-17 AS build
+
+# # Set working directory
+# WORKDIR /app
+
+# # Copy everything
+# COPY . .
+
+# # Build the jar
+# RUN mvn clean package -DskipTests
+
+# # Run stage
+# FROM eclipse-temurin:17-jdk
+
+# WORKDIR /app
+
+# # Copy jar from build stage
+# COPY --from=build /app/target/*.jar app.jar
+
+# # Expose port (Render uses 10000 by default, but we'll use env PORT)
+# EXPOSE 8080
+
+# Run the app
+#CMD ["java", "-jar", "app.jar"]
+
+# Stage 1: Build
+FROM maven:3.9.6-eclipse-temurin-17 AS build
+
+WORKDIR /app
+
+# Copy everything from backend folder (since Dockerfile is here)
+COPY . .
+
+# Build the project
+RUN mvn clean package -DskipTests
+
+# Stage 2: Run
+FROM eclipse-temurin:17-jdk
+
+WORKDIR /app
+
+# Copy the built jar
+COPY --from=build /app/target/backend-1.0-SNAPSHOT.jar app.jar
+
+# Expose port
+EXPOSE 8080
+# Run the app
+CMD ["java", "-jar", "app.jar"]

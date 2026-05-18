@@ -1,0 +1,49 @@
+.my-btn {
+  padding: 8px 18px; 
+  border-radius: 999px; 
+  border: none;
+  font-size: 14px;
+  font-weight: 600; 
+  cursor: pointer;
+  
+  transition: all 0.2s;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.my-btn:disabled {
+  opacity: 0.5; 
+  cursor: not-allowed; 
+}
+
+
+/* Primary  */
+.my-btn.primary {
+  background-color: #3b3b3b; 
+  color: white;
+}
+.my-btn.primary:hover:not(:disabled) {
+  background-color: #1a1a1a; 
+}
+
+
+/* Secondary */
+.my-btn.secondary {
+  background-color: #e5e5e5; 
+  color: #333333;
+}
+.my-btn.secondary:hover:not(:disabled) {
+  background-color: #d4d4d4; 
+}
+
+
+/* Outline */
+.my-btn.outline {
+  background-color: transparent;
+  border: 1.5px solid #3b3b3b;
+  color: #3b3b3b;
+}
+.my-btn.outline:hover:not(:disabled) {
+  background-color: #f5f5f5; 
+}
