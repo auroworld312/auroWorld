@@ -377,8 +377,7 @@ public class App
 
             GoogleAccountRequest gar = gson.fromJson(ctx.body(),GoogleAccountRequest.class);
 
-            if(gar==null || gar.username==null || gar.email==null || gar.lastname==null 
-                || gar.firstname==null || gar.user_uuid==null ){
+            if(gar==null || gar.username==null || gar.email==null || gar.user_uuid==null ){
                 System.out.println(gar);
                 System.out.println(gar.username);
                 System.out.println(gar.email);
