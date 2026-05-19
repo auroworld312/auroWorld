@@ -47,7 +47,8 @@ function Login(){
         console.log("resetPasswordButton email: "+email)
 
         const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `https://csb-312-auroworld.vercel.app/resetpass`,
+            //redirectTo: `https://csb-312-auroworld.vercel.app/resetpass`,
+            redirectTo: `https://auro-world.vercel.app/resetpass`,
         })
         if(error){
             alert("Problem sending reset password to your email. Try again")
