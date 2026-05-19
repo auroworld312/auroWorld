@@ -12,7 +12,7 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 // import 'csb312-auroworld\backend\src\main\java\auroworld\backend\Appmain.js'
 
 //const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
-const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'http://auroworld-rtpx.onrender.com';
+const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
 
 function Login(){
     const navigate = useNavigate();
