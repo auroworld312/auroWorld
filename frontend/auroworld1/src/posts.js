@@ -687,12 +687,12 @@ function Posts(){
                                         <div style={{ fontWeight:'700', fontSize:'15px', color:'#111' }}>{post.username}</div>
                                         <div style={{ fontSize:'12px', color:'#aaa' }}>#{post.msgId}</div>
                                     </div>
-                                    { (userAttributes.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
+                                    { (userAttributes?.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
                                         <button onClick={() => editPostButton(post.msgId)} style={{ float:"right", marginLeft:'auto', background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'#555' }}>
                                             Edit <i className="fas fa-edit"></i>
                                         </button>
                                     )}
-                                    {(userAttributes.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
+                                    {(userAttributes?.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
                                         <button onClick={() => deletePostButton(post.msgId,currentUserId)} style={{ float:"right", background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'#555' }}>
                                             Delete <i className="fa-solid fa-trash-can"></i>
                                         </button>
@@ -784,12 +784,12 @@ function Posts(){
                                                                 <i className="fa-regular fa-thumbs-up"></i>
                                                             </button>
                                                         )}
-                                                        {(userAttributes.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
+                                                        {(userAttributes?.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
                                                             <button onClick={()=>editCommentButton(comment.commentId)}>
                                                                 Edit <i className="fas fa-edit"></i>
                                                             </button>
                                                         )}
-                                                        {(userAttributes.role==="admin" || (currentUserId && post.uuid === currentUserId)) &&(
+                                                        {(userAttributes?.role==="admin" || (currentUserId && post.uuid === currentUserId)) &&(
                                                             <button onClick={()=>deleteCommentButton(post.msgId, comment.commentId)}>
                                                                 Delete <i className="fa-solid fa-trash-can"></i>
                                                             </button>
