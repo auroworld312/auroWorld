@@ -234,17 +234,17 @@ public class App
                 );
             });
 
-            config.staticFiles.add(files -> {
-                files.hostedPath = "/";
-                String override = System.getenv("STATIC_LOCATION");
-                if (override == null) {
-                    files.directory = "/public";
-                    files.location  = Location.CLASSPATH;
-                } else {
-                    files.directory = override;
-                    files.location  = Location.EXTERNAL;
-                }
-            });
+            // config.staticFiles.add(files -> {
+            //     files.hostedPath = "/";
+            //     String override = System.getenv("STATIC_LOCATION");
+            //     if (override == null) {
+            //         files.directory = "/public";
+            //         files.location  = Location.CLASSPATH;
+            //     } else {
+            //         files.directory = override;
+            //         files.location  = Location.EXTERNAL;
+            //     }
+            // });
             config.bundledPlugins.enableCors(cors -> {
                 cors.addRule(it -> {
                     it.anyHost();
