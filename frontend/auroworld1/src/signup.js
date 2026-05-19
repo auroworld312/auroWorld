@@ -97,7 +97,7 @@ function Signup(){
 
             console.log("create_data response "+create_data)
 
-            if(data.mStatus!=="ok"){
+            if(create_data.mStatus!=="ok"){
                 alert("Adding new username and email to users table failed: "+data.mMessage);
                 return;
             }
