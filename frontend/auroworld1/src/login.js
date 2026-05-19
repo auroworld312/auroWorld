@@ -45,9 +45,8 @@ function Login(){
         const email = window.prompt("Please enter your email for your account: ")
 
         console.log("resetPasswordButton email: "+email)
-
+        //redirectTo: `https://csb-312-auroworld.vercel.app/resetpass`,
         const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-            //redirectTo: `https://csb-312-auroworld.vercel.app/resetpass`,
             redirectTo: `https://auro-world.vercel.app/resetpass`,
         })
         if(error){
