@@ -155,6 +155,7 @@ function Login(){
 
                 if(data.mStatus!=="ok"){
                     alert("Signup failed: "+data.mMessage);
+                    console.log(data.mData)
                     return;
                 }
             }
