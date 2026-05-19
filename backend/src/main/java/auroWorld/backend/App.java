@@ -385,7 +385,7 @@ public class App
                 System.out.println(gar.firstname);
                 System.out.println(gar.user_uuid);
                 ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "missing username or email", null)));
+                        "error", "missing username or email", gar)));
                 return;
             }
 
