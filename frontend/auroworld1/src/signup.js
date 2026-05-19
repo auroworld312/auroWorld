@@ -84,7 +84,8 @@ function Signup(){
 
             const account_vals={
                 email:document.getElementById("email").value,
-                username:document.getElementById("username").value
+                username:document.getElementById("username").value,
+                user_uuid:data.user.id
             }
 
             const create_res=await fetch(`${API}/newuser`,{
