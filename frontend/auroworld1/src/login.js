@@ -139,8 +139,8 @@ function Login(){
                     username:userInput,
                     email:googleAccountInfo.email,
                     user_uuid:user.id,
-                    lastname:googleAccountInfo.family_name,
-                    firstname:googleAccountInfo.given_name
+                    lastname:googleAccountInfo?.family_name ?? "",
+                    firstname:googleAccountInfo?.given_name ?? ""
                 }
 
                 console.log("accountInfo: ",accountInfo)
