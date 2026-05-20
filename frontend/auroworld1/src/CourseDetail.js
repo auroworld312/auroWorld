@@ -195,82 +195,83 @@ function CourseTab({ course, userData }) {
         </div>
     );
 }
-async function addMaterials(){
+// async function addMaterials(){
 
-    document.getElementById("addVideo").style.display="block"
-}
-async function cancelMaterials(){
+//     document.getElementById("addVideo").style.display="block"
+// }
+// async function cancelMaterials(){
 
-    document.getElementById("addVideo").style.display="none"
-}
-async function uploadNewMaterials(filename,unitId,courseId,filedata){
-    // console.log("uploading video for unit "+unitId)
-    // console.log("for course: "+courseId)
-    if(!document.getElementById("videoTitle").value){
-        alert("Enter a title for upload")
-        return
-    }
-    console.log("filename: "+filename)
-    console.log("filedata: "+filedata)
+//     document.getElementById("addVideo").style.display="none"
+// }
+// async function uploadNewMaterials(filename,unitId,courseId,filedata){
+//     // console.log("uploading video for unit "+unitId)
+//     // console.log("for course: "+courseId)
+//     if(!document.getElementById("videoTitle").value){
+//         alert("Enter a title for upload")
+//         return
+//     }
+//     console.log("filename: "+filename)
+//     console.log("filedata: "+filedata)
     
-    try{
-        if(!(filedata) || filename==="No file chosen"){
-            const noVideoBody={
-                title:document.getElementById("videoTitle").value,
-                filepath:"empty"
-            }
-            const response = await fetch(`${API}/course_units/unit/${unitId}`,{
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(noVideoBody)
-            })
-            const videoData = await response.json();
-            if(videoData.mStatus!=="ok"){
-                alert("Adding video failed: "+videoData.mMessage);
-            }
-            return
-        }
-        const doesFileExist = await fetch(`${API}/unit_videos/${unitId}/${document.getElementById("videoTitle").value}`)
-        const doesFileExistData= await doesFileExist.json()
+//     try{
+//         if(!(filedata) || filename==="No file chosen"){
+//             const noVideoBody={
+//                 title:document.getElementById("videoTitle").value,
+//                 filepath:"empty"
+//             }
+//             const response = await fetch(`${API}/course_units/unit/${unitId}`,{
+//                 method: "POST",
+//                 headers: { "Content-Type": "application/json" },
+//                 body: JSON.stringify(noVideoBody)
+//             })
+//             const videoData = await response.json();
+//             if(videoData.mStatus!=="ok"){
+//                 alert("Adding video failed: "+videoData.mMessage);
+//             }
+//             return
+//         }
+//         const doesFileExist = await fetch(`${API}/unit_videos/${unitId}/${document.getElementById("videoTitle").value}`)
+//         const doesFileExistData= await doesFileExist.json()
 
-        if(doesFileExistData.mData){
-            alert("Video with that title in this unit already exists. Give a new title")
-            return
-        }
-        const videoBody={
-            title:document.getElementById("videoTitle").value,
-            // eslint-disable-next-line
-            filepath:'course/'+courseId+'/'+'unit/'+unitId+'/'+document.getElementById("videoTitle").value+'/'+filename
-        }
-        const response = await fetch(`${API}/course_units/unit/${unitId}`,{
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(videoBody)
-        })
-        const videoData = await response.json();
-        if(videoData.mStatus!=="ok"){
-            alert("Adding video failed: "+videoData.mMessage);
-            return;
-        }
-        //console.log("addVideo new video Id= "+videoData.mData)
-        // eslint-disable-next-line
-        const {data,error} = await supabase.storage.from('course_videos').upload('course/'+courseId+'/'+'unit/'+unitId+'/'+document.getElementById("videoTitle").value+'/'+filename, filedata)
-        if(data){
-            alert('Added video successfully.')
-            //console.log(data)
-        }
-        else if(error){
-            //console.log(error.message)
-        }
-        return
-    }catch(error){
-        //console.log(error.message)
-        return
-    }
-}
+//         if(doesFileExistData.mData){
+//             alert("Video with that title in this unit already exists. Give a new title")
+//             return
+//         }
+//         const videoBody={
+//             title:document.getElementById("videoTitle").value,
+//             // eslint-disable-next-line
+//             filepath:'course/'+courseId+'/'+'unit/'+unitId+'/'+document.getElementById("videoTitle").value+'/'+filename
+//         }
+//         const response = await fetch(`${API}/course_units/unit/${unitId}`,{
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify(videoBody)
+//         })
+//         const videoData = await response.json();
+//         if(videoData.mStatus!=="ok"){
+//             alert("Adding video failed: "+videoData.mMessage);
+//             return;
+//         }
+//         //console.log("addVideo new video Id= "+videoData.mData)
+//         // eslint-disable-next-line
+//         const {data,error} = await supabase.storage.from('course_videos').upload('course/'+courseId+'/'+'unit/'+unitId+'/'+document.getElementById("videoTitle").value+'/'+filename, filedata)
+//         if(data){
+//             alert('Added video successfully.')
+//             //console.log(data)
+//         }
+//         else if(error){
+//             //console.log(error.message)
+//         }
+//         return
+//     }catch(error){
+//         //console.log(error.message)
+//         return
+//     }
+// }
 //unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId}
-
 function UnitSection({ unit, courseId, role, username, instructor, unitId }) {
+    console.log("unitSection unitd: "+unitId)
+    console.log("unitsection.unitid: "+unit.unitId)
     const [open, setOpen] = useState(false);
     const [activeVideo, setActiveVideo] = useState(null);
 
@@ -332,11 +333,89 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId }) {
     // for( const v of unit.videos){
     //     console.log(v.driveUrl)
     // }
+    async function addMaterials(){
+    document.getElementById(`addVideo-${unit.unitId}`).style.display="block"
+}
+async function cancelMaterials(){
+
+    document.getElementById(`addVideo-${unit.unitId}`).style.display="none"
+}
+async function uploadNewMaterials(filename,uId,cId,filedata){
+    // console.log("uploading video for unit "+unitId)
+    // console.log("for course: "+courseId)
+    if(!document.getElementById(`videoTitle-${unit.unitId}`).value){
+        alert("Enter a title for upload")
+        return
+    }
+    console.log("filename: "+filename)
+    console.log("filedata: "+filedata)
+    console.log("cId: "+cId)
+    console.log("uId: "+uId)
+    console.log("vidoeTitle: "+document.getElementById(`videoTitle-${unit.unitId}`).value)
+
+    try{
+        if(!(filedata) || filename==="No file chosen"){
+            const noVideoBody={
+                title:document.getElementById(`videoTitle-${unit.unitId}`).value,
+                filepath:"empty"
+            }
+            console.log("noVideoBody: "+noVideoBody)
+            const response = await fetch(`${API}/course_units/unit/${unit.unitId}`,{
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(noVideoBody)
+            })
+            const videoData = await response.json();
+            if(videoData.mStatus!=="ok"){
+                alert("Adding video failed: "+videoData.mMessage);
+            }
+            return
+        }
+        //console.log("doesFileExist path: "+`${API}/unit_videos/${unit.unitId}/${document.getElementById(`videoTitle-${unit.unitId}`).value}`)
+        const doesFileExist = await fetch(`${API}/unit_videos/${unit.unitId}/${document.getElementById(`videoTitle-${unit.unitId}`).value}`)
+        const doesFileExistData= await doesFileExist.json()
+
+        if(doesFileExistData.mData){
+            alert("Video with that title in this unit already exists. Give a new title")
+            return
+        }
+        const videoBody={
+            title:document.getElementById(`videoTitle-${unit.unitId}`).value,
+            // eslint-disable-next-line
+            filepath:'course/'+courseId+'/'+'unit/'+unit.unitId+'/'+document.getElementById(`videoTitle-${unit.unitId}`).value+'/'+filename
+        }
+        console.log("videoBody: "+videoBody)
+        const response = await fetch(`${API}/course_units/unit/${unit.unitId}`,{
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(videoBody)
+        })
+        const videoData = await response.json();
+        if(videoData.mStatus!=="ok"){
+            alert("Adding video failed: "+videoData.mMessage);
+            return;
+        }
+        //console.log("addVideo new video Id= "+videoData.mData)
+        // eslint-disable-next-line
+        const {data,error} = await supabase.storage.from('course_videos').upload('course/'+courseId+'/'+'unit/'+unit.unitId+'/'+document.getElementById(`videoTitle-${unit.unitId}`).value+'/'+filename, filedata)
+        if(data){
+            alert('Added video successfully.')
+            //console.log(data)
+        }
+        else if(error){
+            //console.log(error.message)
+        }
+        return
+    }catch(error){
+        console.log(error.message)
+        return
+    }
+}
     async function deleteFile(driveurl, unitId, videoId){
         // console.log("deleteVideo id: "+videoId)
         // console.log("deleteVideo driveurl: "+driveurl)
         try{
-            const videoEntry=await fetch(`${API}/delete/unit_videos/unit/${unitId}/videoId/${videoId}`,{
+            const videoEntry=await fetch(`${API}/delete/unit_videos/unit/${unit.unitId}/videoId/${videoId}`,{
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" }
             })
@@ -388,27 +467,27 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId }) {
                     Add File
                 </button>
             )}
-            <div id ="addVideo" style={{display: 'none'}}>
+            <div id={`addVideo-${unit.unitId}`} style={{ display: 'none' }}>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                    <input type="file" id="hiddenAddFileInput" onChange={uploadFileHandler} style={{ display: 'none' }}></input>
-                    <button variant="secondary" onClick={() => document.getElementById("hiddenAddFileInput").click()}>Upload File</button>
+                    <input type="file" id={`hiddenAddFileInput-${unit.unitId}`} onChange={uploadFileHandler} style={{ display: 'none' }}></input>
+                    <button variant="secondary" onClick={() => document.getElementById(`hiddenAddFileInput-${unit.unitId}`).click()}>Upload File</button>
                     
                     <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal' }}>{fileName}</span>
                 </div>
 
                     <label style={{ marginTop: 0 }}>Enter Title</label>
-                    <input type="text" id="videoTitle" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+                    <input type="text" id={`videoTitle-${unit.unitId}`} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
 
                 {fileUpload &&(
-                    <div style={{ margin: '10px 0', fontSize: '14px', color: '#666' }}>
-                        <p>Selected File: {fileUpload.name}</p>
-                        <p>Size: {fileUpload.size} bytes</p>
-                        <p>Type: {fileUpload.type}</p>
+                    <div id={`fileUpload-${unit.unitId}`} style={{ margin: '10px 0', fontSize: '14px', color: '#666' }}>
+                        <p>Selected File: {`fileUpload-${unit.unitId}`.name}</p>
+                        <p>Size: {`fileUpload-${unit.unitId}`.size} bytes</p>
+                        <p>Type: {`fileUpload-${unit.unitId}`.type}</p>
                     </div>
                 )}
                 <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={()=>uploadNewMaterials(fileName,unitId,courseId,fileUpload)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Send</button>
+                    <button onClick={()=>uploadNewMaterials(fileName,unit.unitId,courseId,fileUpload)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Send</button>
                     <button variant="secondary" onClick={cancelMaterials} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
                 </div>
             </div>
@@ -416,9 +495,12 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId }) {
             {open && (
                 <div style={{ borderTop: '1px solid #eee' }}>
                     {(!unit.videos || unit.videos.length === 0) ? (
-                        <div style={{ padding: '20px', color: '#aaa', fontSize: '14px', textAlign: 'center' }}>No videos in this unit yet.</div>
+                        // <div style={{ padding: '20px', color: '#aaa', fontSize: '14px', textAlign: 'center' }}>No videos in this unit yet.</div>
+                        <div style={{ padding: '20px', color: '#aaa', fontSize: '14px', textAlign: 'center' }}>No videos in this unit yet.
+                        </div>
                     ) : unit.videos.map((video, idx) => (
                         <div key={video.videoId} style={{ borderBottom: idx < unit.videos.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+
                             <div onClick={() => setActiveVideo(activeVideo === video.videoId ? null : video.videoId)}
                                 style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px 14px 28px', cursor: 'pointer', backgroundColor: activeVideo === video.videoId ? '#f9f9f9' : '#fff', transition: 'background-color 0.12s' }}>
                                 <div style={{ width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0, backgroundColor: activeVideo === video.videoId ? PURPLE : '#ebebeb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', transition: 'all 0.15s' }}>
@@ -458,6 +540,194 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId }) {
         </div>
     );
 }
+// function UnitSection({ unit, courseId, role, username, instructor, unitId }) {
+//     const [open, setOpen] = useState(false);
+//     const [activeVideo, setActiveVideo] = useState(null);
+
+//     const [fileUpload,setFileUpload]=useState()
+//     const [fileName, setFileName] = useState("No file chosen");
+
+//     function uploadFileHandler(e){
+//         const file = e.target.files[0];
+//         if (file) {
+//             setFileUpload(file);
+//             setFileName(file.name);
+//         }else {
+//             setFileName("No file chosen"); 
+//         }
+//     }
+//     const [fileUrl,setFileUrl]=useState([])
+
+//     useEffect(()=>{
+//         async function getFileUrls(){
+//             if (!unit.videos) return
+//             const fileUrlsSet={}
+//             for (const video of unit.videos){
+//                 //console.log(video)
+//                 // const videoUrlString=video.driveUrl
+//                 // console.log(videoUrlString)
+//                 if (video.driveUrl.includes(`course/${courseId}/unit/${unitId}/`)){
+//                     //console.log('has it')
+//                     try{
+//                         const { data} = supabase.storage
+//                             .from('course_videos')
+//                             .getPublicUrl(video.driveUrl);
+//                         //console.log("data from courses_videos: ",data)
+//                         if (data && data.publicUrl) {
+//                             //console.log('Public URL:', data.publicUrl);
+//                         } else {
+//                             console.error('Error getting public URL or URL is undefined');
+//                         }
+                        
+//                         fileUrlsSet[video.videoId] = data.publicUrl;
+
+//                     }catch(err){
+//                         console.error(err)
+//                         fileUrlsSet[video.videoId]=null
+//                     }
+//                 }
+//                 else{
+//                     fileUrlsSet[video.videoId]=video.driveUrl
+//                 }
+//                 //console.log('videoUrlsSet: '+videoUrlsSet)
+//             }
+//             setFileUrl(fileUrlsSet)
+//         }
+//         getFileUrls()
+//         //console.log(videoUrl)
+//         // eslint-disable-next-line react-hooks/exhaustive-deps
+//     },[])
+
+//     // console.log("unit videos: "+unit.videos)
+//     // for( const v of unit.videos){
+//     //     console.log(v.driveUrl)
+//     // }
+//     async function deleteFile(driveurl, unitId, videoId){
+//         // console.log("deleteVideo id: "+videoId)
+//         // console.log("deleteVideo driveurl: "+driveurl)
+//         try{
+//             const videoEntry=await fetch(`${API}/delete/unit_videos/unit/${unitId}/videoId/${videoId}`,{
+//                 method: "DELETE",
+//                 headers: { "Content-Type": "application/json" }
+//             })
+//             const videoEntryData= await videoEntry.json()
+//             //console.log("videoEntryData: "+videoEntryData )
+//             if(videoEntryData.mStatus!=="ok"){
+//                 //alert("Deleting video entry failed. Try again later")
+//                 return
+//             }
+//             const { data, error } = await supabase
+//                 .storage
+//                 .from('course_videos')
+//                 .remove([driveurl])
+//             if(data){
+//                 alert("Video deleted.")
+//                 return
+//             }
+//             else if(error){
+//                 //alert("Deleting video data failed. Try again later")
+//                 return
+//             }
+//         }catch(error){
+//             console.log(error.message)
+//             return
+//         }
+//     }
+
+//     return (
+//         <div style={{ border: '1px solid #e5e5e5', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+//             <div onClick={() => setOpen(o => !o)} style={{
+//                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+//                 padding: '16px 20px', cursor: 'pointer',
+//                 backgroundColor: open ? PURPLE_LIGHT : '#fff',
+//                 transition: 'background-color 0.15s', userSelect: 'none',
+//             }}>
+//                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+//                     <div style={{ width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0, backgroundColor: open ? PURPLE : '#e8e8e8', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.15s' }}>
+//                         <span style={{ fontSize: '14px', color: open ? '#fff' : '#555' }}>📁</span>
+//                     </div>
+//                     <div>
+//                         <div style={{ fontSize: '15px', fontWeight: '700', color: '#111' }}>{unit.title}</div>
+//                         <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{unit.videos?.length || 0} video{unit.videos?.length !== 1 ? 's' : ''}</div>
+//                     </div>
+//                 </div>
+//                 <span style={{ fontSize: '20px', color: '#bbb', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block' }}>›</span>
+//             </div>
+//             {(role==="admin" || username===instructor ) && (
+//                 <button onClick={addMaterials} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
+//                     Add File
+//                 </button>
+//             )}
+//             <div id ="addVideo" style={{display: 'none'}}>
+
+//                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+//                     <input type="file" id="hiddenAddFileInput" onChange={uploadFileHandler} style={{ display: 'none' }}></input>
+//                     <button variant="secondary" onClick={() => document.getElementById("hiddenAddFileInput").click()}>Upload File</button>
+                    
+//                     <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal' }}>{fileName}</span>
+//                 </div>
+
+//                     <label style={{ marginTop: 0 }}>Enter Title</label>
+//                     <input type="text" id="videoTitle" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+
+//                 {fileUpload &&(
+//                     <div style={{ margin: '10px 0', fontSize: '14px', color: '#666' }}>
+//                         <p>Selected File: {fileUpload.name}</p>
+//                         <p>Size: {fileUpload.size} bytes</p>
+//                         <p>Type: {fileUpload.type}</p>
+//                     </div>
+//                 )}
+//                 <div style={{ display: 'flex', gap: '10px' }}>
+//                     <button onClick={()=>uploadNewMaterials(fileName,unitId,courseId,fileUpload)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Send</button>
+//                     <button variant="secondary" onClick={cancelMaterials} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
+//                 </div>
+//             </div>
+
+//             {open && (
+//                 <div style={{ borderTop: '1px solid #eee' }}>
+//                     {(!unit.videos || unit.videos.length === 0) ? (
+//                         <div style={{ padding: '20px', color: '#aaa', fontSize: '14px', textAlign: 'center' }}>No videos in this unit yet.</div>
+//                     ) : unit.videos.map((video, idx) => (
+//                         <div key={video.videoId} style={{ borderBottom: idx < unit.videos.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+//                             <div onClick={() => setActiveVideo(activeVideo === video.videoId ? null : video.videoId)}
+//                                 style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px 14px 28px', cursor: 'pointer', backgroundColor: activeVideo === video.videoId ? '#f9f9f9' : '#fff', transition: 'background-color 0.12s' }}>
+//                                 <div style={{ width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0, backgroundColor: activeVideo === video.videoId ? PURPLE : '#ebebeb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', transition: 'all 0.15s' }}>
+//                                     <span style={{ color: activeVideo === video.videoId ? '#fff' : '#666' }}>▶</span>
+//                                 </div>
+//                                 <div style={{ flex: 1 }}>
+//                                     { (role==="admin" || username===instructor) && (
+//                                         <button className = "delete-video" onClick={()=>deleteFile(video.driveUrl,unitId,video.videoId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
+//                                             <i className="fa-solid fa-trash-can"></i>
+//                                         </button>
+//                                     )}
+//                                     <div style={{ fontSize: '14px', fontWeight: '600', color: '#222' }}>
+//                                         {video.title}
+//                                     </div>
+//                                     {video.duration && <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{video.duration}</div>}
+//                                 </div>
+//                                 <span style={{ fontSize: '16px', color: '#ccc', transform: activeVideo === video.videoId ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block' }}>›</span>
+//                             </div>
+//                              {/* backgroundColor: '#1a1a1a', */}
+//                             {activeVideo === video.videoId && (
+//                                 <div style={{ backgroundColor:'#f5c8f3' }}>
+//                                     {video.driveUrl && !video.driveUrl.includes('FILE_ID') && video.driveUrl!=="empty" ? (
+//                                         <iframe src={fileUrl[video.videoId]} width="100%" height="800" allow="autoplay" style={{ border: 'none', display: 'block' }} title={video.title} />
+//                                     ) : (
+//                                         <div style={{height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', gap: '10px' }}>
+//                                             {/* <span style={{ fontSize: '32px' }}>🎬</span> */}
+//                                             <a href={video.title} target="_blank" rel="noopener noreferrer" style={{fontSize: '25px' }}>Take your quiz here</a>
+//                                             <span style={{fontSize: '23px' }}>Click the link to take your quiz!</span>
+//                                         </div>
+//                                     )}
+//                                 </div>
+//                             )}
+//                         </div>
+//                     ))} 
+//                 </div>
+//             )}
+//         </div>
+//     );
+// }
 
 async function newUnitButton() {
     document.getElementById("addUnit").style.display = "block";
