@@ -25,7 +25,22 @@ function Courses() {
     const [showAddCourse, setShowAddCourse] = useState(false);
 
     const[instructorList, setInstructorList]=useState([])
+    const [userAttributes, setUserAttributes] = useState(null);
 
+    useEffect(() => {
+        async function getUserAtts() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+                const res = await fetch(`${API}/userdata/${user.id}`);
+                const data = await res.json();
+                setUserAttributes(data.mData);
+            } catch (error) {
+                console.log(error.message);
+            }
+        }
+        getUserAtts();
+    }, []);
     useEffect(()=>{
         async function getInstructors(){
             fetch(`${API}/all/instructors`)
@@ -170,16 +185,18 @@ function Courses() {
                         {/* Header row */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
                             <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '800', color: '#111' }}>Courses</h1>
-                            <button
-                                onClick={() => setShowAddCourse(v => !v)}
-                                style={{ padding: '9px 20px', borderRadius: '8px', border: '1.5px solid #ccc', backgroundColor: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
-                            >
-                                {showAddCourse ? 'Cancel' : 'Create Course'}
-                            </button>
+                            {(userAttributes?.role === 'admin' || userAttributes?.role === 'instructor') && (
+                                <button
+                                    onClick={() => setShowAddCourse(v => !v)}
+                                    style={{ padding: '9px 20px', borderRadius: '8px', border: '1.5px solid #ccc', backgroundColor: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+                                >
+                                    {showAddCourse ? 'Cancel' : 'Create Course'}
+                                </button>
+                            )}
                         </div>
 
                         {/* Add Course Form */}
-                        {showAddCourse && (
+                        {showAddCourse && (userAttributes?.role === 'admin' || userAttributes?.role === 'instructor') && (
                             <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '24px', marginBottom: '20px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
                                 <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Add a New Course</h3>
                                 {[
