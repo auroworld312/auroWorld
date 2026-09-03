@@ -442,7 +442,15 @@ async function uploadNewMaterials(filename,uId,cId,filedata){
             return
         }
     }
-
+    function goToNextVideo(currentVideoId) {
+        const idx = unit.videos.findIndex(v => v.videoId === currentVideoId);
+        if (idx === -1 || idx === unit.videos.length - 1) {
+            // no next video in this unit
+            return;
+        }
+        const nextVideo = unit.videos[idx + 1];
+        setActiveVideo(nextVideo.videoId);
+    }
     return (
         <div style={{ border: '1px solid #e5e5e5', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             <div onClick={() => setOpen(o => !o)} style={{
@@ -526,9 +534,18 @@ async function uploadNewMaterials(filename,uId,cId,filedata){
                                         <iframe src={fileUrl[video.videoId]} width="100%" height="800" allow="autoplay" style={{ border: 'none', display: 'block' }} title={video.title} />
                                     ) : (
                                         <div style={{height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', gap: '10px' }}>
-                                            {/* <span style={{ fontSize: '32px' }}>🎬</span> */}
                                             <a href={video.title} target="_blank" rel="noopener noreferrer" style={{fontSize: '25px' }}>Take your quiz here</a>
                                             <span style={{fontSize: '23px' }}>Click the link to take your quiz!</span>
+                                        </div>
+                                    )}
+                                    {unit.videos.findIndex(v => v.videoId === video.videoId) < unit.videos.length - 1 && (
+                                        <div style={{ padding: '14px 20px', display: 'flex', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => goToNextVideo(video.videoId)}
+                                                style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+                                            >
+                                                Next Video ›
+                                            </button>
                                         </div>
                                     )}
                                 </div>
