@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import ReactGA from "react-ga4";
 
 const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
@@ -90,7 +91,7 @@ function Courses() {
     useEffect(() => { loadCourses(); }, [loadCourses]);
     useEffect(() => { if (currentUserId) loadEnrolled(currentUserId); }, [currentUserId, loadEnrolled]);
 
-    async function handleEnroll(courseId) {
+    async function handleEnroll(courseId, courseTitle) {
         if (!currentUserId) { alert('Please log in to enroll.'); return; }
         setEnrolling(prev => ({ ...prev, [courseId]: true }));
         try {
@@ -103,9 +104,15 @@ function Courses() {
             else alert('Enroll failed: ' + data.mMessage);
         } catch (e) { console.error(e); }
         finally { setEnrolling(prev => ({ ...prev, [courseId]: false })); }
+
+        ReactGA.event({
+            category:'enrolls',
+            action:'enrolled '+courseTitle,
+            label:courseId,
+        })
     }
 
-    async function handleUnenroll(courseId) {
+    async function handleUnenroll(courseId, courseTitle) {
         if (!window.confirm('Unenroll from this course?')) return;
         setEnrolling(prev => ({ ...prev, [courseId]: true }));
         try {
@@ -119,6 +126,11 @@ function Courses() {
             } else alert('Unenroll failed: ' + data.mMessage);
         } catch (e) { console.error(e); }
         finally { setEnrolling(prev => ({ ...prev, [courseId]: false })); }
+        ReactGA.event({
+            category:'unenrolls',
+            action:'unenrolled '+courseTitle,
+            label:courseId,
+        })
     }
 
     async function submitNewCourse() {
@@ -303,7 +315,7 @@ function Courses() {
                                                 More Info
                                             </button>
                                             <button
-                                                onClick={() => enrolledIds.has(course.courseId) ? handleUnenroll(course.courseId) : handleEnroll(course.courseId)}
+                                                onClick={() => enrolledIds.has(course.courseId) ? handleUnenroll(course.courseId, course.title) : handleEnroll(course.courseId, course.title)}
                                                 disabled={!!enrolling[course.courseId]}
                                                 style={{
                                                     padding: '8px 16px', borderRadius: '8px', border: 'none',

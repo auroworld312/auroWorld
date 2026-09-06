@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import ReactGA from "react-ga4";
 
 const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
@@ -269,9 +270,9 @@ function CourseTab({ course, userData }) {
 //     }
 // }
 //unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId}
-function UnitSection({ unit, courseId, role, username, instructor, unitId }) {
-    console.log("unitSection unitd: "+unitId)
-    console.log("unitsection.unitid: "+unit.unitId)
+function UnitSection({ unit, courseId, role, username, instructor, unitId, courseTitle }) {
+    // console.log("unitSection unitd: "+unitId)
+    // console.log("unitsection.unitid: "+unit.unitId)
     const [open, setOpen] = useState(false);
     const [activeVideo, setActiveVideo] = useState(null);
 
@@ -347,11 +348,11 @@ async function uploadNewMaterials(filename,uId,cId,filedata){
         alert("Enter a title for upload")
         return
     }
-    console.log("filename: "+filename)
-    console.log("filedata: "+filedata)
-    console.log("cId: "+cId)
-    console.log("uId: "+uId)
-    console.log("vidoeTitle: "+document.getElementById(`videoTitle-${unit.unitId}`).value)
+    // console.log("filename: "+filename)
+    // console.log("filedata: "+filedata)
+    // console.log("cId: "+cId)
+    // console.log("uId: "+uId)
+    // console.log("vidoeTitle: "+document.getElementById(`videoTitle-${unit.unitId}`).value)
 
     try{
         if(!(filedata) || filename==="No file chosen"){
@@ -451,6 +452,14 @@ async function uploadNewMaterials(filename,uId,cId,filedata){
         const nextVideo = unit.videos[idx + 1];
         setActiveVideo(nextVideo.videoId);
     }
+    async function ga4AddView(vId, vidTitle, unitTitle, courseTitle){
+        console.log("ga4AddView "+unitTitle)
+        ReactGA.event({
+            category:'course videos',
+            action:'viewed '+vidTitle+' course '+courseTitle+' unit'+ unitTitle,
+            label:vId,
+        })
+    }
     return (
         <div style={{ border: '1px solid #e5e5e5', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             <div onClick={() => setOpen(o => !o)} style={{
@@ -509,7 +518,7 @@ async function uploadNewMaterials(filename,uId,cId,filedata){
                     ) : unit.videos.map((video, idx) => (
                         <div key={video.videoId} style={{ borderBottom: idx < unit.videos.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
 
-                            <div onClick={() => setActiveVideo(activeVideo === video.videoId ? null : video.videoId)}
+                            <div onClick={() => {setActiveVideo(activeVideo === video.videoId ? null : video.videoId); ga4AddView(video.videoId, video.title, unit.title,courseTitle)} }
                                 style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px 14px 28px', cursor: 'pointer', backgroundColor: activeVideo === video.videoId ? '#f9f9f9' : '#fff', transition: 'background-color 0.12s' }}>
                                 <div style={{ width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0, backgroundColor: activeVideo === video.videoId ? PURPLE : '#ebebeb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', transition: 'all 0.15s' }}>
                                     <span style={{ color: activeVideo === video.videoId ? '#fff' : '#666' }}>▶</span>
@@ -799,7 +808,7 @@ function MaterialsTab({ course, userData }) {
                     </div>
                 </div>
             </div>
-            {course.units.map(unit => <UnitSection key={unit.unitId} unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId}/>)}
+            {course.units.map(unit => <UnitSection key={unit.unitId} unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>)}
         </div>
     );
 }
