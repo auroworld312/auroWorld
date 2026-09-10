@@ -591,9 +591,18 @@ async function uploadNewMaterials(filename,uId,cId,filedata){
                                         <iframe src={fileUrl[video.videoId]} width="100%" height="800" allow="autoplay" style={{ border: 'none', display: 'block' }} title={video.title} />
                                     ) : (
                                         <div style={{height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', gap: '10px' }}>
-                                            {/* <span style={{ fontSize: '32px' }}>🎬</span> */}
                                             <a href={video.title} target="_blank" rel="noopener noreferrer" style={{fontSize: '25px' }}>Take your quiz here</a>
                                             <span style={{fontSize: '23px' }}>Click the link to take your quiz!</span>
+                                        </div>
+                                    )}
+                                    {unit.videos.findIndex(v => v.videoId === video.videoId) < unit.videos.length - 1 && (
+                                        <div style={{ padding: '14px 20px', display: 'flex', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => goToNextVideo(video.videoId)}
+                                                style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+                                            >
+                                                Next Video ›
+                                            </button>
                                         </div>
                                     )}
                                 </div>
