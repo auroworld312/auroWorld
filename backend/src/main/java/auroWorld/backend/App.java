@@ -142,14 +142,18 @@ public class App
         public String level;
         public String price;
         public String live_url;
+        public String daysOfWeek;   // NEW, e.g. "1,3,5"
     }
     private static final class ChangeCourseRequest{
         public String title;
         public String description;
         public String instructor;
+        public String times;
         public String startDate;
         public String level;
         public String price;
+        public String liveUrl;
+        public String daysOfWeek;   // NEW
     }
     private static final class CreateUnitRequest{
         public String unitName;
@@ -1000,22 +1004,15 @@ public class App
         ChangeCourseRequest ccr = gson.fromJson(ctx.body(),ChangeCourseRequest.class);
 
         if (ccr == null || ccr.title ==null || ccr.description == null 
-        || ccr.instructor==null || ccr.startDate ==null || ccr.level==null
-        || ccr.price==null ) {
-            System.out.println(ccr);
-            System.out.println(ccr.title);
-            System.out.println(ccr.description);
-            System.out.println(ccr.instructor);
-            System.out.println(ccr.startDate);
-            System.out.println(ccr.level);
-            System.out.println(ccr.price);
+        || ccr.instructor==null || ccr.times==null || ccr.startDate ==null || ccr.level==null
+        || ccr.price==null || ccr.liveUrl==null) {
             ctx.result(gson.toJson(new StructuredResponse(
-                    "error", "missgin course feature", null)));
+                    "error", "missing course feature", null)));
             return;
         }
-        
-        int id = db.editCourseInfo(courseId, ccr.title,ccr.description,ccr.instructor,ccr.startDate, 
-            ccr.level, ccr.price);
+
+        int id = db.editCourseInfo(courseId, ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
+            ccr.level, ccr.price, ccr.liveUrl, ccr.daysOfWeek);
 
         if(id<=0){
             ctx.result(gson.toJson(new StructuredResponse("error",null,id)));
@@ -1048,8 +1045,8 @@ public class App
             return;
         }
 
-        int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate, 
-            ccr.level, ccr.price, ccr.live_url);
+       int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
+        ccr.level, ccr.price, ccr.live_url, ccr.daysOfWeek);
 
         ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
     });

@@ -16,7 +16,10 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const COURSE_COLORS = ['#6C63FF', '#0f9d58', '#f4511e', '#8430ce', '#e91e63', '#00bcd4'];
 
-function parseDays(timesStr) {
+function parseDays(timesStr, daysOfWeekStr) {
+    if (daysOfWeekStr) {
+        return daysOfWeekStr.split(',').map(Number).filter(n => !isNaN(n));
+    }
     if (!timesStr) return [];
     const s = timesStr.toUpperCase();
     const days = new Set();
@@ -46,10 +49,9 @@ function TodaySchedule({ enrolledCourses, navigate }) {
     const year = now.getFullYear();
 
     const todayCourses = enrolledCourses.filter(course => {
-        const days = parseDays(course.times);
+        const days = parseDays(course.times, course.daysOfWeek);
         return days.includes(todayDow);
     });
-
     return (
         <div style={{ width: '280px', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
