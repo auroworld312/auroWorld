@@ -6,6 +6,7 @@ import Card from './components/Card';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import { useUser } from './UserContext';
+import ReactGA from "react-ga4";
 
 const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
@@ -382,7 +383,24 @@ function Posts(){
             const res = await fetch(`${API}/vote_messages/${msg_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ user_uuid:current_uuid }) })
             const data=await res.json()
             if(data.mStatus!=="ok"){ return }
-            if(data.mData===0){ messageUpvoteDom(msg_id,-1) } else { messageUpvoteDom(msg_id,1) }
+            if(data.mData===0){ 
+                messageUpvoteDom(msg_id,-1) 
+
+                ReactGA.event({
+                    category:'message upvotes',
+                    action:'message unliked',
+                    label:msg_id,
+                })
+            } 
+            else { 
+                messageUpvoteDom(msg_id,1)  
+
+                ReactGA.event({
+                    category:'message upvotes',
+                    action:'message liked',
+                    label:msg_id,
+                })
+            }
         }catch(error){ console.error(error.message) }
     }
 
@@ -403,7 +421,24 @@ function Posts(){
             const res=await fetch(`${API}/vote_comments/comment/${comment_id}/msg/${msg_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ user_uuid:current_uuid }) })
             const data = await res.json()
             if(data.mStatus!=="ok"){ alert("Upvoting comment failed. Try again later"); return }
-            if(data.mData===0){ commentUpvoteDom(msg_id,comment_id,-1) } else { commentUpvoteDom(msg_id,comment_id,1) }
+            if(data.mData===0){ 
+                commentUpvoteDom(msg_id,comment_id,-1) 
+
+                ReactGA.event({
+                    category:'comment upvotes',
+                    action:'comment unliked',
+                    label:comment_id,
+                })
+            } 
+            else { 
+                commentUpvoteDom(msg_id,comment_id,1) 
+
+                ReactGA.event({
+                    category:'comment upvotes',
+                    action:'comment liked',
+                    label:comment_id,
+                })
+            }
         }catch(error){ console.error(error.message) }
     }
 
@@ -440,6 +475,12 @@ function Posts(){
             link.download = downloadFilename;
             link.click();
         }
+
+        ReactGA.event({
+            category:'post downloads',
+            action:'post image downloaded',
+            label:msg_id,
+        })
     }
 
     async function deleteCommentButton(msgId,commentId){

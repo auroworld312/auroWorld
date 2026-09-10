@@ -8,6 +8,7 @@ import Button from './components/Button';
 import Card from './components/Card';
 import { useUser } from './UserContext.js';
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import ReactGA from "react-ga4";
 
 // import 'csb312-auroworld\backend\src\main\java\auroworld\backend\Appmain.js'
 
@@ -83,6 +84,10 @@ function Login(){
         }
         //console.log(data)
         await refreshUser();
+        ReactGA.event({
+            category:'userpass login',
+            action:'logged in w/ userpass'
+        })
         navigate("/posts")
 
     }
@@ -165,6 +170,10 @@ function Login(){
             console.error(error.message)
         }
         await refreshUser();
+        ReactGA.event({
+            category:'google sign in',
+            action:'signed in with google'
+        })
         navigate("/posts");
     }
     return(

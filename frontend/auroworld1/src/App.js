@@ -10,10 +10,22 @@ import Calendar from './Calendar.js';
 import CourseDetail from './CourseDetail.js';
 import { AccessibilityProvider } from './AccessibilityContext.js';
 import { UserProvider } from './UserContext.js';
+import ReactGA from "react-ga4";
+import { useEffect } from "react";
 
 const GOOGLE_CLIENT_ID = "134970251770-d7nviqn0qn0p0qpll7ru770kf2ntqu1h.apps.googleusercontent.com"
 
+// ReactGA.initialize('G-KJDT0BJZ61'); 
+
 function App() {
+  useEffect(() => {
+      ReactGA.initialize("G-KJDT0BJZ61"); 
+      ReactGA.send({
+          hitType:'pageview',
+          page:window.location.pathname,
+          title:'App.js'
+      })
+  }, []);
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <AccessibilityProvider>
