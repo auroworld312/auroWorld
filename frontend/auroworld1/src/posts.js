@@ -174,6 +174,17 @@ function Posts(){
             alert("Title or caption aren't filled out")
             return
         }
+        console.log('fileUpload name: '+fileUpload.name+' fileUpload.type: '+fileUpload.type)
+        if(fileUpload && (!fileUpload.type || (fileUpload.type && (fileUpload.type!=='image/jpeg' 
+        && fileUpload.type!=='image/png' && fileUpload.type!=='image/svg' 
+        && fileUpload.type!=='image/webp')))){
+            alert('Files must have webp, jpg, png or svg extension')
+            return
+        }
+        // else{
+        //     alert('appropriate type')
+        //     return
+        // }
         //console.log("prevUrl: "+prevUrl)
         try{
             const current_uuid = await getCurrentUserId()
@@ -218,6 +229,7 @@ function Posts(){
             if (fileData.mStatus!=="ok"){ alert("File Post failed: "+fileData.mMessage); return }
             const {data,error} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
             if(data){ 
+                console.log(data)
                 console.log("data.path: "+data.path)
                 photoDom(msg_id,data.path) 
                 //console.log(data) 
