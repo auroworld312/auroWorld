@@ -276,6 +276,11 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
     const [open, setOpen] = useState(false);
     const [activeVideo, setActiveVideo] = useState(null);
 
+    const [questAnsw,setQuesAnsw]=useState({
+        answNum:1,
+        answText:'hello',
+    })
+
     const [fileUpload,setFileUpload]=useState()
     const [fileName, setFileName] = useState("No file chosen");
 
@@ -335,83 +340,92 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
     //     console.log(v.driveUrl)
     // }
     async function addMaterials(){
-    document.getElementById(`addVideo-${unit.unitId}`).style.display="block"
-}
-async function cancelMaterials(){
-
-    document.getElementById(`addVideo-${unit.unitId}`).style.display="none"
-}
-async function uploadNewMaterials(filename,uId,cId,filedata){
-    // console.log("uploading video for unit "+unitId)
-    // console.log("for course: "+courseId)
-    if(!document.getElementById(`videoTitle-${unit.unitId}`).value){
-        alert("Enter a title for upload")
-        return
+        document.getElementById(`addVideo-${unit.unitId}`).style.display="block"
     }
-    // console.log("filename: "+filename)
-    // console.log("filedata: "+filedata)
-    // console.log("cId: "+cId)
-    // console.log("uId: "+uId)
-    // console.log("vidoeTitle: "+document.getElementById(`videoTitle-${unit.unitId}`).value)
+    async function cancelMaterials(){
 
-    try{
-        if(!(filedata) || filename==="No file chosen"){
-            const noVideoBody={
-                title:document.getElementById(`videoTitle-${unit.unitId}`).value,
-                filepath:"empty"
+        document.getElementById(`addVideo-${unit.unitId}`).style.display="none"
+    }
+    async function addQuestion(){
+        document.getElementById(`addQuestion-${unit.unitId}`).style.display="block"
+    }
+    async function cancelQuestion(){
+        document.getElementById(`addQuestion-${unit.unitId}`).style.display="none"
+    }
+    async function addAnswer(){
+        
+    }
+    async function uploadNewMaterials(filename,filedata){
+        // console.log("uploading video for unit "+unitId)
+        // console.log("for course: "+courseId)
+        if(!document.getElementById(`videoTitle-${unit.unitId}`).value){
+            alert("Enter a title for upload")
+            return
+        }
+        // console.log("filename: "+filename)
+        // console.log("filedata: "+filedata)
+        // console.log("cId: "+cId)
+        // console.log("uId: "+uId)
+        // console.log("vidoeTitle: "+document.getElementById(`videoTitle-${unit.unitId}`).value)
+
+        try{
+            if(!(filedata) || filename==="No file chosen"){
+                const noVideoBody={
+                    title:document.getElementById(`videoTitle-${unit.unitId}`).value,
+                    filepath:"empty"
+                }
+                console.log("noVideoBody: "+noVideoBody)
+                const response = await fetch(`${API}/course_units/unit/${unit.unitId}`,{
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(noVideoBody)
+                })
+                const videoData = await response.json();
+                if(videoData.mStatus!=="ok"){
+                    alert("Adding video failed: "+videoData.mMessage);
+                }
+                return
             }
-            console.log("noVideoBody: "+noVideoBody)
+            //console.log("doesFileExist path: "+`${API}/unit_videos/${unit.unitId}/${document.getElementById(`videoTitle-${unit.unitId}`).value}`)
+            const doesFileExist = await fetch(`${API}/unit_videos/${unit.unitId}/${document.getElementById(`videoTitle-${unit.unitId}`).value}`)
+            const doesFileExistData= await doesFileExist.json()
+
+            if(doesFileExistData.mData){
+                alert("Video with that title in this unit already exists. Give a new title")
+                return
+            }
+            const videoBody={
+                title:document.getElementById(`videoTitle-${unit.unitId}`).value,
+                // eslint-disable-next-line
+                filepath:'course/'+courseId+'/'+'unit/'+unit.unitId+'/'+document.getElementById(`videoTitle-${unit.unitId}`).value+'/'+filename
+            }
+            console.log("videoBody: "+videoBody)
             const response = await fetch(`${API}/course_units/unit/${unit.unitId}`,{
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(noVideoBody)
+                body: JSON.stringify(videoBody)
             })
             const videoData = await response.json();
             if(videoData.mStatus!=="ok"){
                 alert("Adding video failed: "+videoData.mMessage);
+                return;
+            }
+            //console.log("addVideo new video Id= "+videoData.mData)
+            // eslint-disable-next-line
+            const {data,error} = await supabase.storage.from('course_videos').upload('course/'+courseId+'/'+'unit/'+unit.unitId+'/'+document.getElementById(`videoTitle-${unit.unitId}`).value+'/'+filename, filedata)
+            if(data){
+                alert('Added video successfully.')
+                //console.log(data)
+            }
+            else if(error){
+                //console.log(error.message)
             }
             return
-        }
-        //console.log("doesFileExist path: "+`${API}/unit_videos/${unit.unitId}/${document.getElementById(`videoTitle-${unit.unitId}`).value}`)
-        const doesFileExist = await fetch(`${API}/unit_videos/${unit.unitId}/${document.getElementById(`videoTitle-${unit.unitId}`).value}`)
-        const doesFileExistData= await doesFileExist.json()
-
-        if(doesFileExistData.mData){
-            alert("Video with that title in this unit already exists. Give a new title")
+        }catch(error){
+            console.log(error.message)
             return
         }
-        const videoBody={
-            title:document.getElementById(`videoTitle-${unit.unitId}`).value,
-            // eslint-disable-next-line
-            filepath:'course/'+courseId+'/'+'unit/'+unit.unitId+'/'+document.getElementById(`videoTitle-${unit.unitId}`).value+'/'+filename
-        }
-        console.log("videoBody: "+videoBody)
-        const response = await fetch(`${API}/course_units/unit/${unit.unitId}`,{
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(videoBody)
-        })
-        const videoData = await response.json();
-        if(videoData.mStatus!=="ok"){
-            alert("Adding video failed: "+videoData.mMessage);
-            return;
-        }
-        //console.log("addVideo new video Id= "+videoData.mData)
-        // eslint-disable-next-line
-        const {data,error} = await supabase.storage.from('course_videos').upload('course/'+courseId+'/'+'unit/'+unit.unitId+'/'+document.getElementById(`videoTitle-${unit.unitId}`).value+'/'+filename, filedata)
-        if(data){
-            alert('Added video successfully.')
-            //console.log(data)
-        }
-        else if(error){
-            //console.log(error.message)
-        }
-        return
-    }catch(error){
-        console.log(error.message)
-        return
     }
-}
     async function deleteFile(driveurl, unitId, videoId){
         // console.log("deleteVideo id: "+videoId)
         // console.log("deleteVideo driveurl: "+driveurl)
@@ -503,8 +517,31 @@ async function uploadNewMaterials(filename,uId,cId,filedata){
                         <p>Type: {`fileUpload-${unit.unitId}`.type}</p>
                     </div>
                 )}
+
+                <button onClick={addQuestion} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
+                    Add Review Quesition
+                </button>
+
+                <div id = {`addQuestion-${unit.unitId}`} style={{display: 'none'}}>
+                    <label style={{ marginTop: 0 }}>Question</label>
+                    <input type="text" id={`questionTitle-${unit.unitId}`} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+                    
+                    <button onClick={addAnswer} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
+                        Add Answer
+                    </button>
+
+                    {/* <div>
+                        {questAnsw.map((answer)=>(
+                            <div key={answer.answNum}>
+                                <label style={{ marginTop: 0 }}>{answer.answNum}: {answer.answText}</label>
+                            </div>
+                        ))}     
+                    </div> */}
+
+                </div>
+
                 <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={()=>uploadNewMaterials(fileName,unit.unitId,courseId,fileUpload)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Send</button>
+                    <button onClick={()=>uploadNewMaterials(fileName,fileUpload)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Send</button>
                     <button variant="secondary" onClick={cancelMaterials} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
                 </div>
             </div>
