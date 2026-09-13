@@ -142,14 +142,18 @@ public class App
         public String level;
         public String price;
         public String live_url;
+        public String daysOfWeek;   // NEW, e.g. "1,3,5"
     }
     private static final class ChangeCourseRequest{
         public String title;
         public String description;
         public String instructor;
+        public String times;
         public String startDate;
         public String level;
         public String price;
+        public String liveUrl;
+        public String daysOfWeek;   // NEW
     }
     private static final class CreateUnitRequest{
         public String unitName;
@@ -157,6 +161,12 @@ public class App
     private static final class AddUnitMaterial{
         public String filepath;
         public String title;
+    }
+    private static final class SwapUnitMaterial{
+        public int vid1;
+        public int vid2;
+        public String videoTitle1;
+        public String videoTitle2;
     }
     private static final class ChangeRoleRequest{
         public String username;
@@ -969,6 +979,36 @@ public class App
         }
     });
 
+    app.put("/course_units/unit/{uId}/swap/{vId1}/{vId2}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int unitId = Integer.parseInt(ctx.pathParam("uId"));
+        int vid1 = Integer.parseInt(ctx.pathParam("vId1"));
+        int vid2 = Integer.parseInt(ctx.pathParam("vId2"));
+
+        SwapUnitMaterial sum = gson.fromJson(ctx.body(),SwapUnitMaterial.class);
+
+        if(sum==null || sum.videoTitle1==null || sum.videoTitle2==null){
+            System.out.println(sum);
+            System.out.println(sum.videoTitle1);
+            System.out.println(sum.videoTitle2);
+             ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missgin swap attribute", null)));
+                return;
+        }
+
+        int success= db.swapUnitVideo(unitId, vid1, vid2, sum.videoTitle1, sum.videoTitle2);
+
+        if(success==-1){
+            ctx.result(gson.toJson(new StructuredResponse("swap failed", null, success)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, success)));
+        }
+
+    });
+
     app.post("/course_units/unit/{id}", ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
@@ -1000,22 +1040,15 @@ public class App
         ChangeCourseRequest ccr = gson.fromJson(ctx.body(),ChangeCourseRequest.class);
 
         if (ccr == null || ccr.title ==null || ccr.description == null 
-        || ccr.instructor==null || ccr.startDate ==null || ccr.level==null
-        || ccr.price==null ) {
-            System.out.println(ccr);
-            System.out.println(ccr.title);
-            System.out.println(ccr.description);
-            System.out.println(ccr.instructor);
-            System.out.println(ccr.startDate);
-            System.out.println(ccr.level);
-            System.out.println(ccr.price);
+        || ccr.instructor==null || ccr.times==null || ccr.startDate ==null || ccr.level==null
+        || ccr.price==null || ccr.liveUrl==null) {
             ctx.result(gson.toJson(new StructuredResponse(
-                    "error", "missgin course feature", null)));
+                    "error", "missing course feature", null)));
             return;
         }
-        
-        int id = db.editCourseInfo(courseId, ccr.title,ccr.description,ccr.instructor,ccr.startDate, 
-            ccr.level, ccr.price);
+
+        int id = db.editCourseInfo(courseId, ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
+            ccr.level, ccr.price, ccr.liveUrl, ccr.daysOfWeek);
 
         if(id<=0){
             ctx.result(gson.toJson(new StructuredResponse("error",null,id)));
@@ -1048,8 +1081,8 @@ public class App
             return;
         }
 
-        int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate, 
-            ccr.level, ccr.price, ccr.live_url);
+       int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
+        ccr.level, ccr.price, ccr.live_url, ccr.daysOfWeek);
 
         ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
     });

@@ -160,13 +160,15 @@ public class Database{
         public final String    price;
         public final String   thumbnail;
         public final String   liveUrl;
+        public final String   daysOfWeek;      // NEW
         public final boolean   inSession;
         public final List<UnitData>  units;
 
         public CourseData(int courseId, String title, String description,
-                          String instructor, String times, String startDate,
-                          String level, String price, String thumbnail,
-                          String liveUrl, boolean inSession, List<UnitData> units) {
+                        String instructor, String times, String startDate,
+                        String level, String price, String thumbnail,
+                        String liveUrl, String daysOfWeek, boolean inSession,
+                        List<UnitData> units) {
             this.courseId   = courseId;
             this.title      = title;
             this.description = description;
@@ -177,13 +179,14 @@ public class Database{
             this.price   = price;
             this.thumbnail = thumbnail;
             this.liveUrl   = liveUrl;
+            this.daysOfWeek = daysOfWeek;
             this.inSession = inSession;
             this.units   = units;
         }
         public List<UnitData> getUnits(){
             return this.units;
         }
-    }
+}
 
     public static final class UserData{
         public final String username;
@@ -1199,10 +1202,10 @@ public class Database{
     }
 
     public int createCourse(String title, String description, String instructor, String times,
-        String start_date, String level, String price, String live_url){
-        String sql="INSERT INTO courses (title, description, instructor, times, start_date, level, "+ 
-        "price, live_url) "+
-        "VALUES (?,?,?,?,?,?,?,?) ";
+        String start_date, String level, String price, String live_url, String daysOfWeek){
+        String sql="INSERT INTO courses (title, description, instructor, times, start_date, level, "+
+        "price, live_url, days_of_week) "+
+        "VALUES (?,?,?,?,?,?,?,?,?) ";
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
             ps.setString(1,title);
@@ -1213,8 +1216,8 @@ public class Database{
             ps.setString(6,level);
             ps.setString(7,price);
             ps.setString(8,live_url);
+            ps.setString(9,daysOfWeek);
             try(ResultSet rs = ps.executeQuery()){
-                System.out.println(rs);
                 if(rs.next()) return rs.getInt("course_id");
                 return -1;
             }
@@ -1279,6 +1282,53 @@ public class Database{
             e.printStackTrace();
             return false;
         }
+    }
+
+    public int swapUnitVideo(int unitId, int id1, int id2, String title1, String title2){
+        String swapVideoId = "UPDATE unit_videos SET video_id = ? WHERE unit_id = ? AND video_id = ? AND title = ?";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(swapVideoId)){
+            //cant have two keys o fthe same value. so change video_id to negative value, acting as temporary value
+            ps.setInt(1,-1);
+            ps.setInt(2,unitId);
+            ps.setInt(3,id2);
+            ps.setString(4,title2);
+
+            // System.out.println("temp swap = "+ps);
+            ps.executeUpdate();
+
+            ps.setInt(1,id2);
+            ps.setInt(2,unitId);
+            ps.setInt(3,id1);
+            ps.setString(4,title1);
+            // System.out.println("first swap = "+ps);
+            ps.executeUpdate();
+
+            ps.setInt(1,id1);
+            ps.setInt(2,unitId);
+            ps.setInt(3,-1);
+            ps.setString(4,title2);
+            // System.out.println("second swap = "+ps);
+
+            return ps.executeUpdate();
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+
+        // try(Connection conn = getConnection();
+        // PreparedStatement ps = conn.prepareStatement(swapVideoId)){
+        //     ps.setInt(1,id2);
+        //     ps.setInt(2,unitId);
+        //     ps.setInt(3,id2);
+        //     ps.setString(4,title2);
+        //     return ps.executeUpdate();
+        // }catch(SQLException e){
+        //     e.printStackTrace();
+        //     return -1;
+        // }
+
     }
 
     public int addUnitVideo(int unitId, String title, String filepath){
@@ -1477,7 +1527,7 @@ public class Database{
 
         String sql = "SELECT " +
             "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
-            "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.in_session, " +
+            "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
             "uv.video_id AS v_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort " +
             "FROM courses c " +
@@ -1506,6 +1556,7 @@ public class Database{
                             rs.getString("price"),
                             rs.getString("thumbnail"),
                             rs.getString("live_url"),
+                            rs.getString("c_days"),      // NEW
                             rs.getBoolean("in_session"),
                             new ArrayList<>()
                         );
@@ -1557,10 +1608,9 @@ public class Database{
         CourseData course = null;
         Map<Integer, UnitData> unitMap = new HashMap<>();
 
-        String sql =
-            "SELECT " +
-            "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
-            "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.in_session, " +
+            String sql = "SELECT " +
+                "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
+                "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
             "uv.video_id AS v_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort " +
             "FROM courses c " +
@@ -1589,6 +1639,7 @@ public class Database{
                             rs.getString("price"),
                             rs.getString("thumbnail"),
                             rs.getString("live_url"),
+                            rs.getString("c_days"),      // NEW
                             rs.getBoolean("in_session"),
                             new ArrayList<>()
                         );
@@ -1644,10 +1695,9 @@ public class Database{
         Map<Integer, CourseData> courseMap = new LinkedHashMap<>();
         Map<Integer, UnitData> unitMap = new HashMap<>();
 
-        String sql =
-            "SELECT " +
-            "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
-            "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.in_session, " +
+            String sql = "SELECT " +
+                "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
+                "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
             "uv.video_id AS v_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort " +
             "FROM courses c " +
@@ -1680,6 +1730,7 @@ public class Database{
                             rs.getString("price"),
                             rs.getString("thumbnail"),
                             rs.getString("live_url"),
+                            rs.getString("c_days"),      // NEW
                             rs.getBoolean("in_session"),
                             new ArrayList<>()
                         );
@@ -1780,5 +1831,31 @@ public class Database{
             return false;
         }
     }
-    
+
+            // Database.java
+    public int editCourseInfo(int courseId, String title, String description, String instructor,
+        String times, String start_date, String level, String price, String live_url, String daysOfWeek){
+
+        String updateCourseInfo = "UPDATE courses SET title = ?, description = ?, instructor = ?, "
+        +"times = ?, start_date = ?, level = ?, price = ?, live_url = ?, days_of_week = ? WHERE course_id = ? ";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(updateCourseInfo)){
+            ps.setString(1,title);
+            ps.setString(2,description);
+            ps.setString(3,instructor);
+            ps.setString(4,times);
+            ps.setString(5,start_date);
+            ps.setString(6,level);
+            ps.setString(7,price);
+            ps.setString(8,live_url);
+            ps.setString(9,daysOfWeek);
+            ps.setInt(10,courseId);
+            return ps.executeUpdate();
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+        
 }

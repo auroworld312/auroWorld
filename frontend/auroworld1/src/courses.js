@@ -10,6 +10,7 @@ const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhb
 //const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
 
+
 const PURPLE = '#6C63FF';
 //const PURPLE_LIGHT = '#EDE9FF';
 
@@ -24,9 +25,14 @@ function Courses() {
     const [search, setSearch] = useState('');
     const [filters, setFilters] = useState({ level: [], time: [] });
     const [showAddCourse, setShowAddCourse] = useState(false);
-
+    const [selectedDays, setSelectedDays] = useState([]);
     const[instructorList, setInstructorList]=useState([])
     const [userAttributes, setUserAttributes] = useState(null);
+
+    const DAY_LABELS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    function toggleDay(idx) {
+        setSelectedDays(prev => prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx]);
+    }  
 
     useEffect(() => {
         async function getUserAtts() {
@@ -176,6 +182,7 @@ function Courses() {
         });
     }
 
+
     const levelOptions = ['Beginner', 'Intermediate', 'Advanced'];
     const timeOptions = ['Morning', 'Afternoon', 'Evening', 'Asynchronous'];
 
@@ -236,6 +243,17 @@ function Courses() {
                                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Course Description</label>
                                     <textarea value={newCourse.description} onChange={e => setNewCourse(p => ({ ...p, description: e.target.value }))}
                                         style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', minHeight: '80px', boxSizing: 'border-box', resize: 'vertical' }} />
+                                </div>
+                                <div style={{ marginBottom: '16px' }}>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Days of the Week</label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                        {DAY_LABELS.map((day, idx) => (
+                                            <label key={day} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
+                                                <input type="checkbox" checked={selectedDays.includes(idx)} onChange={() => toggleDay(idx)} />
+                                                {day}
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
                                     <div style={{ flex: 1 }}>

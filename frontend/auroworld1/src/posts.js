@@ -17,7 +17,10 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const COURSE_COLORS = ['#6C63FF', '#0f9d58', '#f4511e', '#8430ce', '#e91e63', '#00bcd4'];
 
-function parseDays(timesStr) {
+function parseDays(timesStr, daysOfWeekStr) {
+    if (daysOfWeekStr) {
+        return daysOfWeekStr.split(',').map(Number).filter(n => !isNaN(n));
+    }
     if (!timesStr) return [];
     const s = timesStr.toUpperCase();
     const days = new Set();
@@ -47,10 +50,9 @@ function TodaySchedule({ enrolledCourses, navigate }) {
     const year = now.getFullYear();
 
     const todayCourses = enrolledCourses.filter(course => {
-        const days = parseDays(course.times);
+        const days = parseDays(course.times, course.daysOfWeek);
         return days.includes(todayDow);
     });
-
     return (
         <div style={{ width: '280px', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
@@ -308,19 +310,6 @@ function Posts(){
         }catch(error){ console.error(error.message) }
         cancelEditPostButton(msg_id);
     }
-    // function photoDom(msgId,path) {
-    //     const { data } = supabase
-    //         .storage
-    //         .from('community_feed_file_upload')
-    //         .getPublicUrl(path)
-    //     if(data){
-    //         console.log("publicUrl data: "+data.publicUrl)
-    //         setImageUrls(prev => ({
-    //             ...prev,
-    //             [msgId]: data.publicUrl
-    //         }));
-    //     }
-    // }
 
     function editDomButton(msgId,sub,msg){
         const updatedPost=posts.map((post)=>{
@@ -328,12 +317,6 @@ function Posts(){
             return post
         })
         setPosts(updatedPost)
-
-        // const updatedUrl = imageUrls.map((url,)=>{
-        //     if(url[msgId]===){}
-        //     return url
-        // })
-        // setImageUrls(updatedUrl)
     }
 
     function cancelEditPostButton(msg_id){
@@ -349,23 +332,57 @@ function Posts(){
     //     }catch (error){ console.error(error.message) }
     // }
 
+    function addCommentButton(msg_id){
+        document.getElementById(`addComment-${msg_id}`).style.display="block";
+        document.getElementById(`openAddComment-${msg_id}`).style.display="none";
+    }
+
+    function cancelCommentButton(msg_id){
+        document.getElementById(`addComment-${msg_id}`).style.display="none";
+        document.getElementById(`openAddComment-${msg_id}`).style.display="block";
+
+        // const p = posts.find((item) => item.msgId === msg_id);
+        // console.log('p= ',p)
+    }
+
     function commentButton(msg_id){
         const p = posts.find((item) => item.msgId === msg_id);
+
+        if(document.getElementById(`addComment-${msg_id}`).style.display==="block" || document.getElementById(`openAddComment-${msg_id}`).style.display==="block"){
+            document.getElementById(`addComment-${msg_id}`).style.display="none";
+            document.getElementById(`openAddComment-${msg_id}`).style.display="none"
+        }
+        else{
+            document.getElementById(`addComment-${msg_id}`).style.display="block"
+            // document.getElementById(`openAddComment-${msg_id}`).style.display="block"
+        }
+
         if(p.commentdata && p.commentdata.length>0 && document.getElementById(`commentList-${msg_id}`).style.display==="none"){
+        // if(p.commentdata && p.commentdata.length>0 && document.getElementById(`commentList-${msg_id}`).style.display==="none"){
+            console.log('block')
             document.getElementById(`commentList-${msg_id}`).style.display="block"
         }
         else if(p.commentdata && p.commentdata.length>0 && document.getElementById(`commentList-${msg_id}`).style.display==="block"){
             document.getElementById(`commentList-${msg_id}`).style.display="none"
         }
-        if(document.getElementById(`addComment-${msg_id}`).style.display==="none"){
-            document.getElementById(`addComment-${msg_id}`).style.display="block";
-        }
-        else if(document.getElementById(`addComment-${msg_id}`).style.display==="block"){
-            document.getElementById(`addComment-${msg_id}`).style.display="none";
-        }
     }
 
-    async function addCommentButton(msg_id,username){
+    function commentDomButton(comment_text, msg_id,c_id,username,uuid){
+        console.log('c_id = ',c_id)
+        const updatedPosts = posts.map((post)=>{
+            if (post.msgId===msg_id){
+                return { ...post, commentdata:[...post.commentdata, { comment:comment_text, commentId:c_id, username:username, upvote:0, uuid:uuid }] }
+            }
+            else{
+                return post
+            }
+        })
+        setPosts(updatedPosts)
+
+        document.getElementById(`commentList-${msg_id}`).style.display="block"
+    }
+
+    async function sendCommentButton(msg_id,username){
         try{
             const current_uuid = await getCurrentUserId()
             //const username = await getUsername(current_uuid)
@@ -374,17 +391,8 @@ function Posts(){
             const data = await res.json()
             if(data.mStatus!=="ok"){ alert("Comment failed: "+data.mMessage); return }
             commentDomButton(document.getElementById(`newComment-${msg_id}`).value,msg_id,data.mData,username,current_uuid)
+            cancelCommentButton(msg_id)
         }catch(error){ console.error(error.message) }
-    }
-
-    function commentDomButton(comment_text, msg_id,c_id,username,uuid){
-        const updatedPosts = posts.map((post)=>{
-            if (post.msgId===msg_id){
-                return { ...post, commentdata:[...post.commentdata, { comment:comment_text, commentId:c_id, username:username, upvote:0, uuid:uuid }] }
-            }
-            return post
-        })
-        setPosts(updatedPosts)
     }
 
     async function upvoteButton(msg_id){
@@ -467,11 +475,6 @@ function Posts(){
         const num = likedComments.find((item) => item===com_id);
         if(num===com_id){ setLikedComments(likedComments.filter(com=> com!==com_id)); return }
         else { setLikedComments((prevComments)=>{ return [...prevComments,com_id] }) }
-    }
-
-    function cancelCommentButton(msg_id){
-        document.getElementById(`commentList-${msg_id}`).style.display="none"
-        document.getElementById(`addComment-${msg_id}`).style.display="none";
     }
 
     async function downloadFile(msg_id){
@@ -801,20 +804,24 @@ function Posts(){
                                     </Card>
                                 </div>
 
+                                <div id={`openAddComment-${post.msgId}`} style={{display:"none", marginTop:'15px'}}>
+                                    <Button onClick={()=>addCommentButton(post.msgId)}>Add Comment</Button>
+                                </div>
+
                                 <div id={`addComment-${post.msgId}`} style={{display:"none", marginTop:'15px'}}>
                                     <Card variant="dark">
                                         <h3 style={{ marginTop:0 }}>Make a Comment</h3>
                                         <label style={{ fontWeight:'bold' }}>Message</label>
                                         <textarea id={`newComment-${post.msgId}`} style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', minHeight:'60px', boxSizing:'border-box' }}></textarea>
                                         <div style={{ display:'flex', gap:'10px' }}>
-                                            <Button onClick={() => addCommentButton(post.msgId,userAttributes.username)}>Send</Button>
+                                            <Button onClick={() => sendCommentButton(post.msgId,userAttributes.username)}>Send</Button>
                                             <Button variant="secondary" onClick={() => cancelCommentButton(post.msgId)}>Cancel</Button>
                                         </div>
                                     </Card>
                                 </div>
 
                                 {/* Comments */}
-                                {post.commentdata && post.commentdata.length > 0 && (
+                                {/* {post.commentdata && post.commentdata.length > 0 && ( */}
                                     <div id={`commentList-${post.msgId}`} style={{display:"none"}}>
                                         <div style={{ marginTop:'15px', paddingTop:'15px', borderTop:'1px solid #f0f0f0', display:'flex', flexDirection:'column', gap:'10px' }}>
                                             {[...post.commentdata]?.reverse().map((comment)=>(
@@ -837,12 +844,12 @@ function Posts(){
                                                                 <i className="fa-regular fa-thumbs-up"></i>
                                                             </button>
                                                         )}
-                                                        {(userAttributes?.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
+                                                        {(userAttributes?.role==="admin" || (currentUserId && comment.uuid === currentUserId)) && (
                                                             <button onClick={()=>editCommentButton(comment.commentId)}>
                                                                 Edit <i className="fas fa-edit"></i>
                                                             </button>
                                                         )}
-                                                        {(userAttributes?.role==="admin" || (currentUserId && post.uuid === currentUserId)) &&(
+                                                        {(userAttributes?.role==="admin" || (currentUserId && comment.uuid === currentUserId)) &&(
                                                             <button onClick={()=>deleteCommentButton(post.msgId, comment.commentId)}>
                                                                 Delete <i className="fa-solid fa-trash-can"></i>
                                                             </button>
@@ -863,7 +870,7 @@ function Posts(){
                                             ))}
                                         </div>
                                     </div>
-                                )}
+                                 {/* )} */}
                             </div>
                             ))}
                         </div>

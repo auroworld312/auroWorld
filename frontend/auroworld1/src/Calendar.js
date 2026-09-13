@@ -13,7 +13,7 @@ const supabase = createClient(
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
 const COURSE_COLORS = ['#6C63FF', '#8B5CF6', '#7C3AED', '#9333EA', '#A855F7', '#6D28D9', '#5B21B6'];
 
-function parseCourseSchedule(timesStr) {
+function parseCourseSchedule(timesStr, daysOfWeekStr) {
   if (!timesStr) return null;
   const s = timesStr.trim();
   const timePattern = /(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/gi;
@@ -29,22 +29,31 @@ function parseCourseSchedule(timesStr) {
   };
   const start = toTime(matches[0]);
   const end = matches.length >= 2 ? toTime(matches[1]) : { hour: start.hour + 1, minute: start.minute };
-  const upper = s.toUpperCase();
-  const days = new Set();
-  if (upper.includes('MWF')) { days.add(1); days.add(3); days.add(5); }
-  else if (upper.includes('M/W') || upper.includes('MW')) { days.add(1); days.add(3); }
-  else if (upper.includes('T/TH') || upper.includes('TTH') || upper.includes('TUTH')) { days.add(2); days.add(4); }
-  else {
-    if (upper.includes('SU') || upper.includes('SUN')) days.add(0);
-    if (upper.includes('TH') || upper.includes('R')) days.add(4);
-    if (upper.includes('TU')) days.add(2);
-    if (upper.includes('SA') || upper.includes('SAT')) days.add(6);
-    if (upper.includes('M') && !days.has(1)) days.add(1);
-    if (upper.includes('W') && !days.has(3)) days.add(3);
-    if (upper.includes('F') && !days.has(5)) days.add(5);
+
+  let days;
+  if (daysOfWeekStr) {
+    // NEW: trust the explicit selection from the edit form
+    days = daysOfWeekStr.split(',').map(Number).filter(n => !isNaN(n));
+  } else {
+    // fallback for older courses that never had daysOfWeek set
+    const upper = s.toUpperCase();
+    const set = new Set();
+    if (upper.includes('MWF')) { set.add(1); set.add(3); set.add(5); }
+    else if (upper.includes('M/W') || upper.includes('MW')) { set.add(1); set.add(3); }
+    else if (upper.includes('T/TH') || upper.includes('TTH') || upper.includes('TUTH')) { set.add(2); set.add(4); }
+    else {
+      if (upper.includes('SU') || upper.includes('SUN')) set.add(0);
+      if (upper.includes('TH') || upper.includes('R')) set.add(4);
+      if (upper.includes('TU')) set.add(2);
+      if (upper.includes('SA') || upper.includes('SAT')) set.add(6);
+      if (upper.includes('M') && !set.has(1)) set.add(1);
+      if (upper.includes('W') && !set.has(3)) set.add(3);
+      if (upper.includes('F') && !set.has(5)) set.add(5);
+    }
+    days = [...set];
   }
-  if (days.size === 0) return null;
-  return { days: [...days], startHour: start.hour, startMinute: start.minute, endHour: end.hour, endMinute: end.minute };
+  if (days.length === 0) return null;
+  return { days, startHour: start.hour, startMinute: start.minute, endHour: end.hour, endMinute: end.minute };
 }
 
 function Calendar() {
@@ -75,7 +84,7 @@ function Calendar() {
         const courses = data.mData || [];
         const events = [];
         courses.forEach((course, index) => {
-          const schedule = parseCourseSchedule(course.times);
+          const schedule = parseCourseSchedule(course.times, course.daysOfWeek);
           if (!schedule) return;
           events.push({
             courseId: course.courseId,
