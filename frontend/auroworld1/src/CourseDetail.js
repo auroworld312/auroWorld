@@ -324,8 +324,8 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
     const [open, setOpen] = useState(false);
     const [activeVideo, setActiveVideo] = useState(null);
 
-    const [newQuestion, setQuestion]=useState([])
-    const [newQuestAnsw,setQuesAnsw]=useState([])
+    // const [newQuestion, setQuestion]=useState([])
+    // const [newQuestAnsw,setQuesAnsw]=useState([])
 
     const [fileUpload,setFileUpload]=useState()
     const [fileName, setFileName] = useState("No file chosen");
@@ -425,11 +425,11 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
 
         for(const video of unit.videos){
             if(document.getElementById(`selectedVideo-${video.videoId}`).style.display==='block'){
-                if(count==0){
+                if(count===0){
                     vId_1 = video.videoId
                     vTitle1=video.title
                 }
-                else if(count==1){
+                else if(count===1){
                     vId_2=video.videoId
                     vTitle2=video.title
                 }
