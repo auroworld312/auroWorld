@@ -1201,6 +1201,32 @@ public class Database{
         
     }
 
+    public int deleteCourse(int courseId){
+        String courseStatement = "DELETE FROM courses WHERE course_id = ? ";
+        String enrollmentStatement = "DELETE FROM enrollments WHERE course_id = ? ";
+        String unitVideosStatement = "DELETE FROM unit_videos WHERE drive_url ~ ?";
+
+        String regex = "^course/"+courseId+".*";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps1 = conn.prepareStatement(courseStatement);
+        PreparedStatement ps2 = conn.prepareStatement(enrollmentStatement);
+        PreparedStatement ps3 = conn.prepareStatement(unitVideosStatement);){
+            ps1.setInt(1, courseId);
+            ps2.setInt(1, courseId);
+            ps3.setString(1, regex);
+            ps1.executeUpdate();
+            ps2.executeUpdate();
+            ps3.executeUpdate();
+            return 1;
+        } 
+        catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        } 
+
+    }
+
     public int createCourse(String title, String description, String instructor, String times,
         String start_date, String level, String price, String live_url, String daysOfWeek){
         String sql="INSERT INTO courses (title, description, instructor, times, start_date, level, "+
@@ -1442,6 +1468,24 @@ public class Database{
         return userList;
     }
     
+    public ArrayList<String> getCourseVideoFilepaths(int courseId){
+        ArrayList<String> filepaths = new ArrayList<>();
+        String selectFilepaths = "SELECT drive_url FROM unit_videos WHERE drive_url ~ ?";
+        String selectRegex = "^course/"+courseId+".*";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(selectFilepaths)){
+            ps.setString(1,selectRegex);
+            try(ResultSet rs = ps.executeQuery()){
+                while(rs.next()){
+                    filepaths.add(rs.getString("drive_url"));
+                }
+            }
+        }catch(SQLException e){
+            e.printStackTrace();
+        }
+        return filepaths;
+    }
 
     /** Load all units + videos for a given course_id */
     private List<UnitData> selectUnitsForCourse(Connection conn, int courseId) throws SQLException {

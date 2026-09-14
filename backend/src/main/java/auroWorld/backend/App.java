@@ -133,6 +133,10 @@ public class App
         public String comment;
     }
 
+    private static final class DeleteCourseRequest{
+        public String user_uuid;
+    }
+
     private static final class CreateCourseRequest{
         public String title;
         public String description;
@@ -1055,6 +1059,43 @@ public class App
         }
         else{
             ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
+        }
+    });
+
+    app.get("/filepaths/course/{courseId}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+        int courseId = Integer.parseInt(ctx.pathParam("courseId"));
+
+        ArrayList<String> filepaths = db.getCourseVideoFilepaths(courseId);
+
+        System.out.println(filepaths);
+
+        ctx.result(gson.toJson(new StructuredResponse("ok",null,filepaths)));
+    });
+
+    app.delete("/courses/{courseId}", ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+        int courseId = Integer.parseInt(ctx.pathParam("courseId"));
+
+        // DeleteCourseRequest dcr = gson.fromJson(ctx.body(),DeleteCourseRequest.class);
+
+        // if(dcr==null || dcr.user_uuid == null){
+        //     System.out.println(dcr);
+        //     System.out.println(dcr.user_uuid);
+        //     ctx.result(gson.toJson(new StructuredResponse(
+        //             "error", "missgin delete course feature", null)));
+        //     return;
+        // }
+
+        int result = db.deleteCourse(courseId);
+
+        if(result==-1){
+            ctx.result(gson.toJson(new StructuredResponse("deletion failed",null,result)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
         }
     });
 

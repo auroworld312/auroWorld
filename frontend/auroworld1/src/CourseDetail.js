@@ -126,21 +126,55 @@ async function cancelEditCourseTab(){
     document.getElementById("editTab").style.display="none";
 }
  
-async function deleteCourseButton(courseId, uuid, navigate){
+async function deleteCourseButton(courseId, navigate){
     if (!window.confirm('Delete this course? This cannot be undone.')) return;
     try{
-        const response = await fetch(`${API}/courses/${courseId}`,{
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_uuid: uuid })
-        })
-        const data = await response.json();
-        if(data.mStatus!=="ok"){
-            alert("Deleting course failed: "+data.mMessage);
-            return;
+        // const { data:list, listError } = await supabase.storage.from('course_videos').list(`course/${courseId}`)
+        // if(listError){
+        //     console.log('cant get list of files')
+        //     return
+        // }
+        // const filesToRemove = list.map((x) => `course/${courseId}/${x.name}`);
+        // console.log(filesToRemove)
+        // const { data, removeError } = await supabase.storage.from(bucket).remove(filesToRemove);
+        // if(removeError){
+        //     console.log('remove error')
+        //     return
+        // }
+        // else{
+        //     console.log(data)
+        //     return
+        // }
+
+        const courseVideosFilepaths = await fetch(`${API}/filepaths/course/${courseId}`)
+
+        const filepathsResponse = await courseVideosFilepaths.json()
+
+        // console.log(filepathsResponse)
+
+        // console.log('filepathResponse.mdata = ',filepathsResponse.mData)
+        const { data, removeError } = await supabase.storage.from('course_videos').remove(filepathsResponse.mData);
+        if(removeError){
+            console.log('remove error')
+            return
         }
-        alert("Course deleted.")
-        navigate('/courses');
+        else if(data){
+            console.log(data)
+
+            const response = await fetch(`${API}/courses/${courseId}`,{
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                // body: JSON.stringify({ user_uuid: uuid })
+            })
+            const deleteCourse = await response.json();
+            if(deleteCourse.mStatus!=="ok"){
+                alert("Deleting course failed: "+data.mMessage);
+                return;
+            }
+
+            alert("Course deleted.")
+            navigate('/courses');
+        }
     }catch(error){
         console.log(error.message)
         return
