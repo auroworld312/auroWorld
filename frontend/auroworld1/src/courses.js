@@ -12,6 +12,14 @@ const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' :
 
 
 const PURPLE = '#6C63FF';
+const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+    const hour = Math.floor(index / 2);
+    const minute = index % 2 === 0 ? '00' : '30';
+    return {
+        value: `${String(hour).padStart(2, '0')}:${minute}`,
+        label: `${hour % 12 || 12}:${minute} ${hour < 12 ? 'AM' : 'PM'}`,
+    };
+});
 //const PURPLE_LIGHT = '#EDE9FF';
 
 
@@ -64,7 +72,7 @@ function Courses() {
     },[])
 
     const [newCourse, setNewCourse] = useState({
-        title: '', description: '', instructor: 'liamtest', times: '',
+        title: '', description: '', instructor: 'liamtest', startTime: '', endTime: '',
         start_date: '', level: 'Beginner', price: 'Free', live_url: ''
     });
 
@@ -140,9 +148,20 @@ function Courses() {
     }
 
     async function submitNewCourse() {
-        const { title, description, instructor, times, 
+        const { title, description, instructor, startTime, endTime,
             start_date,  level, price, live_url 
         } = newCourse;
+        const startOption = COURSE_TIME_OPTIONS.find(option => option.value === startTime);
+        const endOption = COURSE_TIME_OPTIONS.find(option => option.value === endTime);
+        if (!startOption || !endOption || endTime <= startTime) {
+            alert('Please select a start time and a later end time on the same day.');
+            return;
+        }
+        if (selectedDays.length === 0) {
+            alert('Please select at least one day of the week.');
+            return;
+        }
+        const times = `${startOption.label} - ${endOption.label}`;
         console.log("title: "+title)
         console.log("description: "+description)
         console.log("instructor: "+instructor)
@@ -165,12 +184,13 @@ function Courses() {
         try {
             const response = await fetch(`${API}/courses`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title:title, description: description, instructor:instructor, times:times, startDate: start_date, level:level, price:price, live_url:live_url })
+                body: JSON.stringify({ title:title, description: description, instructor:instructor, times:times, startDate: start_date, level:level, price:price, live_url:live_url, daysOfWeek: [...selectedDays].sort((a, b) => a - b).join(',') })
             });
             const data = await response.json();
             if (data.mStatus !== 'ok') { alert('Adding course failed: ' + data.mMessage); return; }
             setShowAddCourse(false);
-            setNewCourse({ title: '', description: '', instructor: '', times: '', start_date: '', level: 'Beginner', price: 'Free', live_url: '' });
+            setNewCourse({ title: '', description: '', instructor: '', startTime: '', endTime: '', start_date: '', level: 'Beginner', price: 'Free', live_url: '' });
+            setSelectedDays([]);
             loadCourses();
         } catch (error) { console.log(error.message); }
     }
@@ -221,16 +241,46 @@ function Courses() {
                                 {[
                                     { label: 'Course Title', key: 'title', type: 'text' },
                                     // { label: 'Instructor', key: 'instructor', type: 'text' },
-                                    { label: 'Times', key: 'times', type: 'text' },
-                                    { label: 'Start Date', key: 'start_date', type: 'text' },
+                                    { label: 'Start Date', key: 'start_date', type: 'date' },
                                     { label: 'Link to Meeting', key: 'live_url', type: 'text' },
                                 ].map(f => (
                                     <div key={f.key} style={{ marginBottom: '12px' }}>
                                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>{f.label}</label>
                                         <input type={f.type} value={newCourse[f.key]} onChange={e => setNewCourse(p => ({ ...p, [f.key]: e.target.value }))}
+                                            onClick={f.type === 'date' ? e => e.currentTarget.showPicker?.() : undefined}
                                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', boxSizing: 'border-box' }} />
                                     </div>
                                 ))}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '12px' }}>
+                                    {[
+                                        { label: 'Start Time', key: 'startTime' },
+                                        { label: 'End Time', key: 'endTime' },
+                                    ].map(field => (
+                                        <div key={field.key} style={{ flex: '1 1 180px' }}>
+                                            <label htmlFor={`course-${field.key}`} style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>{field.label}</label>
+                                            <select
+                                                id={`course-${field.key}`}
+                                                value={newCourse[field.key]}
+                                                onChange={e => {
+                                                    const value = e.target.value;
+                                                    setNewCourse(previous => ({
+                                                        ...previous,
+                                                        [field.key]: value,
+                                                        ...(field.key === 'startTime' && previous.endTime && previous.endTime <= value ? { endTime: '' } : {}),
+                                                    }));
+                                                }}
+                                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', backgroundColor: '#fff' }}
+                                            >
+                                                <option value="">Select {field.label.toLowerCase()}</option>
+                                                {COURSE_TIME_OPTIONS.map(option => (
+                                                    <option key={option.value} value={option.value} disabled={field.key === 'endTime' && !!newCourse.startTime && option.value <= newCourse.startTime}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    ))}
+                                </div>
                                 <div style={{ marginBottom: '12px' }}>
                                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Instructor</label>
                                     <select id="instructor" value={newCourse.instructor} onChange={e => setNewCourse(p => ({ ...p, instructor: e.target.value }))} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -58,6 +58,7 @@ function parseCourseSchedule(timesStr, daysOfWeekStr) {
 
 function Calendar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const passedDate = location.state?.selectedDate ? new Date(location.state.selectedDate) : new Date();
   const [selectedDate, setSelectedDate] = useState(passedDate);
   const [panelDate, setPanelDate] = useState(passedDate);
@@ -252,7 +253,7 @@ function Calendar() {
               {eventBlocks.map((event, idx) => (
                 <div
                   key={`${event.courseId}-${event.dayIndex}-${idx}`}
-                  onClick={() => event.liveUrl && window.open(event.liveUrl, '_blank')}
+                  onClick={() => navigate(`/courses/${event.courseId}`, { state: { activeTab: 'video' } })}
                   onMouseEnter={() => setHoveredEvent({ ...event, idx })}
                   onMouseLeave={() => setHoveredEvent(null)}
                   style={{
@@ -268,7 +269,7 @@ function Calendar() {
                     fontSize: '11px',
                     overflow: 'visible',
                     zIndex: hoveredEvent?.courseId === event.courseId && hoveredEvent?.dayIndex === event.dayIndex ? 20 : 10,
-                    cursor: event.liveUrl ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     boxSizing: 'border-box',
                     boxShadow: `0 2px 6px ${event.color}66`,
                     display: 'flex',
@@ -293,7 +294,7 @@ function Calendar() {
                       <div style={{ fontSize: '12px', opacity: 0.85, marginBottom: '4px' }}>Instructor: {event.instructor || '—'}</div>
                       <div style={{ fontSize: '12px', opacity: 0.85, marginBottom: '4px' }}>Times: {event.times || '—'}</div>
                       <div style={{ fontSize: '12px', opacity: 0.85 }}>{formatTime(event.startHour, event.startMinute)} – {formatTime(event.endHour, event.endMinute)}</div>
-                      {event.liveUrl && <div style={{ marginTop: '10px', fontSize: '12px', fontWeight: '700', opacity: 0.9 }}>Click to join ↗</div>}
+                      <div style={{ marginTop: '10px', fontSize: '12px', fontWeight: '700', opacity: 0.9 }}>View class</div>
                     </div>
                   )}
                 </div>
@@ -344,15 +345,15 @@ function Calendar() {
 
               {viewMode === 'day' && selectedDayEvents.map(event => (
                 <div key={event.courseId}
-                  onClick={() => event.liveUrl && window.open(event.liveUrl, '_blank')}
+                  onClick={() => navigate(`/courses/${event.courseId}`, { state: { activeTab: 'video' } })}
                   style={{ backgroundColor: event.color + '18', border: `1.5px solid ${event.color}`,
                     padding: '12px 15px', borderRadius: '10px', fontSize: '14px',
-                    cursor: event.liveUrl ? 'pointer' : 'default', marginBottom: '10px' }}>
+                    cursor: 'pointer', marginBottom: '10px' }}>
                   <div style={{ fontWeight: 'bold', color: event.color }}>{event.title}</div>
                   <div style={{ fontSize: '12px', marginTop: '4px', color: '#555' }}>
                     {formatTime(event.startHour, event.startMinute)} – {formatTime(event.endHour, event.endMinute)}
                   </div>
-                  {event.liveUrl && <div style={{ fontSize: '12px', color: event.color, marginTop: '2px' }}>Click to join</div>}
+                  <div style={{ fontSize: '12px', color: event.color, marginTop: '2px' }}>View class</div>
                 </div>
               ))}
             </div>

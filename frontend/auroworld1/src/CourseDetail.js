@@ -1,5 +1,5 @@
 
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
@@ -13,6 +13,24 @@ const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' :
 const PURPLE = '#6C63FF';
 const PURPLE_LIGHT = '#EDE9FF';
 const DAY_LABELS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+    const hour = Math.floor(index / 2);
+    const minute = index % 2 === 0 ? '00' : '30';
+    return {
+        value: `${String(hour).padStart(2, '0')}:${minute}`,
+        label: `${hour % 12 || 12}:${minute} ${hour < 12 ? 'AM' : 'PM'}`,
+    };
+});
+
+function getCourseTimeValues(times) {
+    const matches = [...(times || '').matchAll(/\b(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b/gi)];
+    if (matches.length !== 2) return ['', ''];
+    return matches.map(([, hour, minute = '00', period]) => {
+        if (Number(hour) < 1 || Number(hour) > 12) return '';
+        const value = `${String(Number(hour) % 12 + (period.toUpperCase() === 'PM' ? 12 : 0)).padStart(2, '0')}:${minute}`;
+        return COURSE_TIME_OPTIONS.some(option => option.value === value) ? value : '';
+    });
+}
  
 function TabButton({ label, active, onClick }) {
     return (
@@ -28,15 +46,34 @@ function TabButton({ label, active, onClick }) {
     );
 }
  
+function isCourseTime(course, now = new Date()) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(course.startDate || '')) return false;
+    const startDate = new Date(`${course.startDate}T00:00:00`);
+    if (Number.isNaN(startDate.getTime()) || now < startDate) return false;
+    const days = (course.daysOfWeek || '').split(',').filter(day => /^[0-6]$/.test(day)).map(Number);
+    if (!days.includes(now.getDay())) return false;
+    const [start, end] = getCourseTimeValues(course.times);
+    if (!start || !end || end <= start) return false;
+    const toMinutes = value => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    return minutes >= toMinutes(start) && minutes < toMinutes(end);
+}
+
 function VideoTab({ course }) {
+    const [now, setNow] = useState(() => new Date());
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+    const inClassTime = isCourseTime(course, now);
+    const canJoin = inClassTime && /^https?:\/\//i.test(course.liveUrl || '');
     const btnStyle = {
         display: 'inline-block', padding: '13px 36px', borderRadius: '999px',
-        backgroundColor: course.inSession ? '#1a7a50' : PURPLE,
+        backgroundColor: canJoin ? '#1a7a50' : '#bdbdbd',
         color: '#fff', fontWeight: '700', fontSize: '15px',
         textDecoration: 'none',
-        opacity: course.inSession ? 1 : 0.55,
-        cursor: course.inSession ? 'pointer' : 'not-allowed',
-        pointerEvents: course.inSession ? 'auto' : 'none',
+        border: 'none',
+        cursor: canJoin ? 'pointer' : 'not-allowed',
     };
  
     return (
@@ -50,19 +87,21 @@ function VideoTab({ course }) {
                     display: 'inline-flex', alignItems: 'center', gap: '8px',
                     fontSize: '13px', fontWeight: '600', padding: '6px 14px',
                     borderRadius: '999px', marginBottom: '24px',
-                    backgroundColor: course.inSession ? '#d4f5e9' : '#f0f0f0',
-                    color: course.inSession ? '#1a7a50' : '#888',
+                    backgroundColor: inClassTime ? '#d4f5e9' : '#f0f0f0',
+                    color: inClassTime ? '#1a7a50' : '#888',
                 }}>
-                    <span style={{ fontSize: '10px' }}>{course.inSession ? '●' : '○'}</span>
-                    {course.inSession ? 'Class is Live Now!' : 'Not Currently in Session'}
+                    <span style={{ fontSize: '10px' }}>{inClassTime ? '●' : '○'}</span>
+                    {inClassTime ? 'Scheduled Class Time' : 'Not Currently in Session'}
                 </div>
             </div>
-            <a href={course.liveUrl || '#'} target="_blank" rel="noopener noreferrer" style={btnStyle}>
-                {course.inSession ? '▶ Join Live Class' : 'Join Class (opens when live)'}
-            </a>
-            {!course.inSession && (
+            <button disabled={!canJoin} style={btnStyle} onClick={() => {
+                if (canJoin && isCourseTime(course, new Date())) window.open(course.liveUrl, '_blank', 'noopener,noreferrer');
+            }}>
+                {canJoin ? '▶ Join Class' : 'Join Class (unavailable)'}
+            </button>
+            {!canJoin && (
                 <p style={{ margin: 0, fontSize: '13px', color: '#aaa' }}>
-                    The button becomes active when your instructor starts the session.
+                    {inClassTime ? 'A valid meeting link is required.' : 'Available on scheduled days between the start and end time, from the course start date (your local time).'}
                 </p>
             )}
         </div>
@@ -78,9 +117,18 @@ async function sendEditCourseTabButton(courseId){
         if(!document.getElementById("editTitle").value || !document.getElementById("editDescription").value
         || !document.getElementById("editInstructor").value || !document.getElementById("edit_start_date").value
         || !document.getElementById("editLevel").value || !document.getElementById("editPrice").value
-        || !document.getElementById("editLiveUrl").value || !document.getElementById("editTimes")) {
+        || !document.getElementById("editLiveUrl").value) {
             alert("Please fill out all info")
             return
+        }
+
+        const startTime = document.getElementById('editStartTime').value;
+        const endTime = document.getElementById('editEndTime').value;
+        const startOption = COURSE_TIME_OPTIONS.find(option => option.value === startTime);
+        const endOption = COURSE_TIME_OPTIONS.find(option => option.value === endTime);
+        if (!startOption || !endOption || endTime <= startTime) {
+            alert('Please select a start time and a later end time on the same day.');
+            return;
         }
 
         const selectedDays = [];
@@ -99,7 +147,7 @@ async function sendEditCourseTabButton(courseId){
             startDate:document.getElementById("edit_start_date").value,
             level:document.getElementById("editLevel").value,
             price:document.getElementById("editPrice").value,
-            times:document.getElementById("editTimes").value,
+            times: `${startOption.label} - ${endOption.label}`,
             liveUrl:document.getElementById("editLiveUrl").value,
             daysOfWeek: selectedDays.join(',')   // NEW, e.g. "1,3,5"
         }
@@ -183,6 +231,7 @@ async function deleteCourseButton(courseId, navigate){
  
 function CourseTab({ course, userData, onCourseUpdated, currentUserId, navigate }) {
     const canManage = userData?.role==="admin" || (userData?.username===course.instructor);
+    const [editTimes, setEditTimes] = useState(() => getCourseTimeValues(course.times));
  
     return (
         <div>
@@ -230,11 +279,37 @@ function CourseTab({ course, userData, onCourseUpdated, currentUserId, navigate 
                 <label style={{ marginTop: 0 }}>Instructor</label>
                 <input type="text" defaultValue={course.instructor} id="editInstructor" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
  
-                <label style={{ marginTop: 0 }}>Times</label>
-                <input type="text" defaultValue={course.times} id="editTimes" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '12px' }}>
+                    {[
+                        { label: 'Start Time', id: 'editStartTime' },
+                        { label: 'End Time', id: 'editEndTime' },
+                    ].map((field, index) => (
+                        <div key={field.id} style={{ flex: '1 1 180px' }}>
+                            <label htmlFor={field.id} style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>{field.label}</label>
+                            <select
+                                id={field.id}
+                                value={editTimes[index]}
+                                onChange={e => {
+                                    const value = e.target.value;
+                                    setEditTimes(previous => index === 0
+                                        ? [value, previous[1] && previous[1] <= value ? '' : previous[1]]
+                                        : [previous[0], value]);
+                                }}
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', backgroundColor: '#fff' }}
+                            >
+                                <option value="">Select {field.label.toLowerCase()}</option>
+                                {COURSE_TIME_OPTIONS.map(option => (
+                                    <option key={option.value} value={option.value} disabled={index === 1 && !!editTimes[0] && option.value <= editTimes[0]}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    ))}
+                </div>
  
                 <label style={{ marginTop: 0 }}>Start Date</label>
-                <input type="text" defaultValue={course.startDate} id="edit_start_date" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
+                <input type="date" defaultValue={course.startDate} id="edit_start_date" onClick={e => e.currentTarget.showPicker?.()} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
                 <label style={{ marginTop: 0 }}>Level</label>
                                 
                 
@@ -1143,11 +1218,12 @@ function MaterialsTab({ course, userData }) {
 function CourseDetail() {
     const { courseId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
  
     const [currentUserId, setCurrentUserId] = useState(null);
     const [course, setCourse] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('course');
+    const [activeTab, setActiveTab] = useState(location.state?.activeTab === 'video' ? 'video' : 'course');
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
  
