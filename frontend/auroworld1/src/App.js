@@ -8,6 +8,7 @@ import ResetPassword from './resetpass.js'
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import Calendar from './Calendar.js';
 import CourseDetail from './CourseDetail.js';
+import QuizPage from './QuizPage.js';
 import { AccessibilityProvider } from './AccessibilityContext.js';
 import { UserProvider } from './UserContext.js';
 import ReactGA from "react-ga4";
@@ -41,6 +42,7 @@ function App() {
                 <Route path ="/resetpass" element={<ResetPassword />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/courses/:courseId" element={<CourseDetail />} />
+                <Route path="/quizzes/:quizId" element={<QuizPage />} />
               </Routes>
           </BrowserRouter>
         </UserProvider>

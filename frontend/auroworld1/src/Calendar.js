@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import { useQuizDeadlines, QuizDeadlineBlocks, QuizDeadlineList } from './QuizCalendar';
 
 const supabase = createClient(
   'https://rduempiojxizkwwbzaml.supabase.co',
@@ -66,6 +67,7 @@ function Calendar() {
   const [courseEvents, setCourseEvents] = useState([]);
   const [hoveredEvent, setHoveredEvent] = useState(null);
   const scrollRef = useRef(null);
+  const quizDeadlines = useQuizDeadlines();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -250,6 +252,7 @@ function Calendar() {
                 </div>
               ))}
 
+              <QuizDeadlineBlocks quizzes={quizDeadlines.quizzes} weekDates={weekDates} />
               {eventBlocks.map((event, idx) => (
                 <div
                   key={`${event.courseId}-${event.dayIndex}-${idx}`}
@@ -330,6 +333,7 @@ function Calendar() {
 
             <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(108,99,255,0.10)', flex: 1, overflowY: 'auto' }}>
               <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', fontWeight: '800', color: '#6C63FF' }}>My Schedule</h3>
+              {viewMode === 'day' && <QuizDeadlineList quizzes={quizDeadlines.quizzes} error={quizDeadlines.error} selectedDate={selectedDate} />}
 
               {viewMode !== 'day' && (
                 <div style={{ color: '#9CA3AF', fontSize: '14px', textAlign: 'center', marginTop: '30px' }}>

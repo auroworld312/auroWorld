@@ -244,6 +244,9 @@ public class App
             return;
         }
         Javalin app = Javalin.create(config -> {
+            config.http.maxRequestSize = 35L * 1024 * 1024;
+            config.jetty.multipartConfig.maxFileSize(10, io.javalin.config.SizeUnit.MB);
+            config.jetty.multipartConfig.maxTotalRequestSize(35, io.javalin.config.SizeUnit.MB);
             config.requestLogger.http((ctx, ms) -> {
                 System.out.printf("%s%n", "=".repeat(42));
                 System.out.printf(
@@ -1046,14 +1049,15 @@ public class App
         ctx.result(gson.toJson(new StructuredResponse("ok", null, doesEntryExist)));
     });
 
-    app.delete("/delete/unit_videos/unit/{unitId}/videoId/{videoId}",ctx->{
+    app.delete("/delete/unit_videos/unit/{unitId}/lesson/{lessonId}/videoId/{videoId}",ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
 
         int unitId=Integer.parseInt(ctx.pathParam("unitId"));
+        int lessonId = Integer.parseInt(ctx.pathParam("lessonId"));
         int videoId=Integer.parseInt(ctx.pathParam("videoId"));
 
-        int result = db.deleteVideoEntry(videoId,unitId);
+        int result = db.deleteVideoEntry(videoId,lessonId, unitId);
 
         if(result<=0){
             ctx.result(gson.toJson(new StructuredResponse("error",null,null)));
@@ -1326,6 +1330,7 @@ public class App
             : new StructuredResponse("ok", "unenrolled", null)));
     });
 
+        new QuizApi(db).register(app);
         app.start(8080);
     }  
     

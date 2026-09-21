@@ -244,7 +244,7 @@ public class Database{
     private Database(String dbUri) {
         this.dbUri = dbUri;
     }
-    private Connection getConnection() throws SQLException {
+    Connection getConnection() throws SQLException {
         return DriverManager.getConnection(dbUri);
     }
     public boolean disconnect() {
@@ -1464,12 +1464,13 @@ public class Database{
 
     // }
 
-    public int deleteVideoEntry(int videoId, int unitId){
-        String delete = "DELETE FROM unit_videos WHERE video_id = ? AND unit_id = ? ";
+    public int deleteVideoEntry(int videoId, int lessonId, int unitId){
+        String delete = "DELETE FROM unit_videos WHERE video_id = ? AND lesson_id = ? AND unit_id = ? ";
         try(Connection conn = getConnection();
         PreparedStatement ps = conn.prepareStatement(delete)){
             ps.setInt(1,videoId);
-            ps.setInt(2,unitId);
+            ps.setInt(2,lessonId);
+            ps.setInt(3,unitId);
             return ps.executeUpdate();
         
         }catch(SQLException e){
