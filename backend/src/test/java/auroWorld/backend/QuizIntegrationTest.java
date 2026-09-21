@@ -75,6 +75,8 @@ public class QuizIntegrationTest extends TestCase {
                 data(upload("POST", quizPath + "/answers", "student", Map.of("submit", false), "answer.txt"));
                 var answerDraft = data(get(quizPath, "student")).getAsJsonObject().getAsJsonArray("submissions").get(0).getAsJsonObject();
                 long answerFile = answerDraft.getAsJsonArray("files").get(0).getAsJsonObject().get("id").getAsLong();
+                String gradePath = quizPath + "/submissions/" + answerDraft.get("id").getAsLong() + "/grade";
+                assertEquals(400, upload("PUT", gradePath, "teacher", Map.of("score", 80), null).statusCode());
                 assertEquals(0, data(get(quizPath, "teacher")).getAsJsonObject().getAsJsonArray("submissions").size());
                 assertEquals(403, get("/files/" + answerFile, "student2").statusCode());
                 assertEquals(403, get("/files/" + answerFile, "teacher").statusCode());
@@ -97,6 +99,42 @@ public class QuizIntegrationTest extends TestCase {
                 assertEquals(1, data(get(quizPath, "teacher")).getAsJsonObject().getAsJsonArray("files").size());
                 assertEquals(400, upload("POST", "/units/1", "teacher", metadata(true, now, now.minusSeconds(1), null, List.of()), "question.txt").statusCode());
                 assertEquals(1, data(get("/units/1", "teacher")).getAsJsonObject().getAsJsonArray("quizzes").size());
+                assertEquals(403, upload("PUT", gradePath, "student", Map.of("score", 100), null).statusCode());
+                assertEquals(403, upload("PUT", gradePath, "other-teacher", Map.of("score", 100), null).statusCode());
+                assertEquals(400, upload("PUT", gradePath, "teacher", Map.of("score", 101), null).statusCode());
+                assertEquals(400, upload("PUT", gradePath, "teacher", Map.of("score", -1), null).statusCode());
+                assertEquals(400, upload("PUT", gradePath, "teacher", Map.of("feedback", "Missing score"), null).statusCode());
+                assertEquals(400, upload("PUT", gradePath, "teacher", Map.of("score", 80, "keep_file_ids", List.of(answerFile)), null).statusCode());
+                data(upload("PUT", gradePath, "teacher", Map.of("score", 87.5, "feedback", "Please review the marked document."), "marked.docx"));
+                var graded = data(get(quizPath, "student")).getAsJsonObject().getAsJsonArray("submissions").get(1).getAsJsonObject();
+                assertEquals(87.5, graded.get("score").getAsDouble());
+                assertEquals("Please review the marked document.", graded.get("feedback").getAsString());
+                assertTrue(graded.has("graded_at"));
+                assertEquals(answerFile, graded.getAsJsonArray("files").get(0).getAsJsonObject().get("id").getAsLong());
+                long markedFile = graded.getAsJsonArray("feedback_files").get(0).getAsJsonObject().get("id").getAsLong();
+                assertEquals(200, get("/files/" + markedFile, "student").statusCode());
+                assertEquals(200, get("/files/" + markedFile, "teacher").statusCode());
+                assertEquals(403, get("/files/" + markedFile, "student2").statusCode());
+                assertEquals(403, get("/files/" + markedFile, "other-teacher").statusCode());
+                assertFalse(data(get(quizPath, "student")).getAsJsonObject().getAsJsonArray("submissions").get(0).getAsJsonObject().has("score"));
+                assertEquals(400, upload("PUT", gradePath, "teacher", Map.of("score", 90), "bad.exe").statusCode());
+                assertEquals(200, get("/files/" + markedFile, "student").statusCode());
+                data(upload("PUT", gradePath, "teacher", Map.of("score", 0, "feedback", "Updated", "keep_file_ids", List.of(markedFile)), null));
+                assertEquals(0.0, data(get(quizPath, "student")).getAsJsonObject().getAsJsonArray("submissions").get(1).getAsJsonObject().get("score").getAsDouble());
+                data(upload("PUT", gradePath, "teacher", Map.of("score", 100), null));
+                assertEquals(404, get("/files/" + markedFile, "student").statusCode());
+                assertEquals(200, get("/files/" + answerFile, "student").statusCode());
+                assertEquals(403, upload("DELETE", quizPath, "student", Map.of(), null).statusCode());
+                assertEquals(403, upload("DELETE", quizPath, "other-teacher", Map.of(), null).statusCode());
+                data(upload("DELETE", quizPath, "teacher", Map.of(), null));
+                assertEquals(404, get(quizPath, "teacher").statusCode());
+                assertEquals(404, get("/files/" + answerFile, "student").statusCode());
+                assertEquals(404, get("/files/" + questionId, "teacher").statusCode());
+                assertEquals(0, data(get("/calendar", "student")).getAsJsonArray().size());
+                assertEquals(0, data(get("/units/1", "teacher")).getAsJsonObject().getAsJsonArray("quizzes").size());
+                try (var sql = admin.createStatement(); var result = sql.executeQuery("SELECT (SELECT count(*) FROM quiz_submissions)+(SELECT count(*) FROM quiz_files)")) {
+                    assertTrue(result.next()); assertEquals(0, result.getInt(1));
+                }
                 try (var sql = admin.createStatement(); var result = sql.executeQuery("SELECT relrowsecurity FROM pg_class WHERE oid='" + schema + ".quiz_files'::regclass")) {
                     assertTrue(result.next()); assertTrue(result.getBoolean(1));
                 }

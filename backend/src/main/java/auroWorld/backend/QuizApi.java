@@ -84,13 +84,40 @@ public final class QuizApi {
             var submissions = rows(conn, "SELECT s.*, COALESCE(u.username, s.user_id) AS username FROM quiz_submissions s LEFT JOIN users u ON u.unique_id::text=s.user_id " +
                 "WHERE s.quiz_id=? AND " + (manager ? "s.submitted_at IS NOT NULL" : "s.user_id=?") + " ORDER BY s.id DESC",
                 manager ? new Object[]{quiz.get("id")} : new Object[]{quiz.get("id"), user.id});
-            for (var submission : submissions) submission.put("files", files(conn, quiz.get("id"), submission.get("id")));
+            for (var submission : submissions) {
+                submission.put("files", files(conn, quiz.get("id"), submission.get("id")));
+                submission.put("feedback_files", files(conn, quiz.get("id"), submission.get("id"), true));
+            }
             quiz.put("submissions", submissions);
             return quiz;
         }));
         app.post("/quiz-api/units/{unitId}", ctx -> handle(ctx, (conn, user) -> saveQuiz(ctx, conn, user, true)));
         app.put("/quiz-api/quizzes/{quizId}", ctx -> handle(ctx, (conn, user) -> saveQuiz(ctx, conn, user, false)));
         app.post("/quiz-api/quizzes/{quizId}/answers", ctx -> handle(ctx, (conn, user) -> saveAnswer(ctx, conn, user)));
+        app.delete("/quiz-api/quizzes/{quizId}", ctx -> handle(ctx, (conn, user) -> {
+            conn.setAutoCommit(false);
+            var quiz = quiz(conn, id(ctx, "quizId"), true);
+            require(manage(user, quiz), 403, "Only the course instructor or an administrator can delete quizzes.");
+            update(conn, "DELETE FROM course_quizzes WHERE id=?", quiz.get("id"));
+            conn.commit();
+            return Map.of("deleted", true);
+        }));
+        app.put("/quiz-api/quizzes/{quizId}/submissions/{submissionId}/grade", ctx -> handle(ctx, (conn, user) -> {
+            conn.setAutoCommit(false);
+            var quiz = quiz(conn, id(ctx, "quizId"), true);
+            require(manage(user, quiz), 403, "Only the course instructor or an administrator can grade answers.");
+            long submissionId = id(ctx, "submissionId");
+            var submission = one(conn, "SELECT submitted_at FROM quiz_submissions WHERE id=? AND quiz_id=?", submissionId, quiz.get("id"));
+            require(submission.get("submitted_at") != null, 400, "Draft answers cannot be graded.");
+            var form = JSON.fromJson(ctx.formParam("metadata"), GradeForm.class);
+            require(form != null && form.score != null && Double.isFinite(form.score) && form.score >= 0 && form.score <= 100, 400, "Enter a score between 0 and 100.");
+            require(form.feedback == null || form.feedback.length() <= 20000, 400, "Feedback is too long.");
+            replaceFiles(ctx, conn, ((Number) quiz.get("id")).longValue(), submissionId, form.keep_file_ids, true);
+            update(conn, "UPDATE quiz_submissions SET score=?,feedback=?,graded_at=?,graded_by=? WHERE id=?",
+                form.score, form.feedback == null ? "" : form.feedback, Instant.now(), user.id, submissionId);
+            conn.commit();
+            return Map.of("graded", true);
+        }));
         app.get("/quiz-api/files/{fileId}", ctx -> handle(ctx, (conn, user) -> {
             var file = one(conn, "SELECT id,quiz_id,submission_id,filename,media_type FROM quiz_files WHERE id=?", id(ctx, "fileId"));
             var quiz = quiz(conn, ((Number) file.get("quiz_id")).longValue(), false);
@@ -160,8 +187,12 @@ public final class QuizApi {
     }
 
     private void replaceFiles(Context ctx, Connection conn, long quizId, Long submissionId, List<Long> keepIds) throws Exception {
+        replaceFiles(ctx, conn, quizId, submissionId, keepIds, false);
+    }
+
+    private void replaceFiles(Context ctx, Connection conn, long quizId, Long submissionId, List<Long> keepIds, boolean feedback) throws Exception {
         Set<Long> keep = new HashSet<>(keepIds == null ? List.of() : keepIds);
-        var existing = files(conn, quizId, submissionId);
+        var existing = files(conn, quizId, submissionId, feedback);
         Set<Long> owned = new HashSet<>();
         for (var file : existing) owned.add(((Number) file.get("id")).longValue());
         require(owned.containsAll(keep), 400, "Invalid attachment selection.");
@@ -179,7 +210,7 @@ public final class QuizApi {
             try (var stream = upload.content()) { bytes = stream.readNBytes(FILE_LIMIT + 1); }
             require(bytes.length > 0 && bytes.length <= FILE_LIMIT, 400, "Each file must be nonempty and no larger than 10 MB.");
             total += bytes.length;
-            update(conn, "INSERT INTO quiz_files(quiz_id,submission_id,filename,media_type,content) VALUES (?,?,?,?,?)", quizId, submissionId, name, TYPES.get(extension), bytes);
+            update(conn, "INSERT INTO quiz_files(quiz_id,submission_id,filename,media_type,content,is_feedback) VALUES (?,?,?,?,?,?)", quizId, submissionId, name, TYPES.get(extension), bytes, feedback);
         }
         require(total <= 30L * 1024 * 1024, 400, "Attachments must total no more than 30 MB.");
     }
@@ -218,8 +249,12 @@ public final class QuizApi {
     }
 
     private List<Map<String, Object>> files(Connection conn, Object quizId, Object submissionId) throws SQLException {
-        return rows(conn, "SELECT id,filename,media_type,octet_length(content) AS size FROM quiz_files WHERE quiz_id=? AND " +
-            (submissionId == null ? "submission_id IS NULL" : "submission_id=?") + " ORDER BY id", submissionId == null ? new Object[]{quizId} : new Object[]{quizId, submissionId});
+        return files(conn, quizId, submissionId, false);
+    }
+
+    private List<Map<String, Object>> files(Connection conn, Object quizId, Object submissionId, boolean feedback) throws SQLException {
+        return rows(conn, "SELECT id,filename,media_type,octet_length(content) AS size FROM quiz_files WHERE quiz_id=? AND is_feedback=? AND " +
+            (submissionId == null ? "submission_id IS NULL" : "submission_id=?") + " ORDER BY id", submissionId == null ? new Object[]{quizId, feedback} : new Object[]{quizId, feedback, submissionId});
     }
 
     private User authenticate(Context ctx) throws Exception {
@@ -304,6 +339,7 @@ public final class QuizApi {
         List<Long> keep_file_ids;
     }
     private static class AnswerForm { boolean submit; List<Long> keep_file_ids; }
+    private static class GradeForm { Double score; String feedback; List<Long> keep_file_ids; }
     static class Fault extends RuntimeException {
         final int code;
         Fault(int code, String message) { super(message); this.code = code; }

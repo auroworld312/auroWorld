@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import { Attachment, FilePicker, QuizEditor } from './QuizComponents';
 import { quizRequest, quizUpload, displayDate, localZone, validateFiles } from './quizApi';
 import './Quiz.css';
+import SubmissionGrade from './SubmissionGrade';
 
 function AnswerForm({ quiz, onSaved, disabled }) {
   const draft = quiz.submissions.find(s => !s.submitted_at);
@@ -87,7 +88,7 @@ export default function QuizPage() {
               {quiz.late_until ? `Late submissions accepted until ${displayDate(quiz.late_until)}` : 'Late submissions are not allowed.'}<br />Time zone: {localZone}</p>
             {quiz.can_manage && <button onClick={() => setEditing(!editing)}>{editing ? 'Close Editor' : 'Edit Quiz'}</button>}
           </section>
-          {editing && quiz.can_manage && <QuizEditor key={revision} quiz={quiz} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); setNotice('Quiz saved. Calendar deadlines will use the updated dates.'); load(); }} />}
+          {editing && quiz.can_manage && <QuizEditor key={revision} quiz={quiz} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); setNotice('Quiz saved. Calendar deadlines will use the updated dates.'); load(); }} onDeleted={() => navigate(`/courses/${quiz.course_id}`, { state: { activeTab: 'materials', unitId: quiz.unit_id, unitTab: 'quizzes' } })} />}
           {quiz.can_manage || released ? <section className="quiz-card">
             <h2>Question Files</h2>
             {quiz.instructions && <p style={{ whiteSpace: 'pre-wrap' }}>{quiz.instructions}</p>}
@@ -103,6 +104,7 @@ export default function QuizPage() {
                 <span className="quiz-tag">{!submission.submitted_at ? 'Draft — not submitted' : submission.late ? 'Submitted late' : 'Submitted on time'}</span></div>
               {submission.submitted_at && <p className="quiz-muted">Submitted: {displayDate(submission.submitted_at)}</p>}
               {submission.files.map(file => <Attachment key={file.id} file={file} />)}
+              {submission.submitted_at && <SubmissionGrade key={`${submission.id}-${revision}`} quizId={quiz.id} submission={submission} canManage={quiz.can_manage} onSaved={() => { setNotice('Grade saved and visible to the student.'); load(); }} />}
             </div>)}
           </section>
         </>}

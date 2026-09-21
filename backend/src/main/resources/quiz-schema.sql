@@ -35,3 +35,8 @@ CREATE INDEX IF NOT EXISTS quiz_submissions_index ON quiz_submissions(quiz_id, u
 ALTER TABLE course_quizzes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quiz_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quiz_files ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quiz_submissions ADD COLUMN IF NOT EXISTS score NUMERIC CHECK (score >= 0 AND score <= 100);
+ALTER TABLE quiz_submissions ADD COLUMN IF NOT EXISTS feedback TEXT;
+ALTER TABLE quiz_submissions ADD COLUMN IF NOT EXISTS graded_at TIMESTAMPTZ;
+ALTER TABLE quiz_submissions ADD COLUMN IF NOT EXISTS graded_by TEXT;
+ALTER TABLE quiz_files ADD COLUMN IF NOT EXISTS is_feedback BOOLEAN NOT NULL DEFAULT FALSE CHECK (NOT is_feedback OR submission_id IS NOT NULL);

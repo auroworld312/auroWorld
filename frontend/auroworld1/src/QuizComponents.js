@@ -68,7 +68,7 @@ function DateTimePicker({ label, value, onChange, id }) {
   </div>;
 }
 
-export function QuizEditor({ unitId, quiz, onSaved, onCancel }) {
+export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
   const formId = useId();
   const [title, setTitle] = useState(quiz?.title || '');
   const [instructions, setInstructions] = useState(quiz?.instructions || '');
@@ -80,6 +80,15 @@ export function QuizEditor({ unitId, quiz, onSaved, onCancel }) {
   const [incoming, setIncoming] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  async function deleteQuiz() {
+    if (!window.confirm(`Delete "${quiz.title}"? All question files, student submissions, grades and feedback will be permanently deleted. This cannot be undone.`)) return;
+    setError(''); setBusy(true);
+    try {
+      await quizRequest(`/quizzes/${quiz.id}`, { method: 'DELETE' });
+      onDeleted();
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  }
   async function save(published) {
     setError(''); setBusy(true);
     try {
@@ -116,6 +125,7 @@ export function QuizEditor({ unitId, quiz, onSaved, onCancel }) {
         {!quiz?.published && <button onClick={() => save(false)}>Save Draft</button>}
         <button className="primary" onClick={() => save(true)}>{busy ? 'Saving…' : quiz?.published ? 'Save Changes' : 'Schedule / Publish'}</button>
         <button onClick={onCancel}>Cancel</button>
+        {quiz && onDeleted && <button style={{ color: '#b42318', borderColor: '#b42318', marginLeft: 'auto' }} onClick={deleteQuiz}>Delete Quiz</button>}
       </div>
     </fieldset>
   </div>;

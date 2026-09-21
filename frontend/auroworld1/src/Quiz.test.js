@@ -3,6 +3,7 @@ import { QuizEditor } from './QuizComponents';
 import UnitMaterials from './UnitMaterials';
 import { QuizDeadlineList } from './QuizCalendar';
 import QuizPage from './QuizPage';
+import SubmissionGrade from './SubmissionGrade';
 import { quizRequest, dateInstant } from './quizApi';
 
 const mockNavigate = jest.fn();
@@ -13,6 +14,49 @@ jest.mock('./components/Header', () => () => <div>Header</div>);
 jest.mock('./components/Sidebar', () => () => <div>Sidebar</div>);
 
 beforeEach(() => { jest.clearAllMocks(); });
+afterEach(() => { jest.restoreAllMocks(); });
+
+test('delete requires confirmation and returns to materials only after success', async () => {
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(false);
+  const deleted = jest.fn();
+  quizRequest.mockResolvedValue({ deleted: true });
+  render(<QuizEditor quiz={{ id: 7, title: 'Assessment' }} onDeleted={deleted} />);
+  fireEvent.click(screen.getByText('Delete Quiz'));
+  expect(quizRequest).not.toHaveBeenCalled();
+  confirm.mockReturnValue(true);
+  fireEvent.click(screen.getByText('Delete Quiz'));
+  await waitFor(() => expect(deleted).toHaveBeenCalledTimes(1));
+  expect(quizRequest).toHaveBeenCalledWith('/quizzes/7', { method: 'DELETE' });
+});
+
+test('teacher grades with score, comments and a marked file', async () => {
+  quizRequest.mockResolvedValue({ graded: true });
+  const saved = jest.fn();
+  render(<SubmissionGrade quizId={7} submission={{ id: 3 }} canManage onSaved={saved} />);
+  fireEvent.click(screen.getByText('Grade Submission'));
+  fireEvent.click(screen.getByText('Save Grade'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Enter a score');
+  expect(quizRequest).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Score (out of 100)'), { target: { value: '87.5' } });
+  fireEvent.change(screen.getByLabelText('Feedback (optional)'), { target: { value: 'Good work' } });
+  fireEvent.change(screen.getByLabelText('Files'), { target: { files: [new File(['marked'], 'marked.pdf')] } });
+  fireEvent.click(screen.getByText('Save Grade'));
+  await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
+  const [path, request] = quizRequest.mock.calls[0];
+  expect(path).toBe('/quizzes/7/submissions/3/grade');
+  expect(JSON.parse(request.body.get('metadata'))).toEqual({ score: 87.5, feedback: 'Good work', keep_file_ids: [] });
+  expect(request.body.getAll('files')[0].name).toBe('marked.pdf');
+});
+
+test('student sees grade, feedback and marked work without edit controls', () => {
+  render(<SubmissionGrade quizId={7} submission={{ id: 3, score: 0, feedback: 'Try again', graded_at: '2026-09-21T12:00:00Z', feedback_files: [{ id: 8, filename: 'marked.docx', size: 20 }] }} canManage={false} />);
+  expect(screen.getByText('Grade: 0 / 100')).toBeVisible();
+  expect(screen.getByText('Try again')).toBeVisible();
+  expect(screen.getByText('marked.docx')).toBeVisible();
+  expect(screen.getByText('Download')).toBeVisible();
+  expect(screen.queryByText('Edit Grade')).not.toBeInTheDocument();
+  expect(screen.queryByText('Save Grade')).not.toBeInTheDocument();
+});
 
 test('unit tabs preserve video access and hide teacher controls from students', async () => {
   quizRequest.mockResolvedValue({ quizzes: [], can_manage: false });
