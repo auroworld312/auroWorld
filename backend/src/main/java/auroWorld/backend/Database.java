@@ -222,7 +222,7 @@ public class Database{
     private Database(String dbUri) {
         this.dbUri = dbUri;
     }
-    private Connection getConnection() throws SQLException {
+    Connection getConnection() throws SQLException {
         return DriverManager.getConnection(dbUri);
     }
     public boolean disconnect() {

@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ReactGA from "react-ga4";
+import UnitMaterials from './UnitMaterials';
 
 const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
  
@@ -427,10 +428,10 @@ function CourseTab({ course, userData, onCourseUpdated, currentUserId, navigate 
 //     }
 // }
 //unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId}
-function UnitSection({ unit, courseId, role, username, instructor, unitId, courseTitle }) {
+function UnitSection({ unit, courseId, role, username, instructor, unitId, courseTitle, embedded = false }) {
     // console.log("unitSection unitd: "+unitId)
     // console.log("unitsection.unitid: "+unit.unitId)
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(embedded);
     const [activeVideo, setActiveVideo] = useState(null);
 
     // const [newQuestion, setQuestion]=useState([])
@@ -786,7 +787,7 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
     }
     return (
         <div style={{ border: '1px solid #e5e5e5', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-            <div onClick={() => {setOpen(o => !o); cancelEditFileOrder() }} style={{
+            {!embedded && <div onClick={() => {setOpen(o => !o); if (role === 'admin' || username === instructor) cancelEditFileOrder() }} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '16px 20px', cursor: 'pointer',
                 backgroundColor: open ? PURPLE_LIGHT : '#fff',
@@ -803,6 +804,7 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
                 </div>
                 <span style={{ fontSize: '20px', color: '#bbb', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block' }}>›</span>
             </div>
+            }
             {(role==="admin" || username===instructor ) && (
                 <div>
                     <button onClick={addMaterials} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
@@ -1174,6 +1176,7 @@ async function submitNewUnit(courseId) {
 }
  
 function MaterialsTab({ course, userData }) {
+    const location = useLocation();
     if (!course.units || course.units.length === 0) {
         return (
             <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
@@ -1210,7 +1213,7 @@ function MaterialsTab({ course, userData }) {
                     </div>
                 </div>
             </div>
-            {course.units.map(unit => <UnitSection key={unit.unitId} unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>)}
+            {course.units.map(unit => <UnitMaterials key={unit.unitId} unit={unit} initialOpen={location.state?.unitId === unit.unitId} initialTab={location.state?.unitId === unit.unitId ? location.state?.unitTab || 'videos' : 'videos'}><UnitSection embedded unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/></UnitMaterials>)}
         </div>
     );
 }
@@ -1223,7 +1226,7 @@ function CourseDetail() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const [course, setCourse] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState(location.state?.activeTab === 'video' ? 'video' : 'course');
+    const [activeTab, setActiveTab] = useState(['video', 'materials'].includes(location.state?.activeTab) ? location.state.activeTab : 'course');
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
  

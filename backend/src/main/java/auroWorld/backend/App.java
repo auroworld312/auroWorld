@@ -240,6 +240,9 @@ public class App
             return;
         }
         Javalin app = Javalin.create(config -> {
+            config.http.maxRequestSize = 35L * 1024 * 1024;
+            config.jetty.multipartConfig.maxFileSize(10, io.javalin.config.SizeUnit.MB);
+            config.jetty.multipartConfig.maxTotalRequestSize(35, io.javalin.config.SizeUnit.MB);
             config.requestLogger.http((ctx, ms) -> {
                 System.out.printf("%s%n", "=".repeat(42));
                 System.out.printf(
@@ -1197,6 +1200,7 @@ public class App
             : new StructuredResponse("ok", "unenrolled", null)));
     });
 
+        new QuizApi(db).register(app);
         app.start(8080);
     }  
     
