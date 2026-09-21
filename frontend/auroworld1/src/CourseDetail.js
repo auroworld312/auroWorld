@@ -435,14 +435,14 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
                 lessonDescription:lesson.lessonDescription, videos: lesson.videos}
         })
         setLessonArray(lessonArr)
-    },[])
+    },[unit])
 
     useEffect(()=>{
         const lessonIdOpenClose = unit?.lessons.map((lesson)=>{
             return {lessonId: lesson.lessonId, isOpen: false}
         })
         setLessonOpen(lessonIdOpenClose)
-    },[])
+    },[unit])
 
     function handleLessonClick(lId){
         const updatedLessonOpen=lessonOpen.map((lesson)=>{
