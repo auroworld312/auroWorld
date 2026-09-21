@@ -159,6 +159,10 @@ public class App
         public String liveUrl;
         public String daysOfWeek;   // NEW
     }
+    private static final class CreateLessonRequest{
+        public String lessonTitle;
+        public String lessonDescription;
+    }
     private static final class CreateUnitRequest{
         public String unitName;
     }
@@ -932,6 +936,82 @@ public class App
         ctx.result(gson.toJson(new StructuredResponse("ok",null,userlist)));
     });
 
+    app.put("edit/lesson/{lessonId}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int lessonId = Integer.parseInt(ctx.pathParam("lessonId"));
+
+        CreateLessonRequest clr = gson.fromJson(ctx.body(),CreateLessonRequest.class);
+
+        if(clr==null || clr.lessonTitle==null || clr.lessonDescription==null){
+            System.out.println(clr);
+            System.out.println(clr.lessonTitle);
+            System.out.println(clr.lessonDescription);
+            ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missgin lesson feature", null)));
+                return;
+        }
+
+        int success = db.editLesson(lessonId, clr.lessonTitle, clr.lessonDescription);
+
+        if(success==-1){
+            ctx.result(gson.toJson(new StructuredResponse("editing lesson failed", null, success)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, success)));
+        }
+
+    });
+
+    app.delete("/delete/lesson/{lessonId}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int lessonId = Integer.parseInt(ctx.pathParam("lessonId"));
+
+        int result = db.deleteLesson(lessonId);
+
+        if(result==-1){
+            ctx.result(gson.toJson(new StructuredResponse("deleting lesson failed",null,result)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
+        }
+    });
+
+    app.get("/unit/{uId}/getlessons",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int unitId = Integer.parseInt(ctx.pathParam("uId"));
+
+        ArrayList<Database.LessonData> lessons = db.getLessonData(unitId);
+
+        ctx.result(gson.toJson(new StructuredResponse("ok",null,lessons)));
+    });
+
+    app.post("/unit/{uId}/addlesson",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int unitId = Integer.parseInt(ctx.pathParam("uId"));
+
+        CreateLessonRequest crl = gson.fromJson(ctx.body(), CreateLessonRequest.class);
+
+        if(crl==null || crl.lessonTitle == null || crl.lessonDescription == null){
+            System.out.println(crl);
+            System.out.println(crl.lessonTitle);
+            System.out.println(crl.lessonDescription);
+            ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing lesson feature", null)));
+                return;
+        }
+        int lessonId = db.createLesson(unitId, crl.lessonTitle, crl.lessonDescription);
+
+        ctx.result(gson.toJson(new StructuredResponse("ok",null,lessonId)));
+    });
+
     app.post("/course_units/{id}",ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
@@ -983,11 +1063,12 @@ public class App
         }
     });
 
-    app.put("/course_units/unit/{uId}/swap/{vId1}/{vId2}",ctx->{
+    app.put("/course_units/unit/{uId}/lesson/{lId}/swap/{vId1}/{vId2}",ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
 
         int unitId = Integer.parseInt(ctx.pathParam("uId"));
+        int lessonId = Integer.parseInt(ctx.pathParam("lId"));
         int vid1 = Integer.parseInt(ctx.pathParam("vId1"));
         int vid2 = Integer.parseInt(ctx.pathParam("vId2"));
 
@@ -1002,7 +1083,7 @@ public class App
                 return;
         }
 
-        int success= db.swapUnitVideo(unitId, vid1, vid2, sum.videoTitle1, sum.videoTitle2);
+        int success= db.swapUnitVideo(unitId, lessonId, vid1, vid2, sum.videoTitle1, sum.videoTitle2);
 
         if(success==-1){
             ctx.result(gson.toJson(new StructuredResponse("swap failed", null, success)));
@@ -1011,6 +1092,54 @@ public class App
             ctx.result(gson.toJson(new StructuredResponse("ok", null, success)));
         }
 
+    });
+
+    // app.get("/unit_videos/{id}/lessons/{lessonId}/getvideos",ctx->{
+    //     ctx.status(200);
+    //     ctx.contentType("application/json");
+
+    //     int unitId = Integer.parseInt(ctx.pathParam("id"));
+    //     int lessonId = Integer.parseInt(ctx.pathParam("lessonId"));
+
+    //     ArrayList<>
+
+    //     ctx.result(gson.toJson(new StructuredResponse("ok",null,lessonVideos)))
+    // });
+
+     app.get("/unit_videos/{id}/lesson/{lessonId}/{title}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        String videoTitle = ctx.pathParam("title");
+        int unitId = Integer.parseInt(ctx.pathParam("id"));
+        int lessonId = Integer.parseInt(ctx.pathParam("lessonId"));
+
+        boolean doesLessonEntryExist = db.doesLessonVideoTitleExist(unitId,lessonId,videoTitle);
+
+        ctx.result(gson.toJson(new StructuredResponse("ok", null, doesLessonEntryExist)));
+    });
+
+    app.post("/unit_videos/unit/{id}/lesson/{lessonId}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int unitId = Integer.parseInt(ctx.pathParam("id"));
+        int lessonId = Integer.parseInt(ctx.pathParam("lessonId"));
+
+        AddUnitMaterial aum = gson.fromJson(ctx.body(), AddUnitMaterial.class);
+
+        if(aum==null || aum.title==null || aum.filepath==null){
+            System.out.println(aum);
+            System.out.println(aum.title);
+            System.out.println(aum.filepath);
+             ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missgin video attribute", null)));
+                return;
+        }
+
+        int videoId = db.addLessonVideo(unitId, lessonId, aum.title,aum.filepath);
+
+        ctx.result(gson.toJson(new StructuredResponse("ok", null, videoId)));
     });
 
     app.post("/course_units/unit/{id}", ctx->{

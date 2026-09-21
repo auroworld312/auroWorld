@@ -113,19 +113,41 @@ public class Database{
     public static final class VideoData {
         public final int    videoId;
         public final int    unitId;
+        public final int lessonId;
         public final String title;
         public final String driveUrl;
         public final String duration;
         public final int    sortOrder;
 
-        public VideoData(int videoId, int unitId, String title,
+        public VideoData(int videoId, int unitId, int lessonId, String title,
                          String driveUrl, String duration, int sortOrder) {
             this.videoId   = videoId;
             this.unitId    = unitId;
+            this.lessonId = lessonId;
             this.title     = title;
             this.driveUrl  = driveUrl;
             this.duration  = duration;
             this.sortOrder = sortOrder;
+        }
+    }
+
+    public static final class LessonData {
+        public final int lessonId;
+        public final int unitId;
+        public final String lessonTitle;
+        public final String lessonDescription;
+        public final List<VideoData> videos;
+
+        public LessonData(int lessonId, int unitId, String lessonTitle, 
+        String lessonDescription, List<VideoData> videos){
+            this.lessonId=lessonId;
+            this.unitId=unitId;
+            this.lessonTitle=lessonTitle;
+            this.lessonDescription=lessonDescription;
+            this.videos = videos;
+        }
+        public List<VideoData> getVideos(){
+            return this.videos;
         }
     }
 
@@ -134,18 +156,18 @@ public class Database{
         public final int             courseId;
         public final String          title;
         public final int             sortOrder;
-        public final List<VideoData> videos;
+        public final List<LessonData> lessons;
 
         public UnitData(int unitId, int courseId, String title,
-                        int sortOrder, List<VideoData> videos) {
+                        int sortOrder, List<LessonData> lessons) {
             this.unitId    = unitId;
             this.courseId  = courseId;
             this.title     = title;
             this.sortOrder = sortOrder;
-            this.videos    = videos;
+            this.lessons = lessons;
         }
-        public List<VideoData> getVideos(){
-            return this.videos;
+        public List<LessonData> getLessons(){
+            return this.lessons;
         }
     }
 
@@ -1254,6 +1276,172 @@ public class Database{
         }
     }
 
+     public boolean doesLessonVideoTitleExist(int unitId, int lessonId, String videoTitle){
+        String selectVideoFilepath="SELECT drive_url " +
+        "FROM \"unit_videos\" WHERE \"title\"=? AND \"unit_id\"=? AND \"lesson_id\"=?";
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(selectVideoFilepath)){
+            ps.setString(1,videoTitle);
+            ps.setInt(2,unitId);
+            ps.setInt(3,lessonId);
+            try(ResultSet rs = ps.executeQuery()){
+                System.out.println(rs);
+                if(rs.next()){
+                    return true;
+                }
+                return false;
+            }
+        }catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public int addLessonVideo(int unitId, int lessonId, String title, String filepath){
+        String insertVideo="INSERT INTO unit_videos (unit_id, lesson_id, title, drive_url) VALUES (?,?,?,?) ";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(insertVideo)){
+            ps.setInt(1,unitId);
+            ps.setInt(2,lessonId);
+            ps.setString(3,title);
+            ps.setString(4,filepath);
+            try(ResultSet rs = ps.executeQuery()){
+                System.out.println(rs);
+                if(rs.next()) return rs.getInt("video_id");
+                return -1;
+            }
+        }
+        catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public int editLesson(int lessonId, String title, String description){
+        String editLessonSql = "UPDATE unit_lessons SET lesson_title = ?, lesson_description = ? WHERE lesson_id = ? ";
+        
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(editLessonSql)){
+            //cant have two keys o fthe same value. so change video_id to negative value, acting as temporary value
+            ps.setString(1,title);
+            ps.setString(2,description);
+            ps.setInt(3,lessonId);
+
+            return ps.executeUpdate();
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    // public int deleteMessageAndComments(int msgId){
+    //     String deleteCommentVote="DELETE FROM vote_comments WHERE msg_id = ?";
+    //     String deleteMessageVote = "DELETE FROM vote_messages WHERE msg_id = ?";
+    //     String deleteComment = "DELETE FROM comments WHERE msg_id = ?";
+    //     String deleteFile ="DELETE FROM files WHERE msg_id = ?";
+    //     String deleteMessage= "DELETE FROM messages WHERE msg_id = ?";
+
+    //     try(Connection conn = getConnection();
+    //     PreparedStatement ps1 = conn.prepareStatement(deleteCommentVote);
+    //     PreparedStatement ps2 = conn.prepareStatement(deleteMessageVote);
+    //     PreparedStatement ps3 = conn.prepareStatement(deleteComment);
+    //     PreparedStatement ps4 = conn.prepareStatement(deleteFile);
+    //     PreparedStatement ps5 = conn.prepareStatement(deleteMessage)){
+    //         ps1.setInt(1, msgId);
+    //         ps2.setInt(1, msgId);
+    //         ps3.setInt(1, msgId);
+    //         ps4.setInt(1, msgId);
+    //         ps5.setInt(1, msgId);
+    //         ps1.executeUpdate();
+    //         ps2.executeUpdate();
+    //         ps3.executeUpdate();
+    //         ps4.executeUpdate();
+    //         ps5.executeUpdate();
+    //         return 1;
+    //     } 
+    //     catch(SQLException e){
+    //         e.printStackTrace();
+    //         return -1;
+    //     }
+    // }
+
+    public int deleteLesson(int lessonId){
+        String deleteLessonInfo = "DELETE FROM unit_lessons WHERE lesson_id = ? ";
+        String deleteVideoInfo = "DELETE FROM unit_videos WHERE lesson_id = ? ";
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(deleteLessonInfo);
+        PreparedStatement ps1 = conn.prepareStatement(deleteVideoInfo)){
+            ps.setInt(1,lessonId);
+            ps1.setInt(1,lessonId);
+            ps.executeUpdate();
+            ps1.executeUpdate();
+            return 1;
+        
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public ArrayList<LessonData> getLessonData(int unitId){
+        ArrayList<LessonData> lessons = new ArrayList<>();
+        String getLessonsSql = "SELECT lesson_id, lesson_title, lesson_description FROM unit_lessons WHERE unit_id = ?";
+        try (Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(getLessonsSql)) {
+            ps.setInt(1, unitId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int lessonId = rs.getInt("lesson_id");
+                    List<VideoData> videos = selectVideosForLesson(conn, unitId);
+                    lessons.add(new LessonData(
+                        lessonId,
+                        unitId,
+                        rs.getString("lesson_title"),
+                        rs.getString("lesson_description"),
+                        videos
+                    ));
+                }
+            }
+        }
+        catch(SQLException e){
+            e.printStackTrace();
+        }
+        return lessons;
+    }
+
+    public int createLesson(int unitId, String title, String description){
+        // String generatedColumns[] = { "lesson_id" };
+        
+        String insertLesson = "INSERT INTO unit_lessons (unit_id, lesson_title, lesson_description) VALUES (?,?,?) ";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(insertLesson,PreparedStatement.RETURN_GENERATED_KEYS)){
+            ps.setInt(1,unitId);
+            ps.setString(2,title);
+            ps.setString(3,description);
+
+            int rowsAffected = ps.executeUpdate();
+
+            if (rowsAffected > 0) {
+                // Retrieve the auto-generated keys (insert ID)
+                ResultSet generatedKeys = ps.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    int lessonId = generatedKeys.getInt(1);
+                    System.out.println("Record inserted successfully with ID: " + lessonId);
+                    return lessonId;
+                } else {
+                    System.out.println("Failed to retrieve insert ID.");
+                    return -1;
+                }
+            } else {
+                return -1;
+            }
+        }
+        catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
     public int createUnit(String unitName, int courseId){
         String insertUnit = "INSERT INTO course_units (course_id, title) VALUES (?,?) ";
         try(Connection conn = getConnection();
@@ -1310,31 +1498,34 @@ public class Database{
         }
     }
 
-    public int swapUnitVideo(int unitId, int id1, int id2, String title1, String title2){
-        String swapVideoId = "UPDATE unit_videos SET video_id = ? WHERE unit_id = ? AND video_id = ? AND title = ?";
+    public int swapUnitVideo(int unitId, int lessonId, int id1, int id2, String title1, String title2){
+        String swapVideoId = "UPDATE unit_videos SET video_id = ? WHERE unit_id = ? AND lesson_id = ? AND video_id = ? AND title = ?";
 
         try(Connection conn = getConnection();
         PreparedStatement ps = conn.prepareStatement(swapVideoId)){
             //cant have two keys o fthe same value. so change video_id to negative value, acting as temporary value
             ps.setInt(1,-1);
             ps.setInt(2,unitId);
-            ps.setInt(3,id2);
-            ps.setString(4,title2);
+            ps.setInt(3,lessonId);
+            ps.setInt(4,id2);
+            ps.setString(5,title2);
 
             // System.out.println("temp swap = "+ps);
             ps.executeUpdate();
 
             ps.setInt(1,id2);
             ps.setInt(2,unitId);
-            ps.setInt(3,id1);
-            ps.setString(4,title1);
+            ps.setInt(3,lessonId);
+            ps.setInt(4,id1);
+            ps.setString(5,title1);
             // System.out.println("first swap = "+ps);
             ps.executeUpdate();
 
             ps.setInt(1,id1);
             ps.setInt(2,unitId);
-            ps.setInt(3,-1);
-            ps.setString(4,title2);
+            ps.setInt(3,lessonId);
+            ps.setInt(4,-1);
+            ps.setString(5,title2);
             // System.out.println("second swap = "+ps);
 
             return ps.executeUpdate();
@@ -1497,13 +1688,14 @@ public class Database{
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     int unitId = rs.getInt("unit_id");
-                    List<VideoData> videos = selectVideosForUnit(conn, unitId);
+                    // List<VideoData> videos = selectVideosForUnit(conn, unitId);
+                    List<LessonData> lessons = selectLessonsForUnit(conn,unitId);
                     units.add(new UnitData(
                         unitId,
                         rs.getInt("course_id"),
                         rs.getString("title"),
                         rs.getInt("sort_order"),
-                        videos
+                        lessons
                     ));
                 }
             }
@@ -1511,18 +1703,41 @@ public class Database{
         return units;
     }
 
-    /** Load all videos for a given unit_id */
-    private List<VideoData> selectVideosForUnit(Connection conn, int unitId) throws SQLException {
-        List<VideoData> videos = new ArrayList<>();
-        String sql = "SELECT video_id, unit_id, title, drive_url, duration, sort_order " +
-                     "FROM unit_videos WHERE unit_id = ? ORDER BY sort_order";
+    private List<LessonData> selectLessonsForUnit(Connection conn, int unitId) throws SQLException{
+        // List<VideoData> videos = new ArrayList<>();
+        List<LessonData> lessons = new ArrayList<>();
+        String sql = "SELECT lesson_id, unit_id, lesson_title, lesson_description " +
+                     "FROM unit_lessons WHERE unit_id = ?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, unitId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int lessonId = rs.getInt("lesson_id");
+                    List<VideoData> videos = selectVideosForLesson(conn, lessonId);
+                    lessons.add(new LessonData(
+                        rs.getInt("lesson_id"),
+                        rs.getInt("unit_id"),
+                        rs.getString("lesson_title"),
+                        rs.getString("lesson_description"),
+                        videos
+                    ));
+                }
+            }
+        }
+        return lessons;
+    }
+    private List<VideoData> selectVideosForLesson(Connection conn, int lessonId) throws SQLException {
+        List<VideoData> videos = new ArrayList<>();
+        String sql = "SELECT video_id, lesson_id, unit_id, title, drive_url, duration, sort_order " +
+                     "FROM unit_videos WHERE lesson_id = ? ORDER BY sort_order";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, lessonId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     videos.add(new VideoData(
                         rs.getInt("video_id"),
                         rs.getInt("unit_id"),
+                        rs.getInt("lesson_id"),
                         rs.getString("title"),
                         rs.getString("drive_url"),
                         rs.getString("duration"),
@@ -1533,6 +1748,30 @@ public class Database{
         }
         return videos;
     }
+
+    /** Load all videos for a given unit_id */
+    // private List<VideoData> selectVideosForUnit(Connection conn, int unitId) throws SQLException {
+    //     List<VideoData> videos = new ArrayList<>();
+    //     String sql = "SELECT video_id, lesson_id, unit_id, title, drive_url, duration, sort_order " +
+    //                  "FROM unit_videos WHERE unit_id = ? ORDER BY sort_order";
+    //     try (PreparedStatement ps = conn.prepareStatement(sql)) {
+    //         ps.setInt(1, unitId);
+    //         try (ResultSet rs = ps.executeQuery()) {
+    //             while (rs.next()) {
+    //                 videos.add(new VideoData(
+    //                     rs.getInt("video_id"),
+    //                     rs.getInt("unit_id"),
+    //                     rs.getInt("lesson_id"),
+    //                     rs.getString("title"),
+    //                     rs.getString("drive_url"),
+    //                     rs.getString("duration"),
+    //                     rs.getInt("sort_order")
+    //                 ));
+    //             }
+    //         }
+    //     }
+    //     return videos;
+    // }
 
     /** Build a CourseData from a ResultSet row (connection still open) */
     // private CourseData courseFromRow(Connection conn, ResultSet rs) throws SQLException {
@@ -1568,15 +1807,18 @@ public class Database{
         // List<CourseData> res = new ArrayList<>();
         Map<Integer, CourseData> courseMap = new LinkedHashMap<>();
         Map<Integer, UnitData> unitMap = new HashMap<>();
+        Map<Integer, LessonData> lessonMap = new HashMap<>();
 
         String sql = "SELECT " +
             "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
             "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
-            "uv.video_id AS v_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort " +
+            "uv.video_id AS v_id, uv.lesson_id AS uv_l_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort, " +
+            "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description "+
             "FROM courses c " +
             "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
-            "LEFT JOIN unit_videos uv ON uv.unit_id = cu.unit_id " +
+            "LEFT JOIN unit_lessons ul ON ul.unit_id = cu.unit_id "+
+            "LEFT JOIN unit_videos uv ON uv.lesson_id = uv.lesson_id " +
             "ORDER BY c.course_id, cu.sort_order, uv.sort_order";
 
         try (Connection conn = getConnection();
@@ -1611,8 +1853,8 @@ public class Database{
                     if (unitId != null) {
 
                         UnitData unit = unitMap.get(unitId);
-
                         if (unit == null) {
+
                             unit = new UnitData(
                                 unitId,
                                 courseId,
@@ -1620,24 +1862,37 @@ public class Database{
                                 rs.getInt("u_sort"),
                                 new ArrayList<>()
                             );
-
                             unitMap.put(unitId, unit);
                             course.getUnits().add(unit);
                         }
-
-                        //int videoId = rs.getInt("v_id");
-                        Integer videoId = (Integer) rs.getObject("v_id");
-                        if (videoId != null) {
-                            unit.getVideos().add(
-                                new VideoData(
-                                    videoId,
+                        Integer lessonId = (Integer) rs.getObject("l_id");
+                        if(lessonId!=null){
+                            LessonData lesson = lessonMap.get(lessonId);
+                            if(lesson==null){
+                                lesson = new LessonData(
+                                    lessonId,
                                     unitId,
-                                    rs.getString("v_title"),
-                                    rs.getString("drive_url"),
-                                    rs.getString("duration"),
-                                    rs.getInt("v_sort")
-                                )
-                            );
+                                    rs.getString("l_title"),
+                                    rs.getString("l_description"),
+                                    new ArrayList<>()
+                                );
+                                lessonMap.put(lessonId,lesson);
+                                unit.getLessons().add(lesson);
+                            }
+                            Integer videoId = (Integer) rs.getObject("v_id");
+                            if (videoId != null) {
+                                lesson.getVideos().add(
+                                    new VideoData(
+                                        videoId,
+                                        unitId,
+                                        lessonId,
+                                        rs.getString("v_title"),
+                                        rs.getString("drive_url"),
+                                        rs.getString("duration"),
+                                        rs.getInt("v_sort")
+                                    )
+                                );
+                            }
                         }
                     }
                 }
@@ -1651,15 +1906,18 @@ public class Database{
     public CourseData selectCourse(int courseId) {
         CourseData course = null;
         Map<Integer, UnitData> unitMap = new HashMap<>();
+        Map<Integer, LessonData> lessonMap = new HashMap<>();
 
             String sql = "SELECT " +
                 "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
                 "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
-            "uv.video_id AS v_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort " +
+            "uv.video_id AS v_id, uv.lesson_id AS uv_l_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort, " +
+            "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description "+
             "FROM courses c " +
             "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
-            "LEFT JOIN unit_videos uv ON uv.unit_id = cu.unit_id " +
+            "LEFT JOIN unit_lessons ul ON ul.unit_id = cu.unit_id "+ 
+            "LEFT JOIN unit_videos uv ON uv.lesson_id = ul.lesson_id " +
             "WHERE c.course_id = ? " +
             "ORDER BY cu.sort_order, uv.sort_order";
 
@@ -1694,8 +1952,8 @@ public class Database{
                     if (unitId != null) {
 
                         UnitData unit = unitMap.get(unitId);
-
                         if (unit == null) {
+
                             unit = new UnitData(
                                 unitId,
                                 courseId,
@@ -1703,23 +1961,38 @@ public class Database{
                                 rs.getInt("u_sort"),
                                 new ArrayList<>()
                             );
-
                             unitMap.put(unitId, unit);
                             course.getUnits().add(unit);
                         }
-                        Integer videoId = (Integer) rs.getObject("v_id");
-
-                        if (videoId != null) {
-                            unit.getVideos().add(
-                                new VideoData(
-                                    videoId,
+                        Integer lessonId = (Integer) rs.getObject("l_id");
+                        if(lessonId!=null){
+                            LessonData lesson = lessonMap.get(lessonId);
+                            if(lesson==null){
+                                lesson = new LessonData(
+                                    lessonId,
                                     unitId,
-                                    rs.getString("v_title"),
-                                    rs.getString("drive_url"),
-                                    rs.getString("duration"),
-                                    rs.getInt("v_sort")
-                                )
-                            );
+                                    rs.getString("l_title"),
+                                    rs.getString("l_description"),
+                                    new ArrayList<>()
+                                );
+                                lessonMap.put(lessonId,lesson);
+                                unit.getLessons().add(lesson);
+                            }
+                            Integer videoId = (Integer) rs.getObject("v_id");
+                            if (videoId != null) {
+
+                                lesson.getVideos().add(
+                                    new VideoData(
+                                        videoId,
+                                        unitId,
+                                        lessonId,
+                                        rs.getString("v_title"),
+                                        rs.getString("drive_url"),
+                                        rs.getString("duration"),
+                                        rs.getInt("v_sort")
+                                    )
+                                );
+                            }
                         }
                     }
                 }
@@ -1738,16 +2011,19 @@ public class Database{
 
         Map<Integer, CourseData> courseMap = new LinkedHashMap<>();
         Map<Integer, UnitData> unitMap = new HashMap<>();
+        Map<Integer, LessonData> lessonMap = new HashMap<>();
 
             String sql = "SELECT " +
                 "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
                 "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
-            "uv.video_id AS v_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort " +
+            "uv.video_id AS v_id, uv.lesson_id AS uv_l_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort, " +
+            "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description "+
             "FROM courses c " +
             "JOIN enrollments e ON c.course_id = e.course_id " +
             "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
-            "LEFT JOIN unit_videos uv ON uv.unit_id = cu.unit_id " +
+            "LEFT JOIN unit_lessons ul ON ul.unit_id = cu.unit_id "+
+            "LEFT JOIN unit_videos uv ON uv.lesson_id = ul.lesson_id " +
             "WHERE e.unique_id = ? " +
             "ORDER BY e.enrolled_at, cu.sort_order, uv.sort_order";
 
@@ -1802,19 +2078,35 @@ public class Database{
                             unitMap.put(unitId, unit);
                             course.getUnits().add(unit);
                         }
-                        Integer videoId = (Integer) rs.getObject("v_id");
-                        if (videoId != null) {
-
-                            unit.getVideos().add(
-                                new VideoData(
-                                    videoId,
+                        Integer lessonId = (Integer) rs.getObject("l_id");
+                        if(lessonId!=null){
+                            LessonData lesson = lessonMap.get(lessonId);
+                            if(lesson==null){
+                                lesson = new LessonData(
+                                    lessonId,
                                     unitId,
-                                    rs.getString("v_title"),
-                                    rs.getString("drive_url"),
-                                    rs.getString("duration"),
-                                    rs.getInt("v_sort")
-                                )
-                            );
+                                    rs.getString("l_title"),
+                                    rs.getString("l_description"),
+                                    new ArrayList<>()
+                                );
+                                lessonMap.put(lessonId,lesson);
+                                unit.getLessons().add(lesson);
+                            }
+                            Integer videoId = (Integer) rs.getObject("v_id");
+                            if (videoId != null) {
+
+                                lesson.getVideos().add(
+                                    new VideoData(
+                                        videoId,
+                                        unitId,
+                                        lessonId,
+                                        rs.getString("v_title"),
+                                        rs.getString("drive_url"),
+                                        rs.getString("duration"),
+                                        rs.getInt("v_sort")
+                                    )
+                                );
+                            }
                         }
                     }
                 }
