@@ -1,5 +1,6 @@
 //import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { GoogleLogin} from "@react-oauth/google";
 //import { googleLogout } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
@@ -27,15 +28,19 @@ function Login(){
         navigate("/signup")
     }
 
-    async function showPassword(){
+    const [passVisible, setPassVisible]=useState(false)
+
+    function showPassword(){
         // console.log(document.getElementById("password").type)
         if (document.getElementById("password").type==="password"){
-            document.getElementById("password").type="text"
+            // document.getElementById("password").type="text"
+            setPassVisible(!passVisible)
             document.getElementById("toggleIcon").classList.remove('fa-eye');
             document.getElementById("toggleIcon").classList.add('fa-eye-slash');
         }
         else{
-            document.getElementById("password").type="password"
+            // document.getElementById("password").type="password"
+            setPassVisible(!passVisible)
             document.getElementById("toggleIcon").classList.remove('fa-eye-slash');
             document.getElementById("toggleIcon").classList.add('fa-eye');
         }
@@ -44,8 +49,18 @@ function Login(){
 
     async function resetPasswordButton(){
         const email = window.prompt("Please enter your email for your account: ")
-
-        console.log("resetPasswordButton email: "+email)
+        // console.log(email)
+        if(email===""){
+            // console.log('cancelled')
+            alert('Must enter value for email')
+            return
+        }
+        else if(!email){
+            // alert('Must enter value for email')
+            // console.log('cancelled')
+            return
+        }
+        // console.log("resetPasswordButton email: "+email)
         //redirectTo: `https://csb-312-auroworld.vercel.app/resetpass`,
         const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
             redirectTo: `https://auro-world.vercel.app/resetpass`,
@@ -201,7 +216,7 @@ function Login(){
                 </div> */}
                 <div className = "password-container" style={{position:"relative"}}>
                     <label>Password</label>
-                    <input type="password" id="password" style={{display: 'flex', width: '100%', padding: '10px', paddingRight: '40px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box'}}/>
+                    <input type= {passVisible ? "input" : "password"} id="password" style={{display: 'flex', width: '100%', padding: '10px', paddingRight: '40px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box'}}/>
                     <button className="showPassword" onClick={showPassword} style={{position: "absolute", right: "10px", top: "38px", background: "none", border: "none", cursor: "pointer"}}>
                         <i id="toggleIcon" className="fas fa-eye"></i>
                     </button>

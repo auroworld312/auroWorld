@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
 import '@fortawesome/fontawesome-free/css/all.min.css';
@@ -7,30 +8,37 @@ function ResetPassword(){
     const navigate = useNavigate();
     const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
-    async function revealPassword(){
-        console.log(document.getElementById("password").type)
+    const [passVisible, setPassVisible]=useState(false)
+    const [passConfVisible, setPassConfVisible]=useState(false)
+
+    function revealPassword(){
+        // console.log(document.getElementById("password").type)
         if (document.getElementById("password").type==="password"){
-            document.getElementById("password").type="text"
+            // document.getElementById("password").type="text"
+            setPassVisible(!passVisible)
             document.getElementById("toggleIcon").classList.remove('fa-eye');
             document.getElementById("toggleIcon").classList.add('fa-eye-slash');
         }
         else{
             document.getElementById("password").type="password"
+            setPassVisible(!passVisible)
             document.getElementById("toggleIcon").classList.remove('fa-eye-slash');
             document.getElementById("toggleIcon").classList.add('fa-eye');
         }
         return
     }
 
-    async function revealPasswordConf(){
-        console.log(document.getElementById("passwordConf").type)
+    function revealPasswordConf(){
+        // console.log(document.getElementById("passwordConf").type)
         if (document.getElementById("passwordConf").type==="password"){
-            document.getElementById("passwordConf").type="text"
+            // document.getElementById("passwordConf").type="text"
+            setPassConfVisible(!passConfVisible)
             document.getElementById("toggleIconConf").classList.remove('fa-eye');
             document.getElementById("toggleIconConf").classList.add('fa-eye-slash');
         }
         else{
             document.getElementById("passwordConf").type="password"
+            setPassConfVisible(!passConfVisible)
             document.getElementById("toggleIconConf").classList.remove('fa-eye-slash');
             document.getElementById("toggleIconConf").classList.add('fa-eye');
         }
@@ -73,7 +81,7 @@ function ResetPassword(){
             <label>Enter a new password:</label>
             <div className = "password-container" style={{position:"relative"}}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Password</label>
-                <input type="password" id="password" style={{display: 'flex', width: '100%', padding: '10px', paddingRight: '40px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box'}}/>
+                <input type={passVisible? "password" : "text"} id="password" style={{display: 'flex', width: '100%', padding: '10px', paddingRight: '40px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box'}}/>
                 <button className="showPassword" onClick={revealPassword} style={{position: "absolute", right: "10px", top: "38px", background: "none", border: "none", cursor: "pointer"}}>
                     <i id="toggleIcon" className="fas fa-eye"></i>
                 </button>
@@ -81,7 +89,7 @@ function ResetPassword(){
 
             <div className = "password-conf-container" style={{position:"relative"}}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Confirm Your Password</label>
-                <input type="password" id="passwordConf" style={{display: 'flex', width: '100%', padding: '10px', paddingRight: '40px',borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}/>
+                <input type={passConfVisible? "password" : "text"} id="passwordConf" style={{display: 'flex', width: '100%', padding: '10px', paddingRight: '40px',borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}/>
                 <button className="showPassword" onClick={revealPasswordConf} style={{position: "absolute", right: "10px", top: "38px", background: "none", border: "none", cursor: "pointer"}}>
                     <i id="toggleIconConf" className="fas fa-eye"></i>
                 </button>

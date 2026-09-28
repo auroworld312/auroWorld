@@ -4,6 +4,7 @@ package auroWorld.backend;
  * Hello world!
  *
  */
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,10 @@ import io.javalin.http.Context;
 import io.javalin.http.UploadedFile;
 import io.javalin.http.staticfiles.Location;
 import java.io.IOException;
+
+// import org.json.JSONArray;
+// import org.json.JSONParser;
+// import org.json.JSONElement;
 
 import com.google.gson.Gson;
 
@@ -165,6 +170,7 @@ public class App
     }
     private static final class CreateUnitRequest{
         public String unitName;
+        public String sortOrder;
     }
     private static final class AddUnitMaterial{
         public String filepath;
@@ -176,6 +182,9 @@ public class App
         public String videoTitle1;
         public String videoTitle2;
     }
+    private static final class DeleteUnitRequest{
+        public int unit_id;
+    }   
     private static final class ChangeRoleRequest{
         public String username;
         public String role;
@@ -915,7 +924,7 @@ public class App
 
         Database.UserData user = db.getUserAttributes(uuid);
 
-        System.out.println("user: "+user);
+        // System.out.println("user: "+user);
 
         StructuredResponse resp = new StructuredResponse("ok",null,user);
         ctx.result(gson.toJson(resp));
@@ -994,10 +1003,11 @@ public class App
         ctx.result(gson.toJson(new StructuredResponse("ok",null,lessons)));
     });
 
-    app.post("/unit/{uId}/addlesson",ctx->{
+    app.post("/course/{courseId}/unit/{uId}/addlesson",ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
 
+        int courseId = Integer.parseInt(ctx.pathParam("courseId"));
         int unitId = Integer.parseInt(ctx.pathParam("uId"));
 
         CreateLessonRequest crl = gson.fromJson(ctx.body(), CreateLessonRequest.class);
@@ -1010,9 +1020,85 @@ public class App
                         "error", "missing lesson feature", null)));
                 return;
         }
-        int lessonId = db.createLesson(unitId, crl.lessonTitle, crl.lessonDescription);
+        int lessonId = db.createLesson(courseId, unitId, crl.lessonTitle, crl.lessonDescription);
 
         ctx.result(gson.toJson(new StructuredResponse("ok",null,lessonId)));
+    });
+
+    // String json = "[\"int\"]";
+        // JSONArray jsonArray = JSONParser.parseString(json).getAsJsonArray();
+        // ArrayList<DeleteUnitRequest> unitList = new ArrayList<>();
+        // for (JSONElement element : jsonArray) {
+        //     DeleteUnitRequest obj = new Gson().fromJson(element, DeleteUnitRequest.class);
+        //     System.out.println("current obj ="+obj);
+        //     unitList.add(obj);
+        // }
+        // System.out.println("unit list = "+unitList);
+
+    app.post("/delete/units/course/{cId}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int courseId = Integer.parseInt(ctx.pathParam("cId"));
+
+        String ctxString = ctx.body();
+
+        System.out.println("ctxString ="+ctxString);
+
+        String regex = "[,]";
+        String[] idArray = ctxString.split(regex);
+
+        System.out.println("idArray ="+Arrays.toString(idArray));
+
+        ArrayList<Integer> idArrayList = new ArrayList<>();
+
+        for(int i=0;i<idArray.length;i++){
+            System.out.println("idArray["+i+"]="+idArray[i]);
+            idArrayList.add(Integer.parseInt(idArray[i]));
+        }
+
+        System.out.println("final idArrayList="+idArrayList);
+
+        int result = db.deleteUnits(courseId, idArrayList);
+
+        if(result < 0){
+            ctx.result(gson.toJson(new StructuredResponse("fail", null, result)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, result)));
+        }
+    });
+
+    app.put("/course/{cId}/swapunits",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        // int courseId = Integer.parseInt(ctx.pathParam("cId"));
+
+        String ctxString = ctx.body();
+
+        // System.out.println("ctxString ="+ctxString);
+
+        String regex = "[,]";
+        String[] idArray = ctxString.split(regex);
+
+        // System.out.println("idArray ="+Arrays.toString(idArray));
+
+        int uId1 = Integer.parseInt(idArray[0]);
+        int uId2 = Integer.parseInt(idArray[1]);
+        int sortNum1 = Integer.parseInt(idArray[2]);
+        int sortNum2 = Integer.parseInt(idArray[3]);
+
+        // System.out.println("final ids are "+uId1+" and "+uId2);
+
+        int swapResult=db.swapUnits(uId1, uId2, sortNum1, sortNum2);
+
+        if(swapResult <0){
+            ctx.result(gson.toJson(new StructuredResponse("fail", null, swapResult)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, swapResult)));
+        }
     });
 
     app.post("/course_units/{id}",ctx->{
@@ -1021,19 +1107,31 @@ public class App
 
         int courseId = Integer.parseInt(ctx.pathParam("id"));
 
+        System.out.println("ctx body: "+ctx.body());
+
         CreateUnitRequest unitReq = gson.fromJson(ctx.body(), CreateUnitRequest.class);
 
-        if(unitReq==null || unitReq.unitName==null){
+        if(unitReq==null || unitReq.unitName==null || unitReq.sortOrder==null){
             System.out.println(unitReq);
             System.out.println(unitReq.unitName);
+            System.out.println(unitReq.sortOrder);
             ctx.result(gson.toJson(new StructuredResponse(
                         "error", "missgin unit feature", null)));
                 return;
         }
 
-        int unitId=db.createUnit(unitReq.unitName, courseId);
+        int sortOrder = Integer.parseInt(unitReq.sortOrder);
 
-        ctx.result(gson.toJson(new StructuredResponse("ok", null, unitId)));
+        System.out.println("sort order = "+sortOrder);
+
+        int unitId=db.createUnit(unitReq.unitName, sortOrder, courseId);
+
+        if(unitId <0){
+            ctx.result(gson.toJson(new StructuredResponse("fail", null, unitId)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, unitId)));
+        }
 
     });
 
@@ -1140,6 +1238,8 @@ public class App
                         "error", "missgin video attribute", null)));
                 return;
         }
+
+        // System.out.println("aum.filepath = "+aum.filepath);
 
         int videoId = db.addLessonVideo(unitId, lessonId, aum.title,aum.filepath);
 

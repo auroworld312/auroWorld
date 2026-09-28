@@ -1227,19 +1227,23 @@ public class Database{
         String courseStatement = "DELETE FROM courses WHERE course_id = ? ";
         String enrollmentStatement = "DELETE FROM enrollments WHERE course_id = ? ";
         String unitVideosStatement = "DELETE FROM unit_videos WHERE drive_url ~ ?";
+        String lessonsStatement = "DELETE FROM unit_lessons WHERE course_id = ?";
 
         String regex = "^course/"+courseId+".*";
 
         try(Connection conn = getConnection();
         PreparedStatement ps1 = conn.prepareStatement(courseStatement);
         PreparedStatement ps2 = conn.prepareStatement(enrollmentStatement);
-        PreparedStatement ps3 = conn.prepareStatement(unitVideosStatement);){
+        PreparedStatement ps3 = conn.prepareStatement(unitVideosStatement);
+        PreparedStatement ps4 = conn.prepareStatement(lessonsStatement);){
             ps1.setInt(1, courseId);
             ps2.setInt(1, courseId);
             ps3.setString(1, regex);
+            ps4.setInt(1,courseId);
             ps1.executeUpdate();
             ps2.executeUpdate();
             ps3.executeUpdate();
+            ps4.executeUpdate();
             return 1;
         } 
         catch(SQLException e){
@@ -1297,17 +1301,62 @@ public class Database{
         }
     }
 
+    // public int createLesson(int courseId, int unitId, String title, String description){
+    //     // String generatedColumns[] = { "lesson_id" };
+        
+    //     String insertLesson = "INSERT INTO unit_lessons (unit_id, lesson_title, lesson_description, course_id) VALUES (?,?,?,?) ";
+    //     try(Connection conn = getConnection();
+            // PreparedStatement ps = conn.prepareStatement(insertLesson,PreparedStatement.RETURN_GENERATED_KEYS)){
+    //         ps.setInt(1,unitId);
+    //         ps.setString(2,title);
+    //         ps.setString(3,description);
+    //         ps.setInt(4,courseId);
+
+    //         int rowsAffected = ps.executeUpdate();
+
+            // if (rowsAffected > 0) {
+            //     // Retrieve the auto-generated keys (insert ID)
+            //     ResultSet generatedKeys = ps.getGeneratedKeys();
+            //     if (generatedKeys.next()) {
+            //         int lessonId = generatedKeys.getInt(1);
+            //         System.out.println("Record inserted successfully with ID: " + lessonId);
+            //         return lessonId;
+            //     } else {
+            //         System.out.println("Failed to retrieve insert ID.");
+            //         return -1;
+            //     }
+            // } else {
+            //     return -1;
+            // }
+    //     }
+    //     catch(SQLException e){
+    //         e.printStackTrace();
+    //         return -1;
+    //     }
+    // }
+
     public int addLessonVideo(int unitId, int lessonId, String title, String filepath){
         String insertVideo="INSERT INTO unit_videos (unit_id, lesson_id, title, drive_url) VALUES (?,?,?,?) ";
         try(Connection conn = getConnection();
-            PreparedStatement ps = conn.prepareStatement(insertVideo)){
+            PreparedStatement ps = conn.prepareStatement(insertVideo,PreparedStatement.RETURN_GENERATED_KEYS)){
             ps.setInt(1,unitId);
             ps.setInt(2,lessonId);
             ps.setString(3,title);
             ps.setString(4,filepath);
-            try(ResultSet rs = ps.executeQuery()){
-                System.out.println(rs);
-                if(rs.next()) return rs.getInt("video_id");
+
+            int rowsAffected=ps.executeUpdate();
+            if (rowsAffected > 0) {
+                // Retrieve the auto-generated keys (insert ID)
+                ResultSet generatedKeys = ps.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    int videoId = generatedKeys.getInt(1);
+                    System.out.println("Record inserted successfully with ID: " + videoId);
+                    return videoId;
+                } else {
+                    System.out.println("Failed to retrieve insert ID.");
+                    return -1;
+                }
+            } else {
                 return -1;
             }
         }
@@ -1409,15 +1458,16 @@ public class Database{
         return lessons;
     }
 
-    public int createLesson(int unitId, String title, String description){
+    public int createLesson(int courseId, int unitId, String title, String description){
         // String generatedColumns[] = { "lesson_id" };
         
-        String insertLesson = "INSERT INTO unit_lessons (unit_id, lesson_title, lesson_description) VALUES (?,?,?) ";
+        String insertLesson = "INSERT INTO unit_lessons (unit_id, lesson_title, lesson_description, course_id) VALUES (?,?,?,?) ";
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(insertLesson,PreparedStatement.RETURN_GENERATED_KEYS)){
             ps.setInt(1,unitId);
             ps.setString(2,title);
             ps.setString(3,description);
+            ps.setInt(4,courseId);
 
             int rowsAffected = ps.executeUpdate();
 
@@ -1442,15 +1492,87 @@ public class Database{
         }
     }
 
-    public int createUnit(String unitName, int courseId){
-        String insertUnit = "INSERT INTO course_units (course_id, title) VALUES (?,?) ";
+    public int swapUnits(int unit1, int unit2, int sort1, int sort2){
+        String swapUnit = "UPDATE course_units SET sort_order = ? WHERE unit_id = ?";
+
         try(Connection conn = getConnection();
-            PreparedStatement ps = conn.prepareStatement(insertUnit)){
+        PreparedStatement ps = conn.prepareStatement(swapUnit)){
+            
+            ps.setInt(1,sort1);
+            ps.setInt(2,unit2);
+            
+            // System.out.println("swap preparedstatement = "+ps);
+
+            ps.executeUpdate();
+
+            ps.setInt(1,sort2);
+            ps.setInt(2,unit1);
+
+            // System.out.println("swap preparedstatement = "+ps);
+
+            ps.executeUpdate();
+
+            return 1;
+
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public int deleteUnits(int courseId, ArrayList<Integer> unitIds){
+        String deleteLessonInfo = "DELETE FROM unit_lessons WHERE course_id = ? AND unit_id = ? ";
+        String deleteVideoInfo = "DELETE FROM unit_videos WHERE unit_id = ? ";
+        String deleteUnitInfo = "DELETE FROM course_units WHERE unit_id = ? ";
+
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(deleteLessonInfo);
+        PreparedStatement ps1 = conn.prepareStatement(deleteVideoInfo);
+        PreparedStatement ps2 = conn.prepareStatement(deleteUnitInfo);){
+            for(int i=0;i<unitIds.size();i++) {   
+                int unitId = unitIds.get(i);
+                System.out.println("unitIds["+i+"]: "+unitId);
+
+                ps.setInt(1,courseId);
+                ps.setInt(2,unitId);
+                ps1.setInt(1,unitId);
+                ps2.setInt(1,unitId);
+
+                ps.executeUpdate();
+                ps1.executeUpdate();
+                ps2.executeUpdate();
+            }
+            return 1;
+        
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public int createUnit(String unitName, int sortOrder, int courseId){
+        String insertUnit = "INSERT INTO course_units (course_id, title, sort_order) VALUES (?,?,?) ";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(insertUnit,PreparedStatement.RETURN_GENERATED_KEYS)){
             ps.setInt(1,courseId);
             ps.setString(2,unitName);
-            try(ResultSet rs = ps.executeQuery()){
-                System.out.println(rs);
-                if(rs.next()) return rs.getInt("unit_id");
+            ps.setInt(3,sortOrder);
+
+            int rowsAffected = ps.executeUpdate();
+
+            if (rowsAffected > 0) {
+                // Retrieve the auto-generated keys (insert ID)
+                ResultSet generatedKeys = ps.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    int unitId = generatedKeys.getInt(1);
+                    System.out.println("Record inserted successfully with ID: " + unitId);
+                    return unitId;
+                } else {
+                    System.out.println("Failed to retrieve insert ID.");
+                    return -1;
+                }
+            } else {
                 return -1;
             }
         }
@@ -1534,19 +1656,6 @@ public class Database{
             e.printStackTrace();
             return -1;
         }
-
-        // try(Connection conn = getConnection();
-        // PreparedStatement ps = conn.prepareStatement(swapVideoId)){
-        //     ps.setInt(1,id2);
-        //     ps.setInt(2,unitId);
-        //     ps.setInt(3,id2);
-        //     ps.setString(4,title2);
-        //     return ps.executeUpdate();
-        // }catch(SQLException e){
-        //     e.printStackTrace();
-        //     return -1;
-        // }
-
     }
 
     public int addUnitVideo(int unitId, String title, String filepath){
