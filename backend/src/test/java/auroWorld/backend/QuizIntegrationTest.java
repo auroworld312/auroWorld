@@ -138,12 +138,93 @@ public class QuizIntegrationTest extends TestCase {
                 try (var sql = admin.createStatement(); var result = sql.executeQuery("SELECT relrowsecurity FROM pg_class WHERE oid='" + schema + ".quiz_files'::regclass")) {
                     assertTrue(result.next()); assertTrue(result.getBoolean(1));
                 }
+                exerciseOnlineQuiz();
             } finally {
                 if (app != null) app.stop();
                 if (!schema.matches("quiz_test_[a-f0-9]{32}")) throw new IllegalStateException("Invalid test schema");
                 try (var sql = admin.createStatement()) { sql.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE"); }
             }
         }
+    }
+
+    private void exerciseOnlineQuiz() throws Exception {
+        Instant now = Instant.now();
+        var form = metadata(true, now.plusSeconds(3600), now.plusSeconds(7200), null, List.of());
+        form.put("mode", "online");
+        var questions = List.of(Map.of("prompt", "Which is one?", "options", List.of("1", "2"), "answer", 0, "explanation", "One is 1."),
+            Map.of("prompt", "Which is four?", "options", List.of("3", "4"), "answer", 1, "explanation", "Four is 4."));
+        form.put("questions", questions);
+        assertEquals(403, upload("POST", "/units/1", "student", form, null).statusCode());
+        long id = data(upload("POST", "/units/1", "teacher", form, null)).getAsJsonObject().get("id").getAsLong();
+        String path = "/quizzes/" + id;
+        var hidden = data(get(path, "student")).getAsJsonObject();
+        assertEquals(0, hidden.getAsJsonArray("questions").size());
+        assertFalse(hidden.has("questions_json"));
+        var answer = new HashMap<String, Object>();
+        answer.put("answers", Arrays.asList(0, null)); answer.put("submit", true); answer.put("question_version", 1);
+        assertEquals(403, online(path, "student", answer).statusCode());
+        form.put("release_at", now.minusSeconds(3600).toString());
+        data(upload("PUT", path, "teacher", form, null));
+        var student = data(get(path, "student")).getAsJsonObject();
+        assertEquals(Set.of("prompt", "options"), student.getAsJsonArray("questions").get(0).getAsJsonObject().keySet());
+        assertFalse(data(get("/units/1", "student")).toString().contains("questions_json"));
+        assertTrue(data(get(path, "teacher")).getAsJsonObject().getAsJsonArray("questions").get(0).getAsJsonObject().has("answer"));
+        assertEquals(403, online(path, "other-teacher", answer).statusCode());
+        assertEquals(403, online(path, "outsider", answer).statusCode());
+        assertEquals(403, online(path, "teacher", answer).statusCode());
+        assertEquals(400, upload("POST", path + "/answers", "student", Map.of("submit", true), "answer.txt").statusCode());
+        answer.put("answers", List.of(9, 1));
+        assertEquals(400, online(path, "student", answer).statusCode());
+        answer.put("answers", Arrays.asList(0, null)); answer.put("submit", false);
+        data(online(path, "student", answer));
+        var draft = data(get(path, "student")).getAsJsonObject().getAsJsonArray("submissions").get(0).getAsJsonObject();
+        assertEquals(0, draft.getAsJsonArray("answers").get(0).getAsInt());
+        assertFalse(draft.has("result")); assertFalse(draft.has("score"));
+        assertEquals(0, data(get(path, "teacher")).getAsJsonObject().getAsJsonArray("submissions").size());
+        var changed = new ArrayList<>(questions);
+        changed.set(0, Map.of("prompt", "Choose one", "options", List.of("1", "2"), "answer", 0, "explanation", "One is 1."));
+        form.put("questions", changed);
+        data(upload("PUT", path, "teacher", form, null));
+        assertEquals(409, online(path, "student", answer).statusCode());
+        form.put("mode", "file");
+        assertEquals(409, upload("PUT", path, "teacher", form, "question.txt").statusCode());
+        form.put("mode", "online");
+        answer.put("question_version", 2); answer.put("submit", true); answer.put("score", 100);
+        data(online(path, "student", answer));
+        var submitted = data(get(path, "student")).getAsJsonObject().getAsJsonArray("submissions").get(0).getAsJsonObject();
+        assertEquals(50.0, submitted.get("score").getAsDouble());
+        var result = submitted.getAsJsonObject("result");
+        assertEquals(1, result.get("correct").getAsInt());
+        assertEquals("One is 1.", result.getAsJsonArray("questions").get(0).getAsJsonObject().get("explanation").getAsString());
+        assertFalse(submitted.has("online_result"));
+        assertEquals(409, online(path, "student", answer).statusCode());
+        var other = data(get(path, "student2")).getAsJsonObject();
+        assertEquals(0, other.getAsJsonArray("submissions").size());
+        assertFalse(other.getAsJsonArray("questions").get(0).getAsJsonObject().has("answer"));
+        form.put("questions", questions);
+        assertEquals(409, upload("PUT", path, "teacher", form, null).statusCode());
+        form.put("questions", changed); form.put("title", "Updated title");
+        data(upload("PUT", path, "teacher", form, null));
+        assertEquals(400, upload("PUT", path + "/submissions/" + submitted.get("id").getAsLong() + "/grade", "teacher", Map.of("score", 100), null).statusCode());
+        form.put("due_at", now.minusSeconds(60).toString());
+        data(upload("PUT", path, "teacher", form, null));
+        assertEquals(403, online(path, "student2", answer).statusCode());
+        form.put("late_until", now.plusSeconds(3600).toString());
+        data(upload("PUT", path, "teacher", form, null));
+        answer.put("answers", List.of(0, 1));
+        data(online(path, "student2", answer));
+        var late = data(get(path, "student2")).getAsJsonObject().getAsJsonArray("submissions").get(0).getAsJsonObject();
+        assertEquals(100.0, late.get("score").getAsDouble()); assertTrue(late.get("late").getAsBoolean());
+        assertEquals(2, data(get(path, "teacher")).getAsJsonObject().getAsJsonArray("submissions").size());
+        data(upload("DELETE", path, "teacher", Map.of(), null));
+        assertEquals(404, get(path, "student").statusCode());
+    }
+
+    private HttpResponse<String> online(String path, String user, Object body) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create(root + path + "/online-answers"))
+            .header("Authorization", "Bearer " + user).header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(json.toJson(body))).build();
+        return http.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private Map<String, Object> metadata(boolean published, Instant release, Instant due, Instant late, List<Long> keep) {

@@ -59,6 +59,7 @@ public final class QuizApi {
             var quizzes = rows(conn, "SELECT q.* FROM course_quizzes q WHERE unit_id=? AND (published OR ?) ORDER BY id", unit.get("unit_id"), manager);
             for (var quiz : quizzes) {
                 quiz.remove("instructions");
+                quiz.remove("questions_json");
                 quiz.put("status", status(quiz, Instant.now()));
                 quiz.put("submitted", !rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND user_id=? AND submitted_at IS NOT NULL LIMIT 1", quiz.get("id"), user.id).isEmpty());
             }
@@ -75,11 +76,16 @@ public final class QuizApi {
             require(manager || (bool(quiz, "published") && enrolled(conn, user, quiz)), 403, "This quiz is not available to you.");
             Instant now = Instant.now();
             boolean released = bool(quiz, "published") && time(quiz, "release_at") != null && !now.isBefore(time(quiz, "release_at"));
+            String questionsJson = (String) quiz.remove("questions_json");
+            var questions = OnlineQuiz.read(questionsJson);
+            quiz.put("questions", manager ? questions : released && "online".equals(quiz.get("mode")) ? OnlineQuiz.publicQuestions(questions) : List.of());
+            quiz.put("mode_locked", !rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? LIMIT 1", quiz.get("id")).isEmpty());
+            quiz.put("questions_locked", !rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND submitted_at IS NOT NULL LIMIT 1", quiz.get("id")).isEmpty());
             quiz.put("can_manage", manager);
             quiz.put("can_submit", !manager && canSubmit(quiz, now));
             quiz.put("status", status(quiz, now));
             quiz.put("server_now", now.toString());
-            quiz.put("files", manager || released ? files(conn, quiz.get("id"), null) : List.of());
+            quiz.put("files", manager || (released && !"online".equals(quiz.get("mode"))) ? files(conn, quiz.get("id"), null) : List.of());
             if (!manager && !released) quiz.remove("instructions");
             var submissions = rows(conn, "SELECT s.*, COALESCE(u.username, s.user_id) AS username FROM quiz_submissions s LEFT JOIN users u ON u.unique_id::text=s.user_id " +
                 "WHERE s.quiz_id=? AND " + (manager ? "s.submitted_at IS NOT NULL" : "s.user_id=?") + " ORDER BY s.id DESC",
@@ -87,6 +93,9 @@ public final class QuizApi {
             for (var submission : submissions) {
                 submission.put("files", files(conn, quiz.get("id"), submission.get("id")));
                 submission.put("feedback_files", files(conn, quiz.get("id"), submission.get("id"), true));
+                Object answers = submission.remove("online_answers"), result = submission.remove("online_result");
+                if (answers != null) submission.put("answers", com.google.gson.JsonParser.parseString((String) answers));
+                if (result != null && submission.get("submitted_at") != null) submission.put("result", com.google.gson.JsonParser.parseString((String) result));
             }
             quiz.put("submissions", submissions);
             return quiz;
@@ -94,6 +103,7 @@ public final class QuizApi {
         app.post("/quiz-api/units/{unitId}", ctx -> handle(ctx, (conn, user) -> saveQuiz(ctx, conn, user, true)));
         app.put("/quiz-api/quizzes/{quizId}", ctx -> handle(ctx, (conn, user) -> saveQuiz(ctx, conn, user, false)));
         app.post("/quiz-api/quizzes/{quizId}/answers", ctx -> handle(ctx, (conn, user) -> saveAnswer(ctx, conn, user)));
+        app.post("/quiz-api/quizzes/{quizId}/online-answers", ctx -> handle(ctx, (conn, user) -> saveOnlineAnswer(ctx, conn, user)));
         app.delete("/quiz-api/quizzes/{quizId}", ctx -> handle(ctx, (conn, user) -> {
             conn.setAutoCommit(false);
             var quiz = quiz(conn, id(ctx, "quizId"), true);
@@ -106,6 +116,7 @@ public final class QuizApi {
             conn.setAutoCommit(false);
             var quiz = quiz(conn, id(ctx, "quizId"), true);
             require(manage(user, quiz), 403, "Only the course instructor or an administrator can grade answers.");
+            require(!"online".equals(quiz.get("mode")), 400, "Online quizzes are graded automatically.");
             long submissionId = id(ctx, "submissionId");
             var submission = one(conn, "SELECT submitted_at FROM quiz_submissions WHERE id=? AND quiz_id=?", submissionId, quiz.get("id"));
             require(submission.get("submitted_at") != null, 400, "Draft answers cannot be graded.");
@@ -123,7 +134,7 @@ public final class QuizApi {
             var quiz = quiz(conn, ((Number) file.get("quiz_id")).longValue(), false);
             boolean manager = manage(user, quiz);
             if (file.get("submission_id") == null) {
-                require(manager || (enrolled(conn, user, quiz) && bool(quiz, "published") && time(quiz, "release_at") != null && !Instant.now().isBefore(time(quiz, "release_at"))), 403, "Quiz files are not available yet.");
+                require(manager || (!"online".equals(quiz.get("mode")) && enrolled(conn, user, quiz) && bool(quiz, "published") && time(quiz, "release_at") != null && !Instant.now().isBefore(time(quiz, "release_at"))), 403, "Quiz files are not available yet.");
             } else {
                 var answer = one(conn, "SELECT user_id,submitted_at FROM quiz_submissions WHERE id=?", file.get("submission_id"));
                 require((manager && answer.get("submitted_at") != null) || (user.id.equals(answer.get("user_id")) && enrolled(conn, user, quiz)), 403, "You cannot access this answer.");
@@ -145,6 +156,14 @@ public final class QuizApi {
         var body = JSON.fromJson(ctx.formParam("metadata"), QuizForm.class);
         require(body != null && body.title != null && !body.title.isBlank() && body.title.length() <= 200, 400, "Enter a title (up to 200 characters).");
         require(body.instructions == null || body.instructions.length() <= 20000, 400, "Instructions are too long.");
+        String mode = body.mode == null ? create ? "file" : (String) target.get("mode") : body.mode;
+        require("file".equals(mode) || "online".equals(mode), 400, "Choose file upload or online questions.");
+        var questions = "online".equals(mode) ? body.questions == null && !create ? OnlineQuiz.read((String) target.get("questions_json")) : body.questions : List.<OnlineQuiz.Question>of();
+        if ("online".equals(mode)) OnlineQuiz.validate(questions, body.published);
+        String questionsJson = JSON.toJson(questions);
+        boolean changed = !create && (!mode.equals(target.get("mode")) || !questionsJson.equals(target.get("questions_json")));
+        if (!create && !mode.equals(target.get("mode"))) require(rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? LIMIT 1", target.get("id")).isEmpty(), 409, "The quiz type cannot change after a student has saved or submitted an answer.");
+        if (changed) require(rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND submitted_at IS NOT NULL LIMIT 1", target.get("id")).isEmpty(), 409, "Questions cannot change after a student has submitted. Create another quiz instead.");
         Instant release = parseTime(body.release_at), due = parseTime(body.due_at), late = parseTime(body.late_until);
         validateSchedule(body.published, release, due, late);
         if (!create && bool(target, "published")) {
@@ -159,8 +178,11 @@ public final class QuizApi {
             update(conn, "UPDATE course_quizzes SET title=?,instructions=?,published=?,release_at=?,due_at=?,late_until=?,updated_at=now() WHERE id=?",
                 body.title.trim(), body.instructions == null ? "" : body.instructions, body.published, release, due, late, quizId);
         }
-        replaceFiles(ctx, conn, quizId, null, body.keep_file_ids);
-        require(!body.published || !files(conn, quizId, null).isEmpty(), 400, "Upload at least one question file before publishing.");
+        update(conn, "UPDATE course_quizzes SET mode=?,questions_json=?,question_version=question_version+? WHERE id=?", mode, questionsJson, changed ? 1 : 0, quizId);
+        if ("file".equals(mode)) {
+            replaceFiles(ctx, conn, quizId, null, body.keep_file_ids);
+            require(!body.published || !files(conn, quizId, null).isEmpty(), 400, "Upload at least one question file before publishing.");
+        }
         conn.commit();
         return Map.of("id", quizId);
     }
@@ -168,6 +190,7 @@ public final class QuizApi {
     private Object saveAnswer(Context ctx, Connection conn, User user) throws Exception {
         conn.setAutoCommit(false);
         var quiz = quiz(conn, id(ctx, "quizId"), true);
+        require(!"online".equals(quiz.get("mode")), 400, "Use the online question form for this quiz.");
         require(!manage(user, quiz) && enrolled(conn, user, quiz), 403, "Only enrolled students can submit answers.");
         require(canSubmit(quiz, Instant.now()), 403, "The submission window is closed or has not opened.");
         var form = JSON.fromJson(ctx.formParam("metadata"), AnswerForm.class);
@@ -182,6 +205,28 @@ public final class QuizApi {
         Instant now = Instant.now();
         require(canSubmit(quiz, now), 403, "The submission window closed while uploading. Your submission was not accepted.");
         if (form.submit) update(conn, "UPDATE quiz_submissions SET submitted_at=?,late=? WHERE id=?", now, !now.isBefore(time(quiz, "due_at")), submissionId);
+        conn.commit();
+        return Map.of("id", submissionId, "submitted", form.submit);
+    }
+
+    private Object saveOnlineAnswer(Context ctx, Connection conn, User user) throws Exception {
+        conn.setAutoCommit(false);
+        var quiz = quiz(conn, id(ctx, "quizId"), true);
+        require(!manage(user, quiz) && enrolled(conn, user, quiz), 403, "Only enrolled students can submit answers.");
+        require("online".equals(quiz.get("mode")), 400, "This quiz uses file submissions.");
+        require(canSubmit(quiz, Instant.now()), 403, "The submission window is closed or has not opened.");
+        var form = JSON.fromJson(ctx.body(), OnlineAnswerForm.class);
+        require(form != null && form.question_version != null && form.question_version.intValue() == ((Number) quiz.get("question_version")).intValue(), 409, "The questions have changed. Reload the quiz before answering.");
+        require(rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND user_id=? AND submitted_at IS NOT NULL", quiz.get("id"), user.id).isEmpty(), 409, "This quiz has already been submitted. Reload to view your results.");
+        var questions = OnlineQuiz.read((String) quiz.get("questions_json"));
+        OnlineQuiz.validateAnswers(questions, form.answers);
+        var drafts = rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND user_id=? AND submitted_at IS NULL", quiz.get("id"), user.id);
+        Object submissionId = (drafts.isEmpty() ? one(conn, "INSERT INTO quiz_submissions(quiz_id,user_id) VALUES (?,?) RETURNING id", quiz.get("id"), user.id) : drafts.get(0)).get("id");
+        Instant now = Instant.now();
+        require(canSubmit(quiz, now), 403, "The submission window has closed.");
+        Map<String, Object> result = form.submit ? OnlineQuiz.grade(questions, form.answers) : null;
+        update(conn, "UPDATE quiz_submissions SET online_answers=?,question_version=?,submitted_at=?,late=?,online_result=?,score=?,graded_at=? WHERE id=?",
+            JSON.toJson(form.answers), form.question_version, form.submit ? now : null, form.submit && !now.isBefore(time(quiz, "due_at")), result == null ? null : JSON.toJson(result), result == null ? null : result.get("score"), form.submit ? now : null, submissionId);
         conn.commit();
         return Map.of("id", submissionId, "submitted", form.submit);
     }
@@ -334,11 +379,13 @@ public final class QuizApi {
     record User(String id, String username, String role) {}
     private record AuthUser(String id) {}
     private static class QuizForm {
-        String title, instructions, release_at, due_at, late_until;
+        String title, instructions, release_at, due_at, late_until, mode;
+        List<OnlineQuiz.Question> questions;
         boolean published;
         List<Long> keep_file_ids;
     }
     private static class AnswerForm { boolean submit; List<Long> keep_file_ids; }
+    private static class OnlineAnswerForm { boolean submit; Integer question_version; List<Integer> answers; }
     private static class GradeForm { Double score; String feedback; List<Long> keep_file_ids; }
     static class Fault extends RuntimeException {
         final int code;

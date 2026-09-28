@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { quizRequest, quizUpload, FILE_ACCEPT, TIME_OPTIONS, localZone, displayDate, splitDate, dateInstant, validateFiles } from './quizApi';
 import './Quiz.css';
+import OnlineQuestions, { emptyQuestion, validateQuestions } from './OnlineQuestions';
 
 export function Attachment({ file }) {
   const [url, setUrl] = useState('');
@@ -70,6 +71,8 @@ function DateTimePicker({ label, value, onChange, id }) {
 
 export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
   const formId = useId();
+  const [mode, setMode] = useState(quiz?.mode || 'file');
+  const [questions, setQuestions] = useState(quiz?.questions?.length ? quiz.questions : [emptyQuestion()]);
   const [title, setTitle] = useState(quiz?.title || '');
   const [instructions, setInstructions] = useState(quiz?.instructions || '');
   const [release, setRelease] = useState(splitDate(quiz?.release_at));
@@ -97,11 +100,14 @@ export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
       if (published && (!releaseAt || !dueAt)) throw new Error('Select release and due dates and times.');
       if ((releaseAt || dueAt || lateUntil) && (!releaseAt || !dueAt || dueAt <= releaseAt)) throw new Error('Due date must be after release date.');
       if (allowLate && (!lateUntil || !dueAt || lateUntil <= dueAt)) throw new Error('Choose a late deadline after the normal due date.');
-      validateFiles(existing, incoming);
-      if (published && !existing.length && !incoming.length) throw new Error('Upload a question file before publishing.');
+      if (mode === 'online') { if (published) validateQuestions(questions); }
+      else {
+        validateFiles(existing, incoming);
+        if (published && !existing.length && !incoming.length) throw new Error('Upload a question file before publishing.');
+      }
       const result = await quizRequest(quiz ? `/quizzes/${quiz.id}` : `/units/${unitId}`, {
         method: quiz ? 'PUT' : 'POST',
-        body: quizUpload({ title, instructions, published, release_at: releaseAt, due_at: dueAt, late_until: lateUntil, keep_file_ids: existing.map(f => f.id) }, incoming),
+        body: quizUpload({ title, instructions, published, mode, questions: mode === 'online' ? questions : [], release_at: releaseAt, due_at: dueAt, late_until: lateUntil, keep_file_ids: existing.map(f => f.id) }, mode === 'file' ? incoming : []),
       });
       onSaved(result);
     } catch (e) { setError(e.message); }
@@ -110,11 +116,18 @@ export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
   return <div className="quiz-card quiz-form">
     <h3>{quiz ? 'Edit Quiz' : 'Create Quiz'}</h3>
     <fieldset disabled={busy}>
+      <label htmlFor={`${formId}-mode`}>Quiz Method</label>
+      <select id={`${formId}-mode`} value={mode} disabled={quiz?.mode_locked} onChange={e => setMode(e.target.value)}>
+        <option value="file">Upload Files</option>
+        <option value="online">Online Questions</option>
+      </select>
+      {quiz?.mode_locked && <p className="quiz-muted">The quiz method is locked because students have saved or submitted answers.</p>}
       <label htmlFor={`${formId}-title`}>Quiz Title</label>
       <input id={`${formId}-title`} maxLength={200} value={title} onChange={e => setTitle(e.target.value)} />
       <label htmlFor={`${formId}-instructions`}>Instructions</label>
       <textarea id={`${formId}-instructions`} maxLength={20000} value={instructions} onChange={e => setInstructions(e.target.value)} />
-      <FilePicker id={`${formId}-question-files`} {...{ existing, setExisting, incoming, setIncoming }} />
+      {mode === 'file' ? <FilePicker id={`${formId}-question-files`} {...{ existing, setExisting, incoming, setIncoming }} />
+        : <OnlineQuestions questions={questions} onChange={setQuestions} locked={quiz?.questions_locked} />}
       <p className="quiz-muted">All times shown in {localZone}.</p>
       <DateTimePicker id={`${formId}-release`} label="Release" value={release} onChange={setRelease} />
       <DateTimePicker id={`${formId}-due`} label="Due" value={due} onChange={setDue} />
