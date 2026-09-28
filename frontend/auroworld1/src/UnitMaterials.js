@@ -10,7 +10,7 @@ export default function UnitMaterials({ unit, children, initialOpen = false, ini
     </button>
     {open && <div id={`unit-content-${unit.unitId}`}>
       <div className="quiz-tabs" role="tablist" aria-label={`${unit.title} materials`}>
-        {['videos', 'quizzes'].map(value => <button key={value} id={`unit-${unit.unitId}-${value}-tab`} role="tab" aria-selected={tab === value} aria-controls={`unit-${unit.unitId}-${value}`} onClick={() => setTab(value)}>{value === 'videos' ? `Videos (${unit.videos?.length || 0})` : 'Quizzes'}</button>)}
+        {['videos', 'quizzes'].map(value => <button key={value} id={`unit-${unit.unitId}-${value}-tab`} role="tab" aria-selected={tab === value} aria-controls={`unit-${unit.unitId}-${value}`} onClick={() => setTab(value)}>{value === 'videos' ? `Videos` : 'Quizzes'}</button>)}
       </div>
       <div role="tabpanel" id={`unit-${unit.unitId}-videos`} aria-labelledby={`unit-${unit.unitId}-videos-tab`} hidden={tab !== 'videos'}>{tab === 'videos' && children}</div>
       <div role="tabpanel" id={`unit-${unit.unitId}-quizzes`} aria-labelledby={`unit-${unit.unitId}-quizzes-tab`} hidden={tab !== 'quizzes'}>{tab === 'quizzes' && <UnitQuizzes unitId={unit.unitId} />}</div>

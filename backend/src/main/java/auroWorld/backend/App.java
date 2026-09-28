@@ -1043,21 +1043,21 @@ public class App
 
         String ctxString = ctx.body();
 
-        System.out.println("ctxString ="+ctxString);
+        // System.out.println("ctxString ="+ctxString);
 
         String regex = "[,]";
         String[] idArray = ctxString.split(regex);
 
-        System.out.println("idArray ="+Arrays.toString(idArray));
+        // System.out.println("idArray ="+Arrays.toString(idArray));
 
         ArrayList<Integer> idArrayList = new ArrayList<>();
 
         for(int i=0;i<idArray.length;i++){
-            System.out.println("idArray["+i+"]="+idArray[i]);
+            // System.out.println("idArray["+i+"]="+idArray[i]);
             idArrayList.add(Integer.parseInt(idArray[i]));
         }
 
-        System.out.println("final idArrayList="+idArrayList);
+        // System.out.println("final idArrayList="+idArrayList);
 
         int result = db.deleteUnits(courseId, idArrayList);
 

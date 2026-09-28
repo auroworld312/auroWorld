@@ -1185,11 +1185,18 @@ function MaterialsTab({ course, userData }) {
         drag.style.opacity=1
         // console.log('drag end ',uId)
         // console.log('uIds to swap are '+uId1+' and '+uId2)
-        if(uId1===-1 || uId2===-1){
+        if(uId1===-1 || uId2===-1 || uId1===uId2){
             // console.log('swap failed')
+            uId1 = -1
+            uId2 = -1
+
+            sortNum1=-1
+            sortNum2 = -1
             return
         }
         else{
+            // console.log('unit id 1 = ',uId1)
+            // console.log('unit id 2 = ',uId2)
             let id1Changed = false
             let id2Changed = false
 
