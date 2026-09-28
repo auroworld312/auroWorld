@@ -6,6 +6,7 @@ import { Attachment, FilePicker, QuizEditor } from './QuizComponents';
 import { quizRequest, quizUpload, displayDate, localZone, validateFiles } from './quizApi';
 import './Quiz.css';
 import SubmissionGrade from './SubmissionGrade';
+import OnlineQuiz, { OnlineResult } from './OnlineQuiz';
 
 function AnswerForm({ quiz, onSaved, disabled }) {
   const draft = quiz.submissions.find(s => !s.submitted_at);
@@ -89,6 +90,18 @@ export default function QuizPage() {
             {quiz.can_manage && <button onClick={() => setEditing(!editing)}>{editing ? 'Close Editor' : 'Edit Quiz'}</button>}
           </section>
           {editing && quiz.can_manage && <QuizEditor key={revision} quiz={quiz} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); setNotice('Quiz saved. Calendar deadlines will use the updated dates.'); load(); }} onDeleted={() => navigate(`/courses/${quiz.course_id}`, { state: { activeTab: 'materials', unitId: quiz.unit_id, unitTab: 'quizzes' } })} />}
+          {quiz.mode === 'online' ? <>
+            {quiz.can_manage ? <section className="quiz-card">
+              <h2>Online Questions ({quiz.questions.length})</h2>
+              <p className="quiz-muted">Single choice · Equal weight · Automatically graded</p>
+              {quiz.questions.map((question, index) => <details className="quiz-card" key={index}>
+                <summary>Question {index + 1}: {question.prompt || 'Untitled question'}</summary>
+                <ol type="A">{question.options.map((option, i) => <li key={i}>{option}{question.answer === i ? ' — Correct answer' : ''}</li>)}</ol>
+                <p style={{ whiteSpace: 'pre-wrap' }}><strong>Explanation: </strong>{question.explanation}</p>
+              </details>)}
+            </section> : released || quiz.submissions.some(s => s.result) ? <OnlineQuiz key={`${quiz.id}-${revision}`} quiz={quiz} canSubmit={canSubmit} onSaved={load} />
+              : <section className="quiz-card"><h2>Not Open Yet</h2><p>Questions will be available at {displayDate(quiz.release_at)}.</p></section>}
+          </> : <>
           {quiz.can_manage || released ? <section className="quiz-card">
             <h2>Question Files</h2>
             {quiz.instructions && <p style={{ whiteSpace: 'pre-wrap' }}>{quiz.instructions}</p>}
@@ -96,6 +109,8 @@ export default function QuizPage() {
             {quiz.files.map(file => <Attachment key={file.id} file={file} />)}
           </section> : <section className="quiz-card"><h2>Not Open Yet</h2><p>Question files will be available at {displayDate(quiz.release_at)}.</p></section>}
           {!quiz.can_manage && released && <AnswerForm key={`${quiz.id}-${revision}`} quiz={quiz} disabled={!canSubmit} onSaved={message => { setNotice(message); load(); }} />}
+          </>}
+          {(quiz.mode !== 'online' || quiz.can_manage) &&
           <section className="quiz-card">
             <h2>{quiz.can_manage ? 'Student Submissions' : 'My Submissions'}</h2>
             {!quiz.submissions.length && <p className="quiz-muted">No submissions yet.</p>}
@@ -104,9 +119,10 @@ export default function QuizPage() {
                 <span className="quiz-tag">{!submission.submitted_at ? 'Draft — not submitted' : submission.late ? 'Submitted late' : 'Submitted on time'}</span></div>
               {submission.submitted_at && <p className="quiz-muted">Submitted: {displayDate(submission.submitted_at)}</p>}
               {submission.files.map(file => <Attachment key={file.id} file={file} />)}
-              {submission.submitted_at && <SubmissionGrade key={`${submission.id}-${revision}`} quizId={quiz.id} submission={submission} canManage={quiz.can_manage} onSaved={() => { setNotice('Grade saved and visible to the student.'); load(); }} />}
+              {submission.result ? <OnlineResult result={submission.result} /> : submission.submitted_at && <SubmissionGrade key={`${submission.id}-${revision}`} quizId={quiz.id} submission={submission} canManage={quiz.can_manage} onSaved={() => { setNotice('Grade saved and visible to the student.'); load(); }} />}
             </div>)}
           </section>
+          }
         </>}
       </div></main>
     </div>
