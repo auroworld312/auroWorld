@@ -1134,7 +1134,29 @@ public class App
         }
 
     });
+    app.put("/edit/unit/{unitId}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
 
+        int unitId = Integer.parseInt(ctx.pathParam("unitId"));
+
+        CreateUnitRequest eur = gson.fromJson(ctx.body(), CreateUnitRequest.class);
+
+        if(eur==null || eur.unitName==null || eur.unitName.trim().isEmpty()){
+            ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing unit name", null)));
+                return;
+        }
+
+        int success = db.editUnitTitle(unitId, eur.unitName.trim());
+
+        if(success<=0){
+            ctx.result(gson.toJson(new StructuredResponse("editing unit failed", null, success)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, success)));
+        }
+    });
     app.get("/unit_videos/{id}/{title}", ctx->{
         ctx.status(200);
         ctx.contentType("application/json");

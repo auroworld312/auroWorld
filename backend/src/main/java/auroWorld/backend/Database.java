@@ -1581,7 +1581,19 @@ public class Database{
             return -1;
         }
     }
-
+    
+    public int editUnitTitle(int unitId, String title){
+        String sql = "UPDATE course_units SET title = ? WHERE unit_id = ? ";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setString(1, title);
+            ps.setInt(2, unitId);
+            return ps.executeUpdate();
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
     // public String getVideoFilepath(int videoId, int unitId){
 
     // }
