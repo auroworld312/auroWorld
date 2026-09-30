@@ -722,7 +722,7 @@ public class Database{
             "       c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
             "       f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
             "FROM messages m " +
-            "LEFT JOIN comments c ON m.msg_id = c.msg_d " +
+            "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
             "LEFT JOIN files f ON m.msg_id = f.msg_id " +
             "LEFT JOIN \"users\" u ON m.\"unique_id\" = u.\"unique_id\" " +
             "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
@@ -1819,7 +1819,7 @@ public class Database{
             "FROM courses c " +
             "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
             "LEFT JOIN unit_lessons ul ON ul.unit_id = cu.unit_id "+
-            "LEFT JOIN unit_videos uv ON uv.lesson_id = uv.lesson_id " +
+            "LEFT JOIN unit_videos uv ON uv.lesson_id = ul.lesson_id " +
             "ORDER BY c.course_id, cu.sort_order, uv.sort_order";
 
         try (Connection conn = getConnection();

@@ -127,6 +127,22 @@ function Posts(){
         if(error){ return }
         else if(user){ return user.id }
     }
+
+    // Resolves the current user's username without depending on the
+    // userAttributes state having finished loading yet. Falls back to a
+    // direct fetch (and finally "Unknown") so posting/commenting never
+    // silently fails just because /userdata hasn't resolved.
+    async function resolveUsername(uuid){
+        if(userAttributes?.username){ return userAttributes.username }
+        try{
+            const res = await fetch(`${API}/userdata/${uuid}`)
+            const data = await res.json()
+            return data?.mData?.username || "Unknown"
+        }catch(err){
+            console.log("Couldn't fetch username, proceeding anyway: "+err.message)
+            return "Unknown"
+        }
+    }
     // async function getUsername(uuid){
     //     try{
     //         const usernameResponse = await fetch(`${API}/username/${uuid}`)
@@ -170,15 +186,15 @@ function Posts(){
         document.getElementById("addPost").style.display="block";
     }
 
-    async function addPostButton(username){
+    async function addPostButton(){
         //console.log("username: "+username)
         if(!document.getElementById("newTitle").value || !document.getElementById("newPost").value){
             alert("Title or caption aren't filled out")
             return
         }
-        console.log('fileUpload name: '+fileUpload.name+' fileUpload.type: '+fileUpload.type)
+        console.log('fileUpload name: '+fileUpload?.name+' fileUpload.type: '+fileUpload?.type)
         if(fileUpload && (!fileUpload.type || (fileUpload.type && (fileUpload.type!=='image/jpeg' 
-        && fileUpload.type!=='image/png' && fileUpload.type!=='image/svg' 
+        && fileUpload.type!=='image/png' && fileUpload.type!=='image/svg+xml' 
         && fileUpload.type!=='image/webp')))){
             alert('Files must have webp, jpg, png or svg extension')
             return
@@ -190,7 +206,11 @@ function Posts(){
         //console.log("prevUrl: "+prevUrl)
         try{
             const current_uuid = await getCurrentUserId()
-            // const username = await getUsername(current_uuid)
+            if(!current_uuid){
+                alert("You must be logged in to post.")
+                return
+            }
+            const username = await resolveUsername(current_uuid)
             const postBody = {
                 subject: document.getElementById("newTitle").value,
                 message: document.getElementById("newPost").value,
@@ -382,14 +402,18 @@ function Posts(){
         document.getElementById(`commentList-${msg_id}`).style.display="block"
     }
 
-    async function sendCommentButton(msg_id,username){
+    async function sendCommentButton(msg_id){
         try{
             const current_uuid = await getCurrentUserId()
-            //const username = await getUsername(current_uuid)
+            if(!current_uuid){
+                alert("You must be logged in to comment.")
+                return
+            }
+            const username = await resolveUsername(current_uuid)
             const commBody={ user_uuid:current_uuid, comment:document.getElementById(`newComment-${msg_id}`).value }
             const res = await fetch(`${API}/messages/${msg_id}/comments`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(commBody) })
             const data = await res.json()
-            if(data.mStatus!=="ok"){ alert("Comment failed: "+data.mMessage); return }
+            if(data.mStatus!=="ok"){ alert("Comment failed: "+data.mMessage); return; }
             commentDomButton(document.getElementById(`newComment-${msg_id}`).value,msg_id,data.mData,username,current_uuid)
             cancelCommentButton(msg_id)
         }catch(error){ console.error(error.message) }
@@ -715,7 +739,7 @@ function Posts(){
                                 <input type="text" id="newTitle" style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', boxSizing:'border-box' }} />
                                 <textarea id="newPost" style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', minHeight:'80px', boxSizing:'border-box' }}></textarea>
                                 <div style={{ display:'flex', gap:'10px' }}>
-                                    <Button onClick={()=> addPostButton(userAttributes.username)}>Send</Button>
+                                    <Button onClick={addPostButton}>Send</Button>
                                     <Button variant="secondary" onClick={cancelPostButton}>Cancel</Button>
                                 </div>
                             </Card>
@@ -814,7 +838,7 @@ function Posts(){
                                         <label style={{ fontWeight:'bold' }}>Message</label>
                                         <textarea id={`newComment-${post.msgId}`} style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', minHeight:'60px', boxSizing:'border-box' }}></textarea>
                                         <div style={{ display:'flex', gap:'10px' }}>
-                                            <Button onClick={() => sendCommentButton(post.msgId,userAttributes.username)}>Send</Button>
+                                            <Button onClick={() => sendCommentButton(post.msgId)}>Send</Button>
                                             <Button variant="secondary" onClick={() => cancelCommentButton(post.msgId)}>Cancel</Button>
                                         </div>
                                     </Card>

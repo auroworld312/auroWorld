@@ -282,10 +282,10 @@ public class App
             CreateAccountRequest car = gson.fromJson(ctx.body(),CreateAccountRequest.class);
 
             if(car==null || car.email == null || car.username==null || car.user_uuid==null){
-                System.out.println(car);
-                System.out.println(car.email);
-                System.out.println(car.username);
-                System.out.println(car.user_uuid);
+                //System.out.println(car);
+                //System.out.println(car.email);
+                ////System.out.println(car.username);
+                //System.out.println(car.user_uuid);
                 ctx.result(gson.toJson(new StructuredResponse(
                         "error", "missing username or email", null)));
                 return;
@@ -528,7 +528,7 @@ public class App
 
             CreateFileRequest req = gson.fromJson(ctx.body(),CreateFileRequest.class);
 
-            System.out.println("CreateFileRequest req= "+req.filename+" "+req.msgId);
+            //System.out.println("CreateFileRequest req= "+req.filename+" "+req.msgId);
 
             if(req==null || req.user_uuid ==null ||req.filename==null || req.filename.trim().isEmpty() || req.msgId==0){
                 ctx.status(400);
