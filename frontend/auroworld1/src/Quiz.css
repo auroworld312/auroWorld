@@ -26,3 +26,30 @@
 .quiz-page-inner { max-width: 1000px; margin: auto; }
 .quiz-panel h2, .quiz-panel h3 { margin-top: 0; }
 @media (max-width: 700px) { .quiz-date { grid-template-columns: 1fr; } .quiz-page-content { padding: 12px; } }
+.online-builder { margin-top: 24px; }
+.online-builder-option { display: flex; gap: 12px; align-items: end; margin-bottom: 12px; }
+.online-builder-option > div { flex: 1; min-width: 0; }
+.online-layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 20px; align-items: start; }
+.online-prompt { margin: 28px 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.online-options { border: 0; padding: 0; margin: 0; min-width: 0; }
+.online-option { display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid #dfdbea; border-radius: 10px; margin: 12px 0; cursor: pointer; overflow-wrap: anywhere; white-space: pre-wrap; }
+.online-option > span:nth-of-type(2) { flex: 1; min-width: 0; }
+.online-option strong { font-size: 12px; }
+.online-option input { accent-color: #6c63ff; flex-shrink: 0; }
+.online-option.selected { border-color: #6c63ff; background: #f0edff; }
+.online-letter { font-weight: 700; color: #5145bf; }
+.online-option.correct { border-color: #23875a; background: #ebf8f0; }
+.online-option.incorrect { border-color: #ba4444; background: #fff1f1; }
+.online-navigator { position: sticky; top: 16px; }
+.online-numbers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.online-numbers button { padding: 10px 0; }
+.online-numbers button.answered { background: #6c63ff; color: white; }
+.online-numbers button.correct { background: #ebf8f0; color: #17643f; border-color: #23875a; }
+.online-numbers button.incorrect { background: #fff1f1; color: #9b2020; border-color: #ba4444; }
+.online-numbers button[aria-current="step"] { outline: 2px solid #292344; outline-offset: 2px; }
+.online-explanation { background: #f5f3ff; border-left: 4px solid #6c63ff; padding: 20px; margin-top: 24px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.online-explanation h3 { margin-top: 16px; }
+.online-result { display: flex; gap: 36px; align-items: center; padding: 32px; }
+.online-pie { width: 170px; height: 170px; border-radius: 50%; flex-shrink: 0; }
+.online-score { font-size: 36px; margin: 16px 0; }
+@media (max-width: 800px) { .online-layout { grid-template-columns: 1fr; } .online-navigator { position: static; } .online-numbers { grid-template-columns: repeat(6, 1fr); } .online-result { flex-direction: column; gap: 20px; } .online-option { flex-wrap: wrap; } }

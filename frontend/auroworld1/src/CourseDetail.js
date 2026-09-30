@@ -208,7 +208,7 @@ async function deleteCourseButton(courseId, navigate){
             return
         }
         else if(data){
-            console.log(data)
+            // console.log(data)
 
             const response = await fetch(`${API}/courses/${courseId}`,{
                 method: "DELETE",
@@ -383,45 +383,39 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
     useEffect(()=>{
         async function getFileUrls(){
             if (!unit.lessons) return
-            const fileUrlsSet={}
-            for (const lesson of unit.lessons){
-                if(!lesson.videos){
-                    return
-                }
-                for(const video of lesson.videos){
-                    // console.log(video)
-                    // const videoUrlString=video.driveUrl
-                    // console.log(videoUrlString)
-                    if (video.driveUrl.includes(`course/${courseId}/unit/${unitId}/lesson/${lesson.lessonId}`)){
-                        // console.log('has it')
-                        try{
-                            const { data} = supabase.storage
-                                .from('course_videos')
-                                .getPublicUrl(video.driveUrl);
-                            //console.log("data from courses_videos: ",data)
-                            if (data && data.publicUrl) {
-                                // console.log('Public URL:', data.publicUrl);
-                            } else {
-                                console.error('Error getting public URL or URL is undefined');
-                            }
-                            
-                            fileUrlsSet[video.videoId] = data.publicUrl;
-                            // console.log('fileUrlsSet['+video.videoId+']='+data.publicUrl)
-    
-                        }catch(err){
-                            console.error(err)
-                            fileUrlsSet[video.videoId]=null
+
+            const fileUrlArray=unit.lessons.flatMap((lesson)=>lesson.videos.flatMap((video)=>{
+                if (video.driveUrl.includes(`course/${courseId}/unit/${unitId}/lesson/${lesson.lessonId}`)){
+                    // console.log('has it')
+                    try{
+                        const { data} = supabase.storage
+                            .from('course_videos')
+                            .getPublicUrl(video.driveUrl);
+                        //console.log("data from courses_videos: ",data)
+                        if (data && data.publicUrl) {
+                            // console.log('Public URL:', data.publicUrl);
+                        } else {
+                            console.error('Error getting public URL or URL is undefined');
                         }
+                        
+                        // fileUrlsSet[video.videoId] = data.publicUrl;
+                        return {videoId: video.videoId, dataUrl: data.publicUrl}
+                        // console.log('fileUrlsSet['+video.videoId+']='+data.publicUrl)
+
+                    }catch(err){
+                        console.error(err)
+                        // fileUrlsSet[video.videoId]=null
+                        return {videoId: video.videoId, dataUrl: null}
                     }
-                    else{
-                        fileUrlsSet[video.videoId]=video.driveUrl
-                        // console.log('fileUrlsSet['+video.videoId+']='+video.driveUrl)
-                    }
-                    // console.log('fileUrlsSet: '+fileUrlsSet)
                 }
-                // console.log('fileUrlsSet: '+fileUrlsSet)
-                setFileUrl(fileUrlsSet)
-            }
+                else{
+                    // fileUrlsSet[video.videoId]=video.driveUrl
+                    return {videoId: video.videoId, dataUrl: video.driveUrl}
+                    // console.log('fileUrlsSet['+video.videoId+']='+video.driveUrl)
+                }
+            }))
+            // console.log('final fileUrlArray =',fileUrlArray)
+            setFileUrl(fileUrlArray)
         }
         getFileUrls()
         // console.log('fileUrls = ',fileUrl)
@@ -472,23 +466,6 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
 
          document.getElementById(`changeOrderVideos-${lId}`).style.display="none"
     }
-    // function swapVideoDomButton(lId, vId1, vId2, vTitle1, vTitle2){
-    //     setLessonArray(prevLessons =>
-    //         prevLessons.map(lesson => {
-    //             if (lesson.lessonId === lId) {
-    //                 lesson.videos.map(video=>{
-    //                     if(video.videoId===vId1 && video.title ===vTitle1){
-    //                         video.videoId=vId2
-    //                     }
-    //                     else if(video.videoId===vId2 && video.title===vTitle2){
-    //                         video.videoId=vId1
-    //                     }
-    //                 })
-    //             }
-    //             return lesson;
-    //         })
-    //     )
-    // }
     async function swapVideoId(lId){
         let count=0
         let vId_1=-1
@@ -542,13 +519,13 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
         const newLesson=[{ lessonId:newId, lessonTitle: lTitle, lessonDescription:lDescription, videos:[] }]
         setLessonArray((prevLessons)=>{ return [...prevLessons,...newLesson] })
     }
-    async function createNewLesson(){
+    async function createNewLesson(courseId){
         const lessonBody={
             lessonTitle: document.getElementById(`addLessonTitle-${unitId}`).value,
             lessonDescription: document.getElementById(`addLessonDescription-${unitId}`).value,
         }
         // console.log('lessonBody= ',lessonBody)
-        const createLessonResponse=await fetch(`${API}/unit/${unitId}/addlesson`,{
+        const createLessonResponse=await fetch(`${API}/course/${courseId}/unit/${unitId}/addlesson`,{
             method:"POST",
             headers:{"Content-Type": "application/json"},
             body:JSON.stringify(lessonBody)
@@ -572,17 +549,39 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
     async function cancelMaterials(lessonId){
         document.getElementById(`addVideo-${lessonId}`).style.display="none"
     }
-    // function addVideoDom(vId,lId, vidTitle, vidUrl){
-    //     const updatedLessons = lessonsArray.map((lesson)=>{
-    //         if (lesson.lessonId===lId){
-    //             return { ...lesson, videos:[...lesson.videos, { videoId:vId, unitId: unit.unitId, lessonId:lId, title:vidTitle, driveUrl: vidUrl, duration: null, sortOrder: 0 }] }
-    //         }
-    //         else{
-    //             return lesson
-    //         }
-    //     })
-    //     setLessonArray(updatedLessons)
-    // }
+    function addVideoDom(vId,lId, vidTitle, vidPath){
+        const updatedLessons = lessonsArray.map((lesson)=>{
+            if (lesson.lessonId===lId){
+                return { ...lesson, videos:[...lesson.videos, { videoId:vId, unitId: unit.unitId, lessonId:lId, title:vidTitle, driveUrl: vidPath, duration: null, sortOrder: 0 }] }
+            }
+            else{
+                return lesson
+            }
+        })
+        setLessonArray(updatedLessons)
+
+        if(vidPath!=="empty"){
+            try{
+                const { data} = supabase.storage
+                    .from('course_videos')
+                    .getPublicUrl(vidPath);
+                //console.log("data from courses_videos: ",data)
+                if (data && data.publicUrl) {
+                    console.log('Public URL:', data.publicUrl);
+                    
+                } else {
+                    console.error('Error getting public URL or URL is undefined');
+                }
+                
+                const newUrl=[{ videoId:vId, dataUrl: data.publicUrl }]
+                setFileUrl((prevUrls)=>{ return [...prevUrls,...newUrl] })
+
+            }catch(err){
+                console.error(err)
+                setFileUrl((prevUrls)=>{ return [...prevUrls,...{videoId:vId, dataUrl: null}] })
+            }
+        }   
+    }
     async function uploadNewMaterials(filename,filedata,lessonId){
         // console.log("uploading video for unit "+unitId)
         // console.log("for course: "+courseId)
@@ -590,12 +589,6 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
             alert("Enter a title for upload")
             return
         }
-        // console.log("filename: "+filename)
-        // console.log("filedata: "+filedata)
-        // console.log("cId: "+cId)
-        // console.log("uId: "+uId)
-        // console.log("vidoeTitle: "+document.getElementById(`videoTitle-${unit.unitId}`).value)
-
         try{
             if(!(filedata) || filename==="No file chosen"){
                 const noVideoBody={
@@ -614,18 +607,12 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
                 }
                 return
             }
-            //console.log("doesFileExist path: "+`${API}/unit_videos/${unit.unitId}/${document.getElementById(`videoTitle-${unit.unitId}`).value}`)
-            const doesFileExist = await fetch(`${API}/unit_videos/${unit.unitId}/lesson/${lessonId}/${document.getElementById(`videoTitle-${lessonId}`).value}`)
-            const doesFileExistData= await doesFileExist.json()
-
-            if(doesFileExistData.mData){
-                alert("Video with that title in this unit already exists. Give a new title")
-                return
-            }
+            const videoUUID = crypto.randomUUID()
+            // console.log('video uuid =',videoUUID)
             const videoBody={
                 title:document.getElementById(`videoTitle-${lessonId}`).value,
                 // eslint-disable-next-line
-                filepath:'course/'+courseId+'/'+'unit/'+unit.unitId+'/'+'lesson'+'/'+lessonId+'/'+document.getElementById(`videoTitle-${lessonId}`).value+'/'+filename
+                filepath:'course/'+courseId+'/unit/'+unit.unitId+'/lesson/'+lessonId+'/uuid/'+videoUUID+'/'+filename
             }
             // console.log("videoBody: "+videoBody)
             const response = await fetch(`${API}/unit_videos/unit/${unit.unitId}/lesson/${lessonId}`,{
@@ -640,20 +627,22 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
             }
             //console.log("addVideo new video Id= "+videoData.mData)
             // eslint-disable-next-line
-            const {data,error} = await supabase.storage.from('course_videos').upload('course/'+courseId+'/'+'unit/'+unit.unitId+'/'+'lesson'+'/'+lessonId+'/'+document.getElementById(`videoTitle-${lessonId}`).value+'/'+filename, filedata)
+            const {data,error} = await supabase.storage.from('course_videos').upload('course/'+courseId+'/unit/'+unit.unitId+'/lesson/'+lessonId+'/uuid/'+videoUUID+'/'+filename, filedata)
             if(data){
                 alert('Added video successfully.')
-                //console.log(data)
+                // console.log(data)
             }
             else if(error){
-                //console.log(error.message)
+                console.log(error.message)
             }
-            // if(!(filedata) || filename==="No file chosen"){
-            //     addVideoDom(videoData.mData, lessonId, document.getElementById(`videoTitle-${lessonId}`).value, "empty" )
-            // }
-            // else{
-            //     addVideoDom(videoData.mData, lessonId, document.getElementById(`videoTitle-${lessonId}`).value,  'course/'+courseId+'/'+'unit/'+unit.unitId+'/'+'lesson'+'/'+lessonId+'/'+document.getElementById(`videoTitle-${lessonId}`).value+'/'+filename)
-            // }
+            if(!(filedata) || filename==="No file chosen"){
+                const path = "empty"
+                addVideoDom(videoData.mData, lessonId, document.getElementById(`videoTitle-${lessonId}`).value, path)
+            }
+            else{
+                const path = 'course/'+courseId+'/unit/'+unit.unitId+'/lesson/'+lessonId+'/uuid/'+videoUUID+'/'+filename
+                addVideoDom(videoData.mData, lessonId, document.getElementById(`videoTitle-${lessonId}`).value,  path)
+            }
         }
         catch(error){
             console.log(error.message)
@@ -771,25 +760,24 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
                 // console.log(video.driveUrl)
                 return video.driveUrl
             })
-            // console.log('videosToDelete = ',videosToDelete)
 
-            const { data, removeError } = await supabase.storage.from('course_videos').remove(videosToDelete);
-            
-            if(removeError){
-                console.log('remove error')
-                return
+            console.log('videostodelete= ',videosToDelete)
+
+            if(videosToDelete.length!==0){
+                const { data, removeError } = await supabase.storage.from('course_videos').remove(videosToDelete);
+        
+                if(removeError || !data){
+                    console.log('remove error')
+                    return
+                }
             }
-            else if(data){
-                console.log(data)
-                const deleteLessonResponse = await fetch(`${API}/delete/lesson/${lId}`,{ method:"DELETE", headers:{"Content-Type":"application/json"} })
-                const deleteLessonData = await deleteLessonResponse.json()
-                if(deleteLessonData.mStatus!=="ok"){ alert("Deleting Lesson failed. Try again later"); return }
-                alert("Lesson deleted")
-                deleteLessonDom(lId)
-            }
+            const deleteLessonResponse = await fetch(`${API}/delete/lesson/${lId}`,{ method:"DELETE", headers:{"Content-Type":"application/json"} })
+            const deleteLessonData = await deleteLessonResponse.json()
+            if(deleteLessonData.mStatus!=="ok"){ alert("Deleting Lesson failed. Try again later"); return }
+            alert("Lesson deleted")
+            deleteLessonDom(lId)
         }catch(error){ console.log(error.message) }
     }
-
     // console.log('lessonOpen =',lessonOpen)
     // console.log('unit = ',unit)
     // console.log('urls: ',fileUrl)
@@ -808,6 +796,9 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
                         <span style={{ fontSize: '25px', color: open ? '#fff' : '#555' }}>📁</span>
                     </div>
                     <div>
+                        {/* <button className = "delete-unit" onClick={()=>deleteUnit(course.courseId, unit.unitId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
+                            <i className="fa-solid fa-trash-can"></i>
+                        </button>  */}
                         <div style={{ fontSize: '30px', fontWeight: '700', color: '#111' }}>{unit.title}</div>
                         <div style={{ fontSize: '20px', color: '#999', marginTop: '2px' }}>{lessonsArray.length || 0} lessons</div>
                     </div>
@@ -832,7 +823,7 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
                     {/* defaultValue={course.description} */}
                     <textarea id={`addLessonDescription-${unit.unitId}`} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', minHeight: '80px', boxSizing: 'border-box' }}></textarea>
                     
-                    <button onClick={()=>createNewLesson()} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
+                    <button onClick={()=>createNewLesson(courseId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
                         Create Lesson for Unit {unit.title}
                     </button>
                     <button variant="secondary" onClick={cancelLesson} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
@@ -1010,7 +1001,7 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
                                                 {activeVideo === video.videoId && (
                                                     <div style={{ backgroundColor:'#f5c8f3' }}>
                                                         {video.driveUrl && !video.driveUrl.includes('FILE_ID') && video.driveUrl!=="empty" ? (
-                                                            <iframe src={fileUrl[video.videoId]} width="100%" height="800" allow="autoplay" style={{ border: 'none', display: 'block' }} title={video.title} />
+                                                            <iframe src={fileUrl.find((v)=>v.videoId===video.videoId).dataUrl} width="100%" height="800" allow="autoplay" style={{ border: 'none', display: 'block' }} title={video.title} />
                                                         ) : (
                                                             <div style={{height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', gap: '10px' }}>
                                                                 <a href={video.title} target="_blank" rel="noopener noreferrer" style={{fontSize: '25px' }}>Take your quiz here</a>
@@ -1042,25 +1033,200 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
     );
 }
  
-async function newUnitButton() {
-    document.getElementById("addUnit").style.display = "block";
-}
-async function cancelNewUnit() {
-    document.getElementById("addUnit").style.display = "none";
-}
-async function submitNewUnit(courseId) {
-    if (!document.getElementById("unitName").value) { alert("Please enter a unit name"); return; }
-    try {
-        const unitBody = { unitName: document.getElementById("unitName").value };
-        const response = await fetch(`${API}/course_units/${courseId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(unitBody) });
-        const data = await response.json();
-        if (data.mStatus !== "ok") { alert("Adding unit failed: " + data.mMessage); return; }
-    } catch (error) { console.log(error.message); }
-}
- 
 function MaterialsTab({ course, userData }) {
+
+    const[unitArr, setUnitArr]=useState([])
+    // const [isDraggable, setIsDraggable] = useState(false)
+
+    // console.log('course =',course)
+
+    useEffect(()=>{
+        const array = course?.units.map((unit)=>{
+            return {unitId: unit.unitId, courseId: course.courseId, title: unit.title, sortOrder: unit.sortOrder, lessons: unit?.lessons}
+        })
+        setUnitArr(array)
+    },[course])
+
+    function addUnitDom(newId){
+        const newUnit=[{ unitId: newId, courseId: course.courseId, 
+            title:document.getElementById("unitName").value, sortOrder: unitArr.length, lessons: []}]
+        setUnitArr((prevUnits)=>{ return [...prevUnits,...newUnit] })
+    }
+    function newUnitButton() {
+        if(document.getElementById("addUnit").style.display === "block"){
+            document.getElementById("addUnit").style.display = "none"
+        }
+        else{
+            document.getElementById("addUnit").style.display = "block"
+        }
+    }
+    function cancelNewUnit() {
+        document.getElementById("addUnit").style.display = "none";
+    }
+    async function submitNewUnit(courseId) {
+        if (!document.getElementById("unitName").value) { alert("Please enter a unit name"); return; }
+        try {
+            const unitBody = { unitName: document.getElementById("unitName").value, sortOrder: unitArr.length };
+            const response = await fetch(`${API}/course_units/${courseId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(unitBody) });
+            const data = await response.json();
+            if (data.mStatus !== "ok") { alert("Adding unit failed: " + data.mMessage); return; }
+            // console.log('new unitId =',data.mData)
+            addUnitDom(data.mData)
+        } catch (error) { console.log(error.message); }
+    }
+    function deleteUnitButton(){
+        if(document.getElementById("deleteUnit").style.display==="block"){
+            document.getElementById("deleteUnit").style.display="none"
+        }
+        else{
+            document.getElementById("deleteUnit").style.display="block"
+        }
+    }
+    function cancelDeleteButton(){
+        document.getElementById("deleteUnit").style.display="none"
+    }
+    async function sendDeleteUnits(){
+        try{
+            const unitsToKeep = unitArr.filter((unit)=> document.getElementById(`option-${unit.unitId}`).checked!==true)
+            // console.log('unitsToKeep =',unitsToKeep)
+
+            const unitIdsToDelete = unitArr.filter((unit)=>document.getElementById(`option-${unit.unitId}`).checked===true).map((unit)=>{return unit.unitId})
+            // console.log('unitsIdsToDelete =',unitIdsToDelete)
+
+            const videosToDelete = unitArr.filter((unit)=>document.getElementById(`option-${unit.unitId}`).checked===true)?.flatMap(unit=>unit?.lessons.flatMap((lesson)=>lesson?.videos.flatMap((video)=> {console.log('video =',video); return video.driveUrl})))
+            // console.log('videostodelete= ',videosToDelete)
+
+            if(videosToDelete.length!==0){
+                const { data, removeError } = await supabase.storage.from('course_videos').remove(videosToDelete);
+                if(removeError || !data){
+                    console.log('remove error =',removeError)
+                    return
+                }
+                else{
+                    console.log('data=',data)
+                }
+            }
+
+            const deleteUnitResponse = await fetch(`${API}/delete/units/course/${course.courseId}`,{
+                method:"POST",
+                headers: { "Content-Type": "application/json" },
+                body: unitIdsToDelete
+            })
+            const deleteUnitData = await deleteUnitResponse.json()
+            if (deleteUnitData.mStatus !== "ok") { alert("deleting unit failed: " + deleteUnitData.mMessage); return; }
+            setUnitArr(unitsToKeep)
+        }catch(error){
+            console.log(error.message)
+        }
+    }
+    // function swapUnitsButton(){
+    //     // document.getElementById("swapUnit").style.display="block"
+    //     setIsDraggable(!isDraggable)
+    // }
+
+    // function cancelOrderChange(){
+    //     setIsDraggable(!isDraggable)
+    // }
+    // function confirmOrderChange(){
+    //     setIsDraggable(!isDraggable)
+    // }
+
+    let uId1='-1'
+    let uId2='-1'
+
+    let sortNum1 = '-1'
+    let sortNum2 = '-1'
+
+    async function swapUnits(){
+        try{
+            const units = [uId1, uId2, sortNum1, sortNum2]
+            const swapResponse = await fetch(`${API}/course/${course.courseId}/swapunits`,{
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: units
+            })
+            const swapData = await swapResponse.json()
+            if(swapData.mStatus !== "ok"){ console.log('swapping units mstatus = ',swapData.mStatus) }
+            return
+        }catch(error){
+            console.log('swapping units failed ',error.message)
+        }
+
+        uId1=-1
+        uId2=-1
+
+        sortNum1 = -1
+        sortNum2 = -1
+    }
+
+    function handleStartDrag(uId, sort){
+        // console.log('event =',event)
+        const drag = document.getElementById(`dragUnit-${uId}`)
+        drag.style.opacity=0.33
+        // console.log("drag start for ",uId)
+        uId1=uId
+        sortNum1 = sort
+        // console.log('uId1 = ',uId1)
+        // console.log('sort1 = ',sortNum1)
+    }
+    function handleDrag(uId){
+        console.log("drag for ",uId)
+    }
+    function handleDragOver(event, uId, sort){
+        event.preventDefault()
+        // console.log('drag over ',uId)
+        uId2=uId
+        sortNum2 = sort
+        // console.log('uId2 = ',uId2)
+        // console.log('sort2 = ',sortNum2)
+    }
+    function handleDragEnd(uId){
+        const drag = document.getElementById(`dragUnit-${uId}`)
+        drag.style.opacity=1
+        // console.log('drag end ',uId)
+        // console.log('uIds to swap are '+uId1+' and '+uId2)
+        if(uId1===-1 || uId2===-1 || uId1===uId2){
+            // console.log('swap failed')
+            uId1 = -1
+            uId2 = -1
+
+            sortNum1=-1
+            sortNum2 = -1
+            return
+        }
+        else{
+            // console.log('unit id 1 = ',uId1)
+            // console.log('unit id 2 = ',uId2)
+            let id1Changed = false
+            let id2Changed = false
+
+            // console.log('old unit order = ',unitArr)
+
+            const newUnitOrder = unitArr.map((unit)=>{
+                if(unit.unitId===uId1 && !id1Changed){
+                    id1Changed = !id1Changed
+                    return {unitId: unit.unitId, courseId: unit.courseId, title: unit.title, 
+                        sortOrder: sortNum2, lessons: unit.lessons}
+                }
+                else if(unit.unitId===uId2 && !id2Changed){
+                    id2Changed= !id2Changed
+                    return {unitId: unit.unitId, courseId: unit.courseId, title: unit.title, 
+                        sortOrder: sortNum1, lessons: unit.lessons}
+                }
+                else{
+                    return unit
+                }
+            })
+            // console.log('old unit order = ',unitArr)
+            // console.log('new unit order = ',newUnitOrder)
+            // console.log('new unit order = ',unitArr)
+            setUnitArr(newUnitOrder)
+            swapUnits()
+        }
+    }
+    
     const location = useLocation();
-    if (!course.units || course.units.length === 0) {
+    if (!unitArr || unitArr.length === 0) {
         return (
             <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
                 No materials available yet.
@@ -1084,7 +1250,11 @@ function MaterialsTab({ course, userData }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
              <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
                 { (userData?.role==="admin" || userData?.username===course.instructor) && (
-                    <button onClick={newUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Add a New Unit</button>
+                    <div id ="unitButtons">
+                        <button onClick={newUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Add a New Unit</button>
+                        <button onClick={deleteUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Delete Units</button>
+                        {/* <button onClick={swapUnitsButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Edit Unit Order</button> */}
+                    </div>
                 )}
                 <div id="addUnit" style={{display: 'none'}}>
                         <label style={{ marginTop: 0 }}>Unit name</label>
@@ -1095,8 +1265,33 @@ function MaterialsTab({ course, userData }) {
                         <button variant="secondary" onClick={cancelNewUnit}>Cancel</button>
                     </div>
                 </div>
+                <div id="deleteUnit" style={{display:'none'}}>
+                    <button onClick={()=>sendDeleteUnits(course.courseId)}>Delete</button>
+                    <button variant="secondary" onClick={cancelDeleteButton}>Cancel</button>
+                    <div style={{display:'flex',flexDirection:'row'}}>
+                        {unitArr.sort((a,b)=>a.unitId-b.unitId).map(unit=>
+                            <div key={unit.unitId} style={{padding:'10px'}}>
+                                <input type="checkbox" id={`option-${unit.unitId}`} name={`option-${unit.unitId}`}/>
+                                <label htmlFor={`option-${unit.unitId}`} style={{fontSize:'20px'}}>{unit.title}</label>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                {/* <div id ="swapUnit" style={{display:isDraggable? 'block' : 'none'}}>
+                    <div style={{padding:'10px'}}>
+                        <label style={{fontSize: '25px'}}>Click and drag the units to change the order.</label>
+                    </div>
+                    <button onClick={()=>confirmOrderChange}>Save</button>
+                    <button variant="secondary" onClick={cancelOrderChange}>Cancel</button>
+                </div> */}
             </div>
-            {course.units.map(unit => <UnitMaterials key={unit.unitId} unit={unit} initialOpen={location.state?.unitId === unit.unitId} initialTab={location.state?.unitId === unit.unitId ? location.state?.unitTab || 'videos' : 'videos'}><UnitSection embedded unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/></UnitMaterials>)}
+            {unitArr.sort((a,b)=>a.sortOrder-b.sortOrder).map(unit => 
+                <div id={`dragUnit-${unit.unitId}`} key={unit.unitId} draggable={ (userData?.role==="admin" || userData?.username===course.instructor)? "true": "false"} onDragStart={()=>handleStartDrag(unit.unitId, unit.sortOrder)} onDrag={()=>handleDrag(unit.unitId)} onDragOver={(e)=>handleDragOver(e,unit.unitId, unit.sortOrder)} onDragEnd={()=>handleDragEnd(unit.unitId)}>
+                    <UnitMaterials key={unit.unitId} unit={unit} initialOpen={location.state?.unitId === unit.unitId} initialTab={location.state?.unitId === unit.unitId ? location.state?.unitTab || 'videos' : 'videos'}>
+                        <UnitSection embedded unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>
+                    </UnitMaterials>
+                </div>
+            )}
         </div>
     );
 }
