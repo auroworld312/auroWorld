@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ReactGA from "react-ga4";
 import UnitMaterials from './UnitMaterials';
+import './spinner/spin.css'
 
 const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
  
@@ -358,6 +359,7 @@ function CourseTab({ course, userData, onCourseUpdated, currentUserId, navigate 
 function UnitSection({ unit, courseId, role, username, instructor, unitId, courseTitle }) {
     // const [videoOpen, setVideoOpen] = useState(false);
     const [open,setOpen]=useState(false)
+    const [sendingVideo,setSendingVideo]=useState(false)
     const [lessonOpen, setLessonOpen] = useState([])
     const [activeVideo, setActiveVideo] = useState(null);
 
@@ -590,6 +592,7 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
             return
         }
         try{
+            setSendingVideo(true)
             if(!(filedata) || filename==="No file chosen"){
                 const noVideoBody={
                     title:document.getElementById(`videoTitle-${lessonId}`).value,
@@ -643,6 +646,7 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
                 const path = 'course/'+courseId+'/unit/'+unit.unitId+'/lesson/'+lessonId+'/uuid/'+videoUUID+'/'+filename
                 addVideoDom(videoData.mData, lessonId, document.getElementById(`videoTitle-${lessonId}`).value,  path)
             }
+            setSendingVideo(false)
         }
         catch(error){
             console.log(error.message)
@@ -784,7 +788,8 @@ function UnitSection({ unit, courseId, role, username, instructor, unitId, cours
     // console.log('lessonsArray =',lessonsArray)
 
     return (
-        <div style={{ border: '1px solid #e5e5e5', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+        <div style={{ border: '1px solid #e5e5e5', opacity:sendingVideo? 0.5 : 1, borderRadius: '12px', overflow: 'hidden', backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div className = 'loader' style={{display:sendingVideo?'flex':'none'}}></div>
             <div onClick={() => {setOpen(o => !o) }} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '16px 20px', cursor: 'pointer',

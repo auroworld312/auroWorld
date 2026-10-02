@@ -1,4 +1,4 @@
-//import { useEffect } from "react";
+// import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { GoogleLogin} from "@react-oauth/google";
@@ -10,6 +10,7 @@ import Card from './components/Card';
 import { useUser } from './UserContext.js';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import ReactGA from "react-ga4";
+import './spinner/spin.css'
 
 // import 'csb312-auroworld\backend\src\main\java\auroworld\backend\Appmain.js'
 
@@ -28,6 +29,7 @@ function Login(){
         navigate("/signup")
     }
 
+    const [loading, setLoading] = useState(false)
     const [passVisible, setPassVisible]=useState(false)
 
     function showPassword(){
@@ -83,28 +85,29 @@ function Login(){
             alert("Email and Password fields must not be empty.")
             return null
         }
+        setLoading(true)
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: pass,
         });
-        if(data){
-
-        }
         if(error){
             console.log(error.message)
             if (error.message==="Invalid login credentials"){
                 alert("Wrong email/password. Try again")
             }
+            setLoading(false)
             return null
         }
-        //console.log(data)
-        await refreshUser();
-        ReactGA.event({
-            category:'userpass login',
-            action:'logged in w/ userpass'
-        })
-        navigate("/posts")
-
+        else if(data){
+            //console.log(data)
+            await refreshUser();
+            ReactGA.event({
+                category:'userpass login',
+                action:'logged in w/ userpass'
+            })
+            setLoading(false)
+            navigate("/posts")
+        }
     }
     async function googleLoginButton(credentialResponse) {
         try{
@@ -115,6 +118,7 @@ function Login(){
             })
             console.log(error, data)
 
+            setLoading(true)
             const googleAccountInfo = jwtDecode(creds)
             const checkEmail = await fetch(`${API}/user_email/${googleAccountInfo.email}`)
             const checkEmailRes = await checkEmail.json()
@@ -189,11 +193,14 @@ function Login(){
             category:'google sign in',
             action:'signed in with google'
         })
+        setLoading(false)
         navigate("/posts");
     }
+
     return(
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
-            <Card style={{ width: '100%', maxWidth: '400px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f5f5f5', opacity:loading? 0.5 : 1 }}>
+            <div className = 'loader' style={{display:loading?'flex':'none'}}></div>
+            <Card style={{ width: '100%', maxWidth: '400px'}}>
                 <GoogleLogin onSuccess={(credentialResponse)=>{
                     console.log(credentialResponse)
                     console.log(jwtDecode(credentialResponse.credential))
@@ -204,16 +211,7 @@ function Login(){
                     <label>Email</label>
                     <input type="text" id="email" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}/>
                 </div>
-                
-                {/* <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '10px' }}>
-                    <label>Password</label>
-                    <div className = "password-container" style={{position:"relative"}}>
-                        <input type="password" id="password" style={{display: 'flex', width: '100%', padding: '10px', paddingRight: '40px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box'}}/>
-                        <button className="showPassword" onClick={showPassword} style={{position: "absolute", right: "10px", top: "38px", background: "none", border: "none", cursor: "pointer"}}>
-                            <i id="toggleIcon" className="fas fa-eye"></i>
-                        </button>
-                    </div>
-                </div> */}
+
                 <div className = "password-container" style={{position:"relative"}}>
                     <label>Password</label>
                     <input type= {passVisible ? "input" : "password"} id="password" style={{display: 'flex', width: '100%', padding: '10px', paddingRight: '40px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box'}}/>
