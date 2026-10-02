@@ -1255,11 +1255,19 @@ public class Database{
 
     public int createCourse(String title, String description, String instructor, String times,
         String start_date, String level, String price, String live_url, String daysOfWeek){
+        return createCourse(title, description, instructor, times, start_date, level, price, live_url, daysOfWeek, 0);
+    }
+
+    public int createCourse(String title, String description, String instructor, String times,
+        String start_date, String level, String price, String live_url, String daysOfWeek, int unitCount){
+        if (unitCount < 0 || unitCount > 50) return -1;
         String sql="INSERT INTO courses (title, description, instructor, times, start_date, level, "+
         "price, live_url, days_of_week) "+
-        "VALUES (?,?,?,?,?,?,?,?,?) ";
+        "VALUES (?,?,?,?,?,?,?,?,?) RETURNING course_id";
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
+            conn.setAutoCommit(false);
+            try {
             ps.setString(1,title);
             ps.setString(2,description);
             ps.setString(3,instructor);
@@ -1270,9 +1278,21 @@ public class Database{
             ps.setString(8,live_url);
             ps.setString(9,daysOfWeek);
             try(ResultSet rs = ps.executeQuery()){
-                if(rs.next()) return rs.getInt("course_id");
-                return -1;
+                if (!rs.next()) throw new SQLException("Course creation returned no ID");
+                int courseId = rs.getInt("course_id");
+                try (PreparedStatement units = conn.prepareStatement("INSERT INTO course_units(course_id,title,sort_order) VALUES (?,?,?)")) {
+                    for (int i = 1; i <= unitCount; i++) {
+                        units.setInt(1, courseId);
+                        units.setString(2, "Unit " + i);
+                        units.setInt(3, i);
+                        units.addBatch();
+                    }
+                    if (unitCount > 0) units.executeBatch();
+                }
+                conn.commit();
+                return courseId;
             }
+            } catch (SQLException e) { conn.rollback(); throw e; }
         }
         catch(SQLException e){
             e.printStackTrace();

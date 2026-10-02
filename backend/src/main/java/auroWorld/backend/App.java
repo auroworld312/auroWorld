@@ -143,6 +143,7 @@ public class App
     }
 
     private static final class CreateCourseRequest{
+        public Integer unitCount;
         public String title;
         public String description;
         public String instructor;
@@ -1377,8 +1378,17 @@ public class App
             return;
         }
 
+        int unitCount = ccr.unitCount == null ? 0 : ccr.unitCount;
+        if (unitCount < 0 || unitCount > 50) {
+            ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Choose between 0 and 50 initial units.", null)));
+            return;
+        }
        int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
-        ccr.level, ccr.price, ccr.live_url, ccr.daysOfWeek);
+        ccr.level, ccr.price, ccr.live_url, ccr.daysOfWeek, unitCount);
+        if (id < 0) {
+            ctx.status(500).result(gson.toJson(new StructuredResponse("error", "Course creation failed. Please try again.", null)));
+            return;
+        }
 
         ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
     });

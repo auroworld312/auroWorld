@@ -2120,6 +2120,8 @@ function UnitSection({
 function MaterialsTab({ course, userData }) {
 
     const[unitArr, setUnitArr]=useState([])
+    const [editingUnits, setEditingUnits] = useState(false);
+    const canManageUnits = userData?.role === "admin" || userData?.username === course.instructor;
     // const [isDraggable, setIsDraggable] = useState(false)
 
     // console.log('course =',course)
@@ -2158,26 +2160,17 @@ function MaterialsTab({ course, userData }) {
             addUnitDom(data.mData)
         } catch (error) { console.log(error.message); }
     }
-    function deleteUnitButton(){
-        if(document.getElementById("deleteUnit").style.display==="block"){
-            document.getElementById("deleteUnit").style.display="none"
-        }
-        else{
-            document.getElementById("deleteUnit").style.display="block"
-        }
-    }
-    function cancelDeleteButton(){
-        document.getElementById("deleteUnit").style.display="none"
-    }
-    async function sendDeleteUnits(){
+    async function sendDeleteUnits(unitId){
+        const unit = unitArr.find(item => item.unitId === unitId);
+        if (!unit || !window.confirm(`Delete "${unit.title}" and its contents? This cannot be undone.`)) return;
         try{
-            const unitsToKeep = unitArr.filter((unit)=> document.getElementById(`option-${unit.unitId}`).checked!==true)
+            const unitsToKeep = unitArr.filter((unit)=> unit.unitId !== unitId)
             // console.log('unitsToKeep =',unitsToKeep)
 
-            const unitIdsToDelete = unitArr.filter((unit)=>document.getElementById(`option-${unit.unitId}`).checked===true).map((unit)=>{return unit.unitId})
+            const unitIdsToDelete = unitArr.filter((unit)=>unit.unitId === unitId).map((unit)=>{return unit.unitId})
             // console.log('unitsIdsToDelete =',unitIdsToDelete)
 
-            const videosToDelete = unitArr.filter((unit)=>document.getElementById(`option-${unit.unitId}`).checked===true)?.flatMap(unit=>unit?.lessons.flatMap((lesson)=>lesson?.videos.flatMap((video)=> {console.log('video =',video); return video.driveUrl})))
+            const videosToDelete = unitArr.filter((unit)=>unit.unitId === unitId)?.flatMap(unit=>unit?.lessons.flatMap((lesson)=>lesson?.videos.flatMap((video)=> {console.log('video =',video); return video.driveUrl})))
             // console.log('videostodelete= ',videosToDelete)
 
             if(videosToDelete.length!==0){
@@ -2315,9 +2308,13 @@ function MaterialsTab({ course, userData }) {
             <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
                 No materials available yet.
                 <div style={{ marginTop: '20px' }}>
-                    { (userData?.role==="admin" || userData?.username===course.instructor) && (
+                    { (userData?.role==="admin" || userData?.username===course.instructor) && (<>
+                        <button onClick={() => setEditingUnits(!editingUnits)} aria-expanded={editingUnits} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>{editingUnits ? 'Done Editing Units' : 'Edit Unit'}</button>
+                        <div hidden={!editingUnits}>
                         <button onClick={newUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Add a New Unit</button>
-                    )}
+                        </div>
+                    </>)}
+                    <div hidden={!editingUnits || !canManageUnits}>
                     <div id="addUnit" style={{ display: 'none', marginTop: '16px', textAlign: 'left' }}>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Unit name</label>
                         <input type="text" id="unitName" style={{ padding: '8px 12px', border: '1.5px solid #e0e0e0', borderRadius: '8px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
@@ -2325,6 +2322,7 @@ function MaterialsTab({ course, userData }) {
                             <button onClick={() => submitNewUnit(course.courseId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Create</button>
                             <button onClick={cancelNewUnit} style={{ padding: '9px 16px', borderRadius: '8px', border: '1.5px solid #e0e0e0', backgroundColor: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -2334,12 +2332,15 @@ function MaterialsTab({ course, userData }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
              <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
                 { (userData?.role==="admin" || userData?.username===course.instructor) && (
-                    <div id ="unitButtons">
+                    <div>
+                        <button onClick={() => setEditingUnits(!editingUnits)} aria-expanded={editingUnits} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>{editingUnits ? 'Done Editing Units' : 'Edit Unit'}</button>
+                    <div id ="unitButtons" hidden={!editingUnits}>
                         <button onClick={newUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Add a New Unit</button>
-                        <button onClick={deleteUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Delete Units</button>
                         {/* <button onClick={swapUnitsButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Edit Unit Order</button> */}
                     </div>
+                    </div>
                 )}
+                <div hidden={!editingUnits || !canManageUnits}>
                 <div id="addUnit" style={{display: 'none'}}>
                         <label style={{ marginTop: 0 }}>Unit name</label>
                         <input type="text" id="unitName" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
@@ -2347,18 +2348,6 @@ function MaterialsTab({ course, userData }) {
                         <div style={{ display: 'flex', gap: '10px' }}>
                         <button onClick={()=>submitNewUnit(course.courseId)}>Create</button>
                         <button variant="secondary" onClick={cancelNewUnit}>Cancel</button>
-                    </div>
-                </div>
-                <div id="deleteUnit" style={{display:'none'}}>
-                    <button onClick={()=>sendDeleteUnits(course.courseId)}>Delete</button>
-                    <button variant="secondary" onClick={cancelDeleteButton}>Cancel</button>
-                    <div style={{display:'flex',flexDirection:'row'}}>
-                        {unitArr.sort((a,b)=>a.unitId-b.unitId).map(unit=>
-                            <div key={unit.unitId} style={{padding:'10px'}}>
-                                <input type="checkbox" id={`option-${unit.unitId}`} name={`option-${unit.unitId}`}/>
-                                <label htmlFor={`option-${unit.unitId}`} style={{fontSize:'20px'}}>{unit.title}</label>
-                            </div>
-                        )}
                     </div>
                 </div>
                 {/* <div id ="swapUnit" style={{display:isDraggable? 'block' : 'none'}}>
@@ -2369,9 +2358,10 @@ function MaterialsTab({ course, userData }) {
                     <button variant="secondary" onClick={cancelOrderChange}>Cancel</button>
                 </div> */}
             </div>
+            </div>
             {unitArr.sort((a,b)=>a.sortOrder-b.sortOrder).map(unit => 
                 <div id={`dragUnit-${unit.unitId}`} key={unit.unitId} draggable={ (userData?.role==="admin" || userData?.username===course.instructor)? "true": "false"} onDragStart={()=>handleStartDrag(unit.unitId, unit.sortOrder)} onDrag={()=>handleDrag(unit.unitId)} onDragOver={(e)=>handleDragOver(e,unit.unitId, unit.sortOrder)} onDragEnd={()=>handleDragEnd(unit.unitId)}>
-                    <UnitMaterials key={unit.unitId} unit={unit} initialOpen={location.state?.unitId === unit.unitId} initialTab={location.state?.unitId === unit.unitId ? location.state?.unitTab || 'videos' : 'videos'}>
+                    <UnitMaterials key={unit.unitId} unit={unit} canManage={canManageUnits && editingUnits} onDelete={() => sendDeleteUnits(unit.unitId)} onTitleChange={title => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, title } : item))} initialOpen={location.state?.unitId === unit.unitId} initialTab={location.state?.unitId === unit.unitId ? location.state?.unitTab || 'videos' : 'videos'}>
                         <UnitSection embedded unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>
                     </UnitMaterials>
                 </div>

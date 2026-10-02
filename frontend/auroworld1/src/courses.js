@@ -73,7 +73,7 @@ function Courses() {
 
     const [newCourse, setNewCourse] = useState({
         title: '', description: '', instructor: 'liamtest', startTime: '', endTime: '',
-        start_date: '', level: 'Beginner', price: 'Free', live_url: ''
+        start_date: '', level: 'Beginner', price: 'Free', live_url: '', unitCount: 1
     });
 
     useEffect(() => {
@@ -184,12 +184,12 @@ function Courses() {
         try {
             const response = await fetch(`${API}/courses`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title:title, description: description, instructor:instructor, times:times, startDate: start_date, level:level, price:price, live_url:live_url, daysOfWeek: [...selectedDays].sort((a, b) => a - b).join(',') })
+                body: JSON.stringify({ title:title, description: description, instructor:instructor, times:times, startDate: start_date, level:level, price:price, live_url:live_url, unitCount: newCourse.unitCount, daysOfWeek: [...selectedDays].sort((a, b) => a - b).join(',') })
             });
             const data = await response.json();
             if (data.mStatus !== 'ok') { alert('Adding course failed: ' + data.mMessage); return; }
             setShowAddCourse(false);
-            setNewCourse({ title: '', description: '', instructor: '', startTime: '', endTime: '', start_date: '', level: 'Beginner', price: 'Free', live_url: '' });
+            setNewCourse({ title: '', description: '', instructor: '', startTime: '', endTime: '', start_date: '', level: 'Beginner', price: 'Free', live_url: '', unitCount: 1 });
             setSelectedDays([]);
             loadCourses();
         } catch (error) { console.log(error.message); }
@@ -238,6 +238,13 @@ function Courses() {
                         {showAddCourse && (userAttributes?.role === 'admin' || userAttributes?.role === 'instructor') && (
                             <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '24px', marginBottom: '20px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
                                 <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Add a New Course</h3>
+                                <div style={{ marginBottom: '12px' }}>
+                                    <label htmlFor="course-unit-count" style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Initial Number of Units</label>
+                                    <select id="course-unit-count" value={newCourse.unitCount} onChange={e => setNewCourse(p => ({ ...p, unitCount: Number(e.target.value) }))} style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', backgroundColor: '#fff' }}>
+                                        {Array.from({ length: 51 }, (_, i) => <option key={i} value={i}>{i === 0 ? '0 — Add units later' : `${i} unit${i === 1 ? '' : 's'}`}</option>)}
+                                    </select>
+                                    <p style={{ color: '#666', fontSize: '13px' }}>Units will be named Unit 1, Unit 2, and so on. You can rename or add units later.</p>
+                                </div>
                                 {[
                                     { label: 'Course Title', key: 'title', type: 'text' },
                                     // { label: 'Instructor', key: 'instructor', type: 'text' },
