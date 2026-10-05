@@ -722,7 +722,7 @@ public class Database{
             "       c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
             "       f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
             "FROM messages m " +
-            "LEFT JOIN comments c ON m.msg_id = c.msg_d " +
+            "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
             "LEFT JOIN files f ON m.msg_id = f.msg_id " +
             "LEFT JOIN \"users\" u ON m.\"unique_id\" = u.\"unique_id\" " +
             "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
@@ -1255,11 +1255,19 @@ public class Database{
 
     public int createCourse(String title, String description, String instructor, String times,
         String start_date, String level, String price, String live_url, String daysOfWeek){
+        return createCourse(title, description, instructor, times, start_date, level, price, live_url, daysOfWeek, 0);
+    }
+
+    public int createCourse(String title, String description, String instructor, String times,
+        String start_date, String level, String price, String live_url, String daysOfWeek, int unitCount){
+        if (unitCount < 0 || unitCount > 50) return -1;
         String sql="INSERT INTO courses (title, description, instructor, times, start_date, level, "+
         "price, live_url, days_of_week) "+
-        "VALUES (?,?,?,?,?,?,?,?,?) ";
+        "VALUES (?,?,?,?,?,?,?,?,?) RETURNING course_id";
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
+            conn.setAutoCommit(false);
+            try {
             ps.setString(1,title);
             ps.setString(2,description);
             ps.setString(3,instructor);
@@ -1270,9 +1278,21 @@ public class Database{
             ps.setString(8,live_url);
             ps.setString(9,daysOfWeek);
             try(ResultSet rs = ps.executeQuery()){
-                if(rs.next()) return rs.getInt("course_id");
-                return -1;
+                if (!rs.next()) throw new SQLException("Course creation returned no ID");
+                int courseId = rs.getInt("course_id");
+                try (PreparedStatement units = conn.prepareStatement("INSERT INTO course_units(course_id,title,sort_order) VALUES (?,?,?)")) {
+                    for (int i = 1; i <= unitCount; i++) {
+                        units.setInt(1, courseId);
+                        units.setString(2, "Unit " + i);
+                        units.setInt(3, i);
+                        units.addBatch();
+                    }
+                    if (unitCount > 0) units.executeBatch();
+                }
+                conn.commit();
+                return courseId;
             }
+            } catch (SQLException e) { conn.rollback(); throw e; }
         }
         catch(SQLException e){
             e.printStackTrace();
@@ -1581,7 +1601,19 @@ public class Database{
             return -1;
         }
     }
-
+    
+    public int editUnitTitle(int unitId, String title){
+        String sql = "UPDATE course_units SET title = ? WHERE unit_id = ? ";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setString(1, title);
+            ps.setInt(2, unitId);
+            return ps.executeUpdate();
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
     // public String getVideoFilepath(int videoId, int unitId){
 
     // }
@@ -1928,7 +1960,7 @@ public class Database{
             "FROM courses c " +
             "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
             "LEFT JOIN unit_lessons ul ON ul.unit_id = cu.unit_id "+
-            "LEFT JOIN unit_videos uv ON uv.lesson_id = uv.lesson_id " +
+            "LEFT JOIN unit_videos uv ON uv.lesson_id = ul.lesson_id " +
             "ORDER BY c.course_id, cu.sort_order, uv.sort_order";
 
         try (Connection conn = getConnection();

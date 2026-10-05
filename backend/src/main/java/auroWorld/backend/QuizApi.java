@@ -65,6 +65,20 @@ public final class QuizApi {
             }
             return Map.of("quizzes", quizzes, "can_manage", manager);
         }));
+        app.get("/quiz-api/units/{unitId}/resources", ctx -> handle(ctx, (conn, user) -> {
+            var unit = unit(conn, id(ctx, "unitId"));
+            boolean manager = manage(user, unit);
+            require(manager || enrolled(conn, user, unit), 403, "Enroll in this course to view resources.");
+            return Map.of("can_manage", manager, "resources", rows(conn, "SELECT * FROM unit_resources WHERE unit_id=? ORDER BY id", unit.get("unit_id")));
+        }));
+        app.post("/quiz-api/units/{unitId}/resources", ctx -> handle(ctx, (conn, user) -> saveResource(ctx, conn, user, true)));
+        app.put("/quiz-api/resources/{resourceId}", ctx -> handle(ctx, (conn, user) -> saveResource(ctx, conn, user, false)));
+        app.delete("/quiz-api/resources/{resourceId}", ctx -> handle(ctx, (conn, user) -> {
+            var resource = one(conn, "SELECT * FROM unit_resources WHERE id=?", id(ctx, "resourceId"));
+            require(manage(user, unit(conn, ((Number) resource.get("unit_id")).longValue())), 403, "Only the course instructor or an administrator can delete resources.");
+            update(conn, "DELETE FROM unit_resources WHERE id=?", resource.get("id"));
+            return Map.of("deleted", true);
+        }));
         app.get("/quiz-api/calendar", ctx -> handle(ctx, (conn, user) -> rows(conn,
             "SELECT q.id, q.title, q.due_at, q.late_until, q.release_at, c.course_id, c.title AS course_title, u.title AS unit_title, " +
             "EXISTS(SELECT 1 FROM quiz_submissions s WHERE s.quiz_id=q.id AND s.user_id=? AND s.submitted_at IS NOT NULL) AS submitted " +
@@ -147,6 +161,23 @@ public final class QuizApi {
             }
             return null;
         }));
+    }
+
+    private Object saveResource(Context ctx, Connection conn, User user, boolean create) throws Exception {
+        var resource = create ? null : one(conn, "SELECT * FROM unit_resources WHERE id=?", id(ctx, "resourceId"));
+        var unit = unit(conn, create ? id(ctx, "unitId") : ((Number) resource.get("unit_id")).longValue());
+        require(manage(user, unit), 403, "Only the course instructor or an administrator can edit resources.");
+        var form = JSON.fromJson(ctx.body(), ResourceForm.class);
+        require(form != null && form.title != null && !form.title.isBlank() && form.title.length() <= 200, 400, "Enter a resource title (up to 200 characters).");
+        require(form.description == null || form.description.length() <= 5000, 400, "Description is too long.");
+        require(form.url != null && form.url.trim().length() <= 4000, 400, "Enter a valid web link.");
+        String url = form.url.trim();
+        URI parsed = URI.create(url);
+        require(("https".equalsIgnoreCase(parsed.getScheme()) || "http".equalsIgnoreCase(parsed.getScheme())) && parsed.getHost() != null && parsed.getUserInfo() == null, 400, "Use a full http:// or https:// link without embedded login details.");
+        String description = form.description == null ? "" : form.description.trim();
+        if (create) return one(conn, "INSERT INTO unit_resources(unit_id,title,url,description) VALUES (?,?,?,?) RETURNING id", unit.get("unit_id"), form.title.trim(), url, description);
+        update(conn, "UPDATE unit_resources SET title=?,url=?,description=? WHERE id=?", form.title.trim(), url, description, resource.get("id"));
+        return Map.of("id", resource.get("id"));
     }
 
     private Object saveQuiz(Context ctx, Connection conn, User user, boolean create) throws Exception {
@@ -385,6 +416,7 @@ public final class QuizApi {
         List<Long> keep_file_ids;
     }
     private static class AnswerForm { boolean submit; List<Long> keep_file_ids; }
+    private static class ResourceForm { String title, url, description; }
     private static class OnlineAnswerForm { boolean submit; Integer question_version; List<Integer> answers; }
     private static class GradeForm { Double score; String feedback; List<Long> keep_file_ids; }
     static class Fault extends RuntimeException {

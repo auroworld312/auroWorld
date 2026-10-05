@@ -61,7 +61,7 @@ test('student sees grade, feedback and marked work without edit controls', () =>
 test('unit tabs preserve video access and hide teacher controls from students', async () => {
   quizRequest.mockResolvedValue({ quizzes: [], can_manage: false });
   render(<UnitMaterials unit={{ unitId: 1, title: 'Unit 1', videos: [{}] }}><div>Existing video player</div></UnitMaterials>);
-  fireEvent.click(screen.getByRole('button', { name: /Unit 1/ }));
+  fireEvent.click(screen.getByText('Unit 1'));
   expect(screen.getByText('Existing video player')).toBeVisible();
   fireEvent.click(screen.getByRole('tab', { name: 'Quizzes' }));
   expect(await screen.findByText('No quizzes available yet.')).toBeVisible();

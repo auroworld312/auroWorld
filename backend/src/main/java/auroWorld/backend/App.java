@@ -143,6 +143,7 @@ public class App
     }
 
     private static final class CreateCourseRequest{
+        public Integer unitCount;
         public String title;
         public String description;
         public String instructor;
@@ -291,10 +292,10 @@ public class App
             CreateAccountRequest car = gson.fromJson(ctx.body(),CreateAccountRequest.class);
 
             if(car==null || car.email == null || car.username==null || car.user_uuid==null){
-                System.out.println(car);
-                System.out.println(car.email);
-                System.out.println(car.username);
-                System.out.println(car.user_uuid);
+                //System.out.println(car);
+                //System.out.println(car.email);
+                ////System.out.println(car.username);
+                //System.out.println(car.user_uuid);
                 ctx.result(gson.toJson(new StructuredResponse(
                         "error", "missing username or email", null)));
                 return;
@@ -537,7 +538,7 @@ public class App
 
             CreateFileRequest req = gson.fromJson(ctx.body(),CreateFileRequest.class);
 
-            System.out.println("CreateFileRequest req= "+req.filename+" "+req.msgId);
+            //System.out.println("CreateFileRequest req= "+req.filename+" "+req.msgId);
 
             if(req==null || req.user_uuid ==null ||req.filename==null || req.filename.trim().isEmpty() || req.msgId==0){
                 ctx.status(400);
@@ -1134,7 +1135,29 @@ public class App
         }
 
     });
+    app.put("/edit/unit/{unitId}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
 
+        int unitId = Integer.parseInt(ctx.pathParam("unitId"));
+
+        CreateUnitRequest eur = gson.fromJson(ctx.body(), CreateUnitRequest.class);
+
+        if(eur==null || eur.unitName==null || eur.unitName.trim().isEmpty()){
+            ctx.result(gson.toJson(new StructuredResponse(
+                        "error", "missing unit name", null)));
+                return;
+        }
+
+        int success = db.editUnitTitle(unitId, eur.unitName.trim());
+
+        if(success<=0){
+            ctx.result(gson.toJson(new StructuredResponse("editing unit failed", null, success)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, success)));
+        }
+    });
     app.get("/unit_videos/{id}/{title}", ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
@@ -1312,16 +1335,6 @@ public class App
         ctx.contentType("application/json");
         int courseId = Integer.parseInt(ctx.pathParam("courseId"));
 
-        // DeleteCourseRequest dcr = gson.fromJson(ctx.body(),DeleteCourseRequest.class);
-
-        // if(dcr==null || dcr.user_uuid == null){
-        //     System.out.println(dcr);
-        //     System.out.println(dcr.user_uuid);
-        //     ctx.result(gson.toJson(new StructuredResponse(
-        //             "error", "missgin delete course feature", null)));
-        //     return;
-        // }
-
         int result = db.deleteCourse(courseId);
 
         if(result==-1){
@@ -1355,8 +1368,17 @@ public class App
             return;
         }
 
+        int unitCount = ccr.unitCount == null ? 0 : ccr.unitCount;
+        if (unitCount < 0 || unitCount > 50) {
+            ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Choose between 0 and 50 initial units.", null)));
+            return;
+        }
        int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
-        ccr.level, ccr.price, ccr.live_url, ccr.daysOfWeek);
+        ccr.level, ccr.price, ccr.live_url, ccr.daysOfWeek, unitCount);
+        if (id < 0) {
+            ctx.status(500).result(gson.toJson(new StructuredResponse("error", "Course creation failed. Please try again.", null)));
+            return;
+        }
 
         ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
     });

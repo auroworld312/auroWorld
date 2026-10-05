@@ -46,3 +46,12 @@ ALTER TABLE course_quizzes ADD COLUMN IF NOT EXISTS question_version INTEGER NOT
 ALTER TABLE quiz_submissions ADD COLUMN IF NOT EXISTS online_answers TEXT;
 ALTER TABLE quiz_submissions ADD COLUMN IF NOT EXISTS online_result TEXT;
 ALTER TABLE quiz_submissions ADD COLUMN IF NOT EXISTS question_version INTEGER;
+CREATE TABLE IF NOT EXISTS unit_resources (
+    id BIGSERIAL PRIMARY KEY,
+    unit_id INTEGER NOT NULL REFERENCES course_units(unit_id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS unit_resources_unit_index ON unit_resources(unit_id);
+ALTER TABLE unit_resources ENABLE ROW LEVEL SECURITY;

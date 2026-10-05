@@ -110,107 +110,201 @@ function VideoTab({ course }) {
     );
 }
  
-async function editCourseTab(){
-    document.getElementById("editTab").style.display="block";
-}
+// async function editCourseTab(){
+//     document.getElementById("editTab").style.display="block";
+// }
  
-async function sendEditCourseTabButton(courseId){
-    try{
-        if(!document.getElementById("editTitle").value || !document.getElementById("editDescription").value
-        || !document.getElementById("editInstructor").value || !document.getElementById("edit_start_date").value
-        || !document.getElementById("editLevel").value || !document.getElementById("editPrice").value
-        || !document.getElementById("editLiveUrl").value) {
-            alert("Please fill out all info")
-            return
-        }
+// async function sendEditCourseTabButton(courseId){
+//     try{
+//         if(!document.getElementById("editTitle").value || !document.getElementById("editDescription").value
+//         || !document.getElementById("editInstructor").value || !document.getElementById("edit_start_date").value
+//         || !document.getElementById("editLevel").value || !document.getElementById("editPrice").value
+//         || !document.getElementById("editLiveUrl").value) {
+//             alert("Please fill out all info")
+//             return
+//         }
 
-        const startTime = document.getElementById('editStartTime').value;
-        const endTime = document.getElementById('editEndTime').value;
-        const startOption = COURSE_TIME_OPTIONS.find(option => option.value === startTime);
-        const endOption = COURSE_TIME_OPTIONS.find(option => option.value === endTime);
-        if (!startOption || !endOption || endTime <= startTime) {
-            alert('Please select a start time and a later end time on the same day.');
-            return;
-        }
+//         const startTime = document.getElementById('editStartTime').value;
+//         const endTime = document.getElementById('editEndTime').value;
+//         const startOption = COURSE_TIME_OPTIONS.find(option => option.value === startTime);
+//         const endOption = COURSE_TIME_OPTIONS.find(option => option.value === endTime);
+//         if (!startOption || !endOption || endTime <= startTime) {
+//             alert('Please select a start time and a later end time on the same day.');
+//             return;
+//         }
 
-        const selectedDays = [];
-        for (let i = 0; i < 7; i++) {
-            if (document.getElementById(`editDay-${i}`).checked) selectedDays.push(i);
-        }
-        if (selectedDays.length === 0) {
-            alert("Please select at least one day of the week");
-            return;
-        }
+//         const selectedDays = [];
+//         for (let i = 0; i < 7; i++) {
+//             if (document.getElementById(`editDay-${i}`).checked) selectedDays.push(i);
+//         }
+//         if (selectedDays.length === 0) {
+//             alert("Please select at least one day of the week");
+//             return;
+//         }
 
-        const editCourseBody={
-            title:document.getElementById("editTitle").value,
-            description:document.getElementById("editDescription").value,
-            instructor:document.getElementById("editInstructor").value,
-            startDate:document.getElementById("edit_start_date").value,
-            level:document.getElementById("editLevel").value,
-            price:document.getElementById("editPrice").value,
-            times: `${startOption.label} - ${endOption.label}`,
-            liveUrl:document.getElementById("editLiveUrl").value,
-            daysOfWeek: selectedDays.join(',')   // NEW, e.g. "1,3,5"
-        }
-        const response=await fetch(`${API}/courses/edit/${courseId}`,{
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(editCourseBody)
-        })
-        const data = await response.json();
-        if(data.mStatus!=="ok"){
-            alert("Adding course failed: "+data.mMessage);
-            return;
-        }
-        alert("Saved")
-        cancelEditCourseTab()
-        window.location.reload(); // simplest way to refresh course.daysOfWeek in state
-        return
-    }catch(error){
-        console.log(error.message)
-        return
+//         const editCourseBody={
+//             title:document.getElementById("editTitle").value,
+//             description:document.getElementById("editDescription").value,
+//             instructor:document.getElementById("editInstructor").value,
+//             startDate:document.getElementById("edit_start_date").value,
+//             level:document.getElementById("editLevel").value,
+//             price:document.getElementById("editPrice").value,
+//             times: `${startOption.label} - ${endOption.label}`,
+//             liveUrl:document.getElementById("editLiveUrl").value,
+//             daysOfWeek: selectedDays.join(',')   // NEW, e.g. "1,3,5"
+//         }
+//         const response=await fetch(`${API}/courses/edit/${courseId}`,{
+//             method: "PUT",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify(editCourseBody)
+//         })
+//         const data = await response.json();
+//         if(data.mStatus!=="ok"){
+//             alert("Adding course failed: "+data.mMessage);
+//             return;
+//         }
+//         alert("Saved")
+//         cancelEditCourseTab()
+//         window.location.reload(); // simplest way to refresh course.daysOfWeek in state
+//         return
+//     }catch(error){
+//         console.log(error.message)
+//         return
+//     }
+// }
+// async function cancelEditCourseTab(){
+//     document.getElementById("editTab").style.display="none";
+// }
+ 
+// async function deleteCourseButton(courseId, navigate){
+//     if (!window.confirm('Delete this course? This cannot be undone.')) return;
+//     try{
+
+//         const courseVideosFilepaths = await fetch(`${API}/filepaths/course/${courseId}`)
+
+//         const filepathsResponse = await courseVideosFilepaths.json()
+
+//         // console.log(filepathsResponse)
+
+//         // console.log('filepathResponse.mdata = ',filepathsResponse.mData)
+//         if(filepathsResponse.length>0){
+//             const { data, removeError } = await supabase.storage.from('course_videos').remove(filepathsResponse.mData);
+//             if(removeError || !data){
+//                 console.log('remove error')
+//                 return
+//             }
+//         }
+//         const response = await fetch(`${API}/courses/${courseId}`,{
+//             method: "DELETE",
+//             headers: { "Content-Type": "application/json" },
+//             // body: JSON.stringify({ user_uuid: uuid })
+//         })
+//         const deleteCourse = await response.json();
+//         if(deleteCourse.mStatus!=="ok"){
+//             alert("Deleting course failed: "+deleteCourse.mMessage);
+//             return;
+//         }
+
+//         alert("Course deleted.")
+//         navigate('/courses');
+//     }catch(error){
+//         console.log(error.message)
+//         return
+//     }
+// }
+ 
+function CourseTab({ course, userData, onCourseUpdated, currentUserId, navigate }) {
+    const canManage = userData?.role==="admin" || (userData?.username===course.instructor);
+    const [editTimes, setEditTimes] = useState(() => getCourseTimeValues(course.times));
+    const [loadingCourseTab, setLoadingCourseTab] = useState(false)
+
+    function editCourseTab(){
+        document.getElementById("editTab").style.display="block";
     }
-}
-async function cancelEditCourseTab(){
-    document.getElementById("editTab").style.display="none";
-}
- 
-async function deleteCourseButton(courseId, navigate){
-    if (!window.confirm('Delete this course? This cannot be undone.')) return;
-    try{
-        // const { data:list, listError } = await supabase.storage.from('course_videos').list(`course/${courseId}`)
-        // if(listError){
-        //     console.log('cant get list of files')
-        //     return
-        // }
-        // const filesToRemove = list.map((x) => `course/${courseId}/${x.name}`);
-        // console.log(filesToRemove)
-        // const { data, removeError } = await supabase.storage.from(bucket).remove(filesToRemove);
-        // if(removeError){
-        //     console.log('remove error')
-        //     return
-        // }
-        // else{
-        //     console.log(data)
-        //     return
-        // }
+    
+    async function sendEditCourseTabButton(courseId){
+        try{
+            if(!document.getElementById("editTitle").value || !document.getElementById("editDescription").value
+            || !document.getElementById("editInstructor").value || !document.getElementById("edit_start_date").value
+            || !document.getElementById("editLevel").value || !document.getElementById("editPrice").value
+            || !document.getElementById("editLiveUrl").value) {
+                alert("Please fill out all info")
+                return
+            }
+            const startTime = document.getElementById('editStartTime').value;
+            const endTime = document.getElementById('editEndTime').value;
+            const startOption = COURSE_TIME_OPTIONS.find(option => option.value === startTime);
+            const endOption = COURSE_TIME_OPTIONS.find(option => option.value === endTime);
+            if (!startOption || !endOption || endTime <= startTime) {
+                alert('Please select a start time and a later end time on the same day.');
+                return;
+            }
 
-        const courseVideosFilepaths = await fetch(`${API}/filepaths/course/${courseId}`)
-
-        const filepathsResponse = await courseVideosFilepaths.json()
-
-        // console.log(filepathsResponse)
-
-        // console.log('filepathResponse.mdata = ',filepathsResponse.mData)
-        const { data, removeError } = await supabase.storage.from('course_videos').remove(filepathsResponse.mData);
-        if(removeError){
-            console.log('remove error')
+            const selectedDays = [];
+            for (let i = 0; i < 7; i++) {
+                if (document.getElementById(`editDay-${i}`).checked) selectedDays.push(i);
+            }
+            if (selectedDays.length === 0) {
+                alert("Please select at least one day of the week");
+                return;
+            }
+            setLoadingCourseTab(true)
+            const editCourseBody={
+                title:document.getElementById("editTitle").value,
+                description:document.getElementById("editDescription").value,
+                instructor:document.getElementById("editInstructor").value,
+                startDate:document.getElementById("edit_start_date").value,
+                level:document.getElementById("editLevel").value,
+                price:document.getElementById("editPrice").value,
+                times: `${startOption.label} - ${endOption.label}`,
+                liveUrl:document.getElementById("editLiveUrl").value,
+                daysOfWeek: selectedDays.join(',')   // NEW, e.g. "1,3,5"
+            }
+            const response=await fetch(`${API}/courses/edit/${courseId}`,{
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(editCourseBody)
+            })
+            const data = await response.json();
+            if(data.mStatus!=="ok"){
+                // setLoadingCourseTab(false)
+                alert("Adding course failed: "+data.mMessage);
+                return;
+            }
+            // setLoadingCourseTab(false)
+            alert("Saved")
+            cancelEditCourseTab()
+            window.location.reload(); // simplest way to refresh course.daysOfWeek in state
+            return
+        }catch(error){
+            // setLoadingCourseTab(false)
+            console.log(error.message)
             return
         }
-        else if(data){
-            // console.log(data)
+    }
+    function cancelEditCourseTab(){
+        document.getElementById("editTab").style.display="none";
+    }
+    
+    async function deleteCourseButton(courseId, navigate){
+        if (!window.confirm('Delete this course? This cannot be undone.')) return;
+        try{
+            setLoadingCourseTab(true)
+            const courseVideosFilepaths = await fetch(`${API}/filepaths/course/${courseId}`)
 
+            const filepathsResponse = await courseVideosFilepaths.json()
+
+            // console.log(filepathsResponse)
+
+            // console.log('filepathResponse.mdata = ',filepathsResponse.mData)
+            if(filepathsResponse.length>0){
+                const { data, removeError } = await supabase.storage.from('course_videos').remove(filepathsResponse.mData);
+                if(removeError || !data){
+                    console.log('remove error')
+                    setLoadingCourseTab(false)
+                    return
+                }
+            }
             const response = await fetch(`${API}/courses/${courseId}`,{
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
@@ -218,25 +312,23 @@ async function deleteCourseButton(courseId, navigate){
             })
             const deleteCourse = await response.json();
             if(deleteCourse.mStatus!=="ok"){
-                alert("Deleting course failed: "+data.mMessage);
+                setLoadingCourseTab(false)
+                alert("Deleting course failed: "+deleteCourse.mMessage);
                 return;
             }
-
+            setLoadingCourseTab(false)
             alert("Course deleted.")
-            navigate('/courses');
+            navigate('/courses')
+        }catch(error){
+            setLoadingCourseTab(false)
+            console.log(error.message)
+            return
         }
-    }catch(error){
-        console.log(error.message)
-        return
     }
-}
- 
-function CourseTab({ course, userData, onCourseUpdated, currentUserId, navigate }) {
-    const canManage = userData?.role==="admin" || (userData?.username===course.instructor);
-    const [editTimes, setEditTimes] = useState(() => getCourseTimeValues(course.times));
  
     return (
-        <div>
+        <div style={{opacity:loadingCourseTab?0.5:1}}>
+            <div className = 'loader' style={{display:loadingCourseTab?'flex':'none'}}></div>
             { canManage && (
                 <button onClick={()=>editCourseTab()} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer', marginRight: '8px' }}>Edit</button>
             )}
@@ -356,691 +448,1791 @@ function CourseTab({ course, userData, onCourseUpdated, currentUserId, navigate 
     );
 }
 
-function UnitSection({ unit, courseId, role, username, instructor, unitId, courseTitle }) {
-    // const [videoOpen, setVideoOpen] = useState(false);
-    const [open,setOpen]=useState(false)
-    const [sendingVideo,setSendingVideo]=useState(false)
-    const [lessonOpen, setLessonOpen] = useState([])
+function UnitSection({
+    unit,
+    courseId,
+    role,
+    username,
+    instructor,
+    unitId,
+    courseTitle
+}) {
+    const [open, setOpen] = useState(false);
+    const [openLessons, setOpenLessons] = useState({});
     const [activeVideo, setActiveVideo] = useState(null);
 
-    const [lessonsArray, setLessonArray] = useState([])
+    const [fileLoading, setFileLoading] = useState(false)
 
-    // const [newQuestion, setQuestion]=useState([])
-    // const [newQuestAnsw,setQuesAnsw]=useState([])
+    const [lessonsArray, setLessonArray] = useState([]);
 
-    const [fileUpload,setFileUpload]=useState()
+    const [showAddLesson, setShowAddLesson] = useState(false);
+    const [editingLesson, setEditingLesson] = useState(null);
+    const [addingMaterials, setAddingMaterials] = useState(null);
+    const [reorderingLesson, setReorderingLesson] = useState(null);
+
+    const [selectedVideos, setSelectedVideos] = useState({});
+
+    const [fileUpload, setFileUpload] = useState(null);
     const [fileName, setFileName] = useState("No file chosen");
- 
-    function uploadFileHandler(e){
-        const file = e.target.files[0];
+
+    const [fileUrl, setFileUrl] = useState({});
+
+    const [newLessonTitle, setNewLessonTitle] = useState("");
+    const [newLessonDescription, setNewLessonDescription] = useState("");
+
+    const [editLessonTitle, setEditLessonTitle] = useState("");
+    const [editLessonDescription, setEditLessonDescription] = useState("");
+
+    const [videoTitles, setVideoTitles] = useState({});
+
+    const canManage = role === "admin" || username === instructor;
+
+    /* -------------------------------------------------------
+       LOAD LESSONS
+    ------------------------------------------------------- */
+
+    useEffect(() => {
+        if (!unit?.lessons) {
+            setLessonArray([]);
+            return;
+        }
+
+        const lessonArr = unit.lessons.map((lesson) => ({
+            lessonId: lesson.lessonId,
+            lessonTitle: lesson.lessonTitle,
+            lessonDescription: lesson.lessonDescription,
+            videos: lesson.videos || []
+        }));
+
+        setLessonArray(lessonArr);
+    }, [unit]);
+
+    /* -------------------------------------------------------
+       LOAD VIDEO URLS
+    ------------------------------------------------------- */
+
+    useEffect(() => {
+        async function getFileUrls() {
+            if (!unit?.lessons) {
+                setFileUrl({});
+                return;
+            }
+
+            const urls = {};
+
+            for (const lesson of unit.lessons) {
+                if (!lesson.videos) continue;
+
+                for (const video of lesson.videos) {
+                    if (!video.driveUrl) continue;
+
+                    if (
+                        video.driveUrl.includes(
+                            `course/${courseId}/unit/${unitId}/lesson/${lesson.lessonId}`
+                        )
+                    ) {
+                        try {
+                            const { data } = supabase.storage
+                                .from("course_videos")
+                                .getPublicUrl(video.driveUrl);
+
+                            urls[video.videoId] = data?.publicUrl || null;
+                        } catch (error) {
+                            console.error(error);
+                            urls[video.videoId] = null;
+                        }
+                    } else {
+                        urls[video.videoId] = video.driveUrl;
+                    }
+                }
+            }
+
+            setFileUrl(urls);
+        }
+
+        getFileUrls();
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    /* -------------------------------------------------------
+       LESSON OPEN/CLOSE
+    ------------------------------------------------------- */
+
+    function toggleLesson(lessonId) {
+        setOpenLessons((prev) => ({
+            ...prev,
+            [lessonId]: !prev[lessonId]
+        }));
+    }
+
+    /* -------------------------------------------------------
+       FILE SELECTION
+    ------------------------------------------------------- */
+
+    function uploadFileHandler(e) {
+        const file = e.target.files?.[0];
+
         if (file) {
             setFileUpload(file);
             setFileName(file.name);
-        }else {
-            setFileName("No file chosen"); 
+        } else {
+            setFileUpload(null);
+            setFileName("No file chosen");
         }
     }
-    const [fileUrl,setFileUrl]=useState([])
- 
-    useEffect(()=>{
-        async function getFileUrls(){
-            if (!unit.lessons) return
 
-            const fileUrlArray=unit.lessons.flatMap((lesson)=>lesson.videos.flatMap((video)=>{
-                if (video.driveUrl.includes(`course/${courseId}/unit/${unitId}/lesson/${lesson.lessonId}`)){
-                    // console.log('has it')
-                    try{
-                        const { data} = supabase.storage
-                            .from('course_videos')
-                            .getPublicUrl(video.driveUrl);
-                        //console.log("data from courses_videos: ",data)
-                        if (data && data.publicUrl) {
-                            // console.log('Public URL:', data.publicUrl);
-                        } else {
-                            console.error('Error getting public URL or URL is undefined');
-                        }
-                        
-                        // fileUrlsSet[video.videoId] = data.publicUrl;
-                        return {videoId: video.videoId, dataUrl: data.publicUrl}
-                        // console.log('fileUrlsSet['+video.videoId+']='+data.publicUrl)
+    /* -------------------------------------------------------
+       ADD LESSON
+    ------------------------------------------------------- */
 
-                    }catch(err){
-                        console.error(err)
-                        // fileUrlsSet[video.videoId]=null
-                        return {videoId: video.videoId, dataUrl: null}
-                    }
-                }
-                else{
-                    // fileUrlsSet[video.videoId]=video.driveUrl
-                    return {videoId: video.videoId, dataUrl: video.driveUrl}
-                    // console.log('fileUrlsSet['+video.videoId+']='+video.driveUrl)
-                }
-            }))
-            // console.log('final fileUrlArray =',fileUrlArray)
-            setFileUrl(fileUrlArray)
-        }
-        getFileUrls()
-        // console.log('fileUrls = ',fileUrl)
-        //console.log(videoUrl)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    },[])
-
-    useEffect(()=>{
-        const lessonArr = unit?.lessons.map((lesson)=>{
-            return {lessonId: lesson.lessonId, lessonTitle: lesson.lessonTitle, 
-                lessonDescription:lesson.lessonDescription, videos: lesson.videos}
-        })
-        setLessonArray(lessonArr)
-    },[unit])
-
-    useEffect(()=>{
-        const lessonIdOpenClose = unit?.lessons.map((lesson)=>{
-            return {lessonId: lesson.lessonId, isOpen: false}
-        })
-        setLessonOpen(lessonIdOpenClose)
-    },[unit])
-
-    function handleLessonClick(lId){
-        const updatedLessonOpen=lessonOpen.map((lesson)=>{
-            if(lesson.lessonId===lId){ return { ...lesson, isOpen:!lesson.isOpen } }
-            return lesson
-        })
-        setLessonOpen(updatedLessonOpen)
+    function addLesson() {
+        setShowAddLesson(true);
     }
 
-    function selectVideo(vId){
-        document.getElementById(`selectedVideo-${vId}`).style.display='block'
-        document.getElementById(`unselectedVideo-${vId}`).style.display='none'
+    function cancelLesson() {
+        setShowAddLesson(false);
+        setNewLessonTitle("");
+        setNewLessonDescription("");
     }
-    function unselectVideo(vId){
-        document.getElementById(`selectedVideo-${vId}`).style.display='none'
-        document.getElementById(`unselectedVideo-${vId}`).style.display='block'
-    }
-    function editFileOrder(lId){
-        document.getElementById(`changeOrderButton-${lId}`).style.display="none"
-        document.getElementById(`cancelChangeOrderButton-${lId}`).style.display="block"
-        
-        document.getElementById(`changeOrderVideos-${lId}`).style.display="block"
-    }
-    function cancelEditFileOrder(lId){
-        document.getElementById(`changeOrderButton-${lId}`).style.display="block"
-        document.getElementById(`cancelChangeOrderButton-${lId}`).style.display="none"
 
-         document.getElementById(`changeOrderVideos-${lId}`).style.display="none"
-    }
-    async function swapVideoId(lId){
-        let count=0
-        let vId_1=-1
-        let vId_2=-1
-        let vTitle1=''
-        let vTitle2=''
-
-        const lesson = lessonsArray.find(l=>l.lessonId===lId)
-
-        console.log('lesson = ',lesson)
-
-        for(const video of lesson.videos){
-            if(document.getElementById(`selectedVideo-${video.videoId}`).style.display==='block'){
-                if(count===0){
-                    vId_1 = video.videoId
-                    vTitle1=video.title
-                }
-                else if(count===1){
-                    vId_2=video.videoId
-                    vTitle2=video.title
-                }
-                count++
-            }
-        }
-        console.log('count = ',count)
-        if(count<2 || count>2){
-            alert('Select two elements to swap')
-            return
-        }
-        // console.log('vId_1= ',vId_1)
-        // console.log('vId_2= ',vId_2)
-
-        const videoTitles={
-            videoTitle1:vTitle1,
-            videoTitle2:vTitle2,
-        }
-        // console.log('videoTitles= ',videoTitles)
-        const response = await fetch(`${API}/course_units/unit/${unit.unitId}/lesson/${lId}/swap/${vId_1}/${vId_2}`,{
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(videoTitles)
-        })
-        const responseData = await response.json();
-        if(responseData.mStatus!=="ok"){
-            alert("Swapping failed: "+responseData.mMessage);
-        }
-        // swapVideoDomButton(lesson.lessonId, vId_1, vId_2)
-
-    }
-    function addLessonDom(newId, lTitle, lDescription){
-        const newLesson=[{ lessonId:newId, lessonTitle: lTitle, lessonDescription:lDescription, videos:[] }]
-        setLessonArray((prevLessons)=>{ return [...prevLessons,...newLesson] })
-    }
-    async function createNewLesson(courseId){
-        const lessonBody={
-            lessonTitle: document.getElementById(`addLessonTitle-${unitId}`).value,
-            lessonDescription: document.getElementById(`addLessonDescription-${unitId}`).value,
-        }
-        // console.log('lessonBody= ',lessonBody)
-        const createLessonResponse=await fetch(`${API}/course/${courseId}/unit/${unitId}/addlesson`,{
-            method:"POST",
-            headers:{"Content-Type": "application/json"},
-            body:JSON.stringify(lessonBody)
-        })
-        const lessonData = await createLessonResponse.json()
-        console.log('lessonData =',lessonData)
-        if(lessonData.mStatus!=="ok"){
-            alert("Creating lesson failed")
-        }
-        addLessonDom(lessonData.mData,document.getElementById(`addLessonTitle-${unitId}`).value, document.getElementById(`addLessonDescription-${unitId}`).value )
-    }
-    function addLesson(){
-        document.getElementById(`addLesson-${unitId}`).style.display="block"
-    }
-    function cancelLesson(){
-        document.getElementById(`addLesson-${unitId}`).style.display="none"
-    }
-    async function addMaterials(lessonId){
-        document.getElementById(`addVideo-${lessonId}`).style.display="block"
-    }
-    async function cancelMaterials(lessonId){
-        document.getElementById(`addVideo-${lessonId}`).style.display="none"
-    }
-    function addVideoDom(vId,lId, vidTitle, vidPath){
-        const updatedLessons = lessonsArray.map((lesson)=>{
-            if (lesson.lessonId===lId){
-                return { ...lesson, videos:[...lesson.videos, { videoId:vId, unitId: unit.unitId, lessonId:lId, title:vidTitle, driveUrl: vidPath, duration: null, sortOrder: 0 }] }
-            }
-            else{
-                return lesson
-            }
-        })
-        setLessonArray(updatedLessons)
-
-        if(vidPath!=="empty"){
-            try{
-                const { data} = supabase.storage
-                    .from('course_videos')
-                    .getPublicUrl(vidPath);
-                //console.log("data from courses_videos: ",data)
-                if (data && data.publicUrl) {
-                    console.log('Public URL:', data.publicUrl);
-                    
-                } else {
-                    console.error('Error getting public URL or URL is undefined');
-                }
-                
-                const newUrl=[{ videoId:vId, dataUrl: data.publicUrl }]
-                setFileUrl((prevUrls)=>{ return [...prevUrls,...newUrl] })
-
-            }catch(err){
-                console.error(err)
-                setFileUrl((prevUrls)=>{ return [...prevUrls,...{videoId:vId, dataUrl: null}] })
-            }
-        }   
-    }
-    async function uploadNewMaterials(filename,filedata,lessonId){
-        // console.log("uploading video for unit "+unitId)
-        // console.log("for course: "+courseId)
-        if(!document.getElementById(`videoTitle-${lessonId}`).value){
-            alert("Enter a title for upload")
-            return
-        }
-        try{
-            setSendingVideo(true)
-            if(!(filedata) || filename==="No file chosen"){
-                const noVideoBody={
-                    title:document.getElementById(`videoTitle-${lessonId}`).value,
-                    filepath:"empty"
-                }
-                // console.log("noVideoBody: "+noVideoBody)
-                const response = await fetch(`${API}/unit_videos/unit/${unit.unitId}/lesson/${lessonId}`,{
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(noVideoBody)
-                })
-                const videoData = await response.json();
-                if(videoData.mStatus!=="ok"){
-                    alert("Adding video failed: "+videoData.mMessage);
-                }
-                return
-            }
-            const videoUUID = crypto.randomUUID()
-            // console.log('video uuid =',videoUUID)
-            const videoBody={
-                title:document.getElementById(`videoTitle-${lessonId}`).value,
-                // eslint-disable-next-line
-                filepath:'course/'+courseId+'/unit/'+unit.unitId+'/lesson/'+lessonId+'/uuid/'+videoUUID+'/'+filename
-            }
-            // console.log("videoBody: "+videoBody)
-            const response = await fetch(`${API}/unit_videos/unit/${unit.unitId}/lesson/${lessonId}`,{
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(videoBody)
-            })
-            const videoData = await response.json();
-            if(videoData.mStatus!=="ok"){
-                alert("Adding video failed: "+videoData.mMessage);
-                return;
-            }
-            //console.log("addVideo new video Id= "+videoData.mData)
-            // eslint-disable-next-line
-            const {data,error} = await supabase.storage.from('course_videos').upload('course/'+courseId+'/unit/'+unit.unitId+'/lesson/'+lessonId+'/uuid/'+videoUUID+'/'+filename, filedata)
-            if(data){
-                alert('Added video successfully.')
-                // console.log(data)
-            }
-            else if(error){
-                console.log(error.message)
-            }
-            if(!(filedata) || filename==="No file chosen"){
-                const path = "empty"
-                addVideoDom(videoData.mData, lessonId, document.getElementById(`videoTitle-${lessonId}`).value, path)
-            }
-            else{
-                const path = 'course/'+courseId+'/unit/'+unit.unitId+'/lesson/'+lessonId+'/uuid/'+videoUUID+'/'+filename
-                addVideoDom(videoData.mData, lessonId, document.getElementById(`videoTitle-${lessonId}`).value,  path)
-            }
-            setSendingVideo(false)
-        }
-        catch(error){
-            console.log(error.message)
-            return
-        }
-        //console.log("doesFileExist path: "+`${API}/unit_videos/${unit.unitId}/${document.getElementById(`videoTitle-${unit.unitId}`).value}`)
-    }
-    // async function editFile(driveurl, unitId, videoId){
-    //     document.getElementById(`editFileDisplay-${videoId}`).style.display="block"
-    // }
-    // function deleteVideoDom(vId,lId){
-    //     setLessonArray(prevLessons =>
-    //         prevLessons.map(lesson => {
-    //             if (lesson.lessonId === lId) {
-    //                 return { ...lesson, videos: lesson.videos.filter(vItem => vItem.videoId !== vId) }
-    //             }
-    //             return lesson;
-    //         })
-    //     )
-    //     setActiveVideo(null)
-    // }
-    async function deleteFile(driveurl, lessonId, videoId){
-        // console.log("deleteVideo id: "+videoId)
-        // console.log("deleteVideo driveurl: "+driveurl)
-        try{
-            const videoEntry=await fetch(`${API}/delete/unit_videos/unit/${unit.unitId}/lesson/${lessonId}/videoId/${videoId}`,{
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" }
-            })
-            const videoEntryData= await videoEntry.json()
-            //console.log("videoEntryData: "+videoEntryData )
-            if(videoEntryData.mStatus!=="ok"){
-                //alert("Deleting video entry failed. Try again later")
-                return
-            }
-            const { data, error } = await supabase
-                .storage
-                .from('course_videos')
-                .remove([driveurl])
-            if(data){
-                alert("Video deleted.")
-                return
-            }
-            else if(error){
-                //alert("Deleting video data failed. Try again later")
-                return
-            }
-            // deleteVideoDom(videoId,lessonId)
-        }catch(error){
-            console.log(error.message)
-            return
-        }
-    }
-    function goToNextVideo(lessonId, currentVideoId) {
-        const currentLesson = lessonsArray.find(l=>l.lessonId === lessonId)
-        const idx = currentLesson.videos.findIndex(v => v.videoId === currentVideoId);
-        if (idx === -1 || idx === currentLesson.videos.length - 1) {
-            // no next video in this unit
+    async function createNewLesson() {
+        if (!newLessonTitle.trim()) {
+            alert("Enter a lesson title");
             return;
         }
-        const nextVideo = currentLesson.videos[idx + 1];
-        setActiveVideo(nextVideo.videoId);
-    }
-    async function ga4AddView(vId, vidTitle, unitTitle, courseTitle){
-        // console.log("ga4AddView "+unitTitle)
-        ReactGA.event({
-            category:'course videos',
-            action:'viewed '+vidTitle+' course '+courseTitle+' unit'+ unitTitle,
-            label:vId,
-        })
-    }
-    function editLessonDom(lId,lTitle,lDescription){
-        const updatedLessons=lessonsArray.map((lesson)=>{
-            if(lesson.lessonId===lId){ return{ ...lesson, lessonTitle:lTitle, lessonDescription: lDescription } }
-            return lesson
-        })
-        setLessonArray(updatedLessons)
-    }
-    async function sendEditLesson(lId){
-        if(!document.getElementById(`editLessonTitle-${lId}`).value || !document.getElementById(`editLessonDescription-${lId}`).value){
-            alert("Title or description empty")
-            return
+
+        if (!newLessonDescription.trim()) {
+            alert("Enter a lesson description");
+            return;
         }
-        try{
-            const lessonTitleValue = document.getElementById(`editLessonTitle-${lId}`).value
-            const lessonDescriptionValue = document.getElementById(`editLessonDescription-${lId}`).value
-            
-            const lessonBody={
-                lessonTitle:lessonTitleValue,
-                lessonDescription:lessonDescriptionValue,
+
+        try {
+            const lessonBody = {
+                lessonTitle: newLessonTitle.trim(),
+                lessonDescription: newLessonDescription.trim()
+            };
+
+            const response = await fetch(
+                `${API}/course/${courseId}/unit/${unitId}/addlesson`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(lessonBody)
+                }
+            );
+
+            const lessonData = await response.json();
+
+            if (lessonData.mStatus !== "ok") {
+                alert(
+                    "Creating lesson failed: " +
+                    (lessonData.mMessage || "")
+                );
+                return;
             }
-            const response = await fetch(`${API}/edit/lesson/${lId}`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(lessonBody) });
-            const data = await response.json()
-            if (data.mStatus!=="ok"){ alert("Edit lesson failed: "+data.mMessage); return }
-            //if(fileUpload){ editFileInTable(msg_id) }
-            closeEditLesson(lId)
-            editLessonDom(lId,lessonTitleValue,lessonDescriptionValue)
-        }catch(error){ console.error(error.message) }
-        
-    }
-    function editLessonButton(lId){
-        document.getElementById(`editLessonTab-${lId}`).style.display="block"
-    }
-    function closeEditLesson(lId){
-        document.getElementById(`editLessonTab-${lId}`).style.display="none"
-    }
-    function deleteLessonDom(lId){
-        setLessonArray(lessonsArray.filter(l=> l.lessonId!==lId))
-    }
-    async function deleteLessonButton(lId){
-        try{
-            const lessonToDelete = lessonsArray.find((lesson)=>lesson.lessonId === lId)
-            // console.log('lessonToDelete')
-            const videosToDelete = lessonToDelete.videos.map((video)=>{
-                // console.log(video.driveUrl)
-                return video.driveUrl
-            })
 
-            console.log('videostodelete= ',videosToDelete)
+            const newLesson = {
+                lessonId: lessonData.mData,
+                lessonTitle: newLessonTitle.trim(),
+                lessonDescription: newLessonDescription.trim(),
+                videos: []
+            };
 
-            if(videosToDelete.length!==0){
-                const { data, removeError } = await supabase.storage.from('course_videos').remove(videosToDelete);
-        
-                if(removeError || !data){
-                    console.log('remove error')
-                    return
+            setLessonArray((prev) => [...prev, newLesson]);
+
+            cancelLesson();
+        } catch (error) {
+            console.error(error);
+            alert("Creating lesson failed");
+        }
+    }
+
+    /* -------------------------------------------------------
+       EDIT LESSON
+    ------------------------------------------------------- */
+
+    function editLessonButton(lesson) {
+        setEditingLesson(lesson.lessonId);
+        setEditLessonTitle(lesson.lessonTitle);
+        setEditLessonDescription(lesson.lessonDescription);
+    }
+
+    function closeEditLesson() {
+        setEditingLesson(null);
+        setEditLessonTitle("");
+        setEditLessonDescription("");
+    }
+
+    async function sendEditLesson(lId) {
+        if (!editLessonTitle.trim()) {
+            alert("Title cannot be empty");
+            return;
+        }
+
+        if (!editLessonDescription.trim()) {
+            alert("Description cannot be empty");
+            return;
+        }
+
+        try {
+            const lessonBody = {
+                lessonTitle: editLessonTitle.trim(),
+                lessonDescription: editLessonDescription.trim()
+            };
+
+            const response = await fetch(
+                `${API}/edit/lesson/${lId}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(lessonBody)
+                }
+            );
+
+            const data = await response.json();
+
+            if (data.mStatus !== "ok") {
+                alert(
+                    "Edit lesson failed: " +
+                    (data.mMessage || "")
+                );
+                return;
+            }
+
+            setLessonArray((prev) =>
+                prev.map((lesson) =>
+                    lesson.lessonId === lId
+                        ? {
+                              ...lesson,
+                              lessonTitle: editLessonTitle.trim(),
+                              lessonDescription:
+                                  editLessonDescription.trim()
+                          }
+                        : lesson
+                )
+            );
+
+            closeEditLesson();
+        } catch (error) {
+            console.error(error);
+            alert("Editing lesson failed");
+        }
+    }
+
+    /* -------------------------------------------------------
+       DELETE LESSON
+    ------------------------------------------------------- */
+
+    async function deleteLessonButton(lId) {
+        const lessonToDelete = lessonsArray.find(
+            (lesson) => lesson.lessonId === lId
+        );
+
+        if (!lessonToDelete) return;
+
+        const confirmed = window.confirm(
+            `Delete "${lessonToDelete.lessonTitle}"?`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            setFileLoading(true)
+            const videosToDelete = (lessonToDelete.videos || [])
+                .map((video) => video.driveUrl)
+                .filter(
+                    (path) =>
+                        path &&
+                        path !== "empty" &&
+                        !path.includes("http")
+                );
+
+            if (videosToDelete.length > 0) {
+                const { error } = await supabase.storage
+                    .from("course_videos")
+                    .remove(videosToDelete);
+
+                if (error) {
+                    console.error(error);
+                    alert("Could not delete lesson files");
+                    return;
                 }
             }
-            const deleteLessonResponse = await fetch(`${API}/delete/lesson/${lId}`,{ method:"DELETE", headers:{"Content-Type":"application/json"} })
-            const deleteLessonData = await deleteLessonResponse.json()
-            if(deleteLessonData.mStatus!=="ok"){ alert("Deleting Lesson failed. Try again later"); return }
-            alert("Lesson deleted")
-            deleteLessonDom(lId)
-        }catch(error){ console.log(error.message) }
+
+            const response = await fetch(
+                `${API}/delete/lesson/${lId}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
+            );
+
+            const data = await response.json();
+
+            if (data.mStatus !== "ok") {
+                alert(
+                    "Deleting lesson failed: " +
+                    (data.mMessage || "")
+                );
+                return;
+            }
+
+            setLessonArray((prev) =>
+                prev.filter((lesson) => lesson.lessonId !== lId)
+            );
+
+            setOpenLessons((prev) => {
+                const copy = { ...prev };
+                delete copy[lId];
+                return copy;
+            });
+            setFileLoading(false)
+        } catch (error) {
+            console.error(error);
+            setFileLoading(false)
+            alert("Deleting lesson failed");
+        }
     }
-    // console.log('lessonOpen =',lessonOpen)
-    // console.log('unit = ',unit)
-    // console.log('urls: ',fileUrl)
-    // console.log('lessonsArray =',lessonsArray)
+
+    /* -------------------------------------------------------
+       ADD VIDEO
+    ------------------------------------------------------- */
+
+    function addMaterials(lessonId) {
+        setAddingMaterials(lessonId);
+    }
+
+    function cancelMaterials() {
+        setAddingMaterials(null);
+        setFileUpload(null);
+        setFileName("No file chosen");
+    }
+
+    async function uploadNewMaterials(
+        filename,
+        filedata,
+        lessonId
+    ) {
+        const title = videoTitles[lessonId]?.trim();
+
+        if (!title) {
+            alert("Enter a title for upload");
+            return;
+        }
+
+
+
+        try {
+            setFileLoading(true)
+            /*
+             * QUIZ / LINK WITHOUT FILE
+             */
+            if (!filedata || filename === "No file chosen") {
+                const noVideoBody = {
+                    title,
+                    filepath: "empty"
+                };
+
+                const response = await fetch(
+                    `${API}/unit_videos/unit/${unit.unitId}/lesson/${lessonId}`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(noVideoBody)
+                    }
+                );
+
+                const videoData = await response.json();
+
+                if (videoData.mStatus !== "ok") {
+                    setFileLoading(false)
+                    alert(
+                        "Adding video failed: " +
+                        (videoData.mMessage || "")
+                    );
+                    return;
+                }
+
+                const newVideo = {
+                    videoId: videoData.mData,
+                    unitId: unit.unitId,
+                    lessonId,
+                    title,
+                    driveUrl: "empty",
+                    duration: null,
+                    sortOrder: 0
+                };
+
+                setLessonArray((prev) =>
+                    prev.map((lesson) =>
+                        lesson.lessonId === lessonId
+                            ? {
+                                  ...lesson,
+                                  videos: [
+                                      ...(lesson.videos || []),
+                                      newVideo
+                                  ]
+                              }
+                            : lesson
+                    )
+                );
+
+                setVideoTitles((prev) => ({
+                    ...prev,
+                    [lessonId]: ""
+                }));
+                setFileLoading(false)
+                cancelMaterials();
+                return;
+            }
+
+            /* ------------------------------------------------
+               FILE UPLOAD
+            ------------------------------------------------ */
+
+            const videoUUID = crypto.randomUUID();
+
+            const path =
+                `course/${courseId}` +
+                `/unit/${unit.unitId}` +
+                `/lesson/${lessonId}` +
+                `/uuid/${videoUUID}` +
+                `/${filename}`;
+
+            const videoBody = {
+                title,
+                filepath: path
+            };
+
+            const response = await fetch(
+                `${API}/unit_videos/unit/${unit.unitId}/lesson/${lessonId}`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(videoBody)
+                }
+            );
+
+            const videoData = await response.json();
+
+            if (videoData.mStatus !== "ok") {
+                setFileLoading(false)
+                alert(
+                    "Adding video failed: " +
+                    (videoData.mMessage || "")
+                );
+                return;
+            }
+
+            const { data, error } = await supabase.storage
+                .from("course_videos")
+                .upload(path, filedata);
+
+            if (error) {
+                console.error(error);
+
+                /*
+                 * Database entry was created but file upload failed.
+                 * You may want a backend rollback endpoint here.
+                 */
+                setFileLoading(false)
+                alert("Video record created, but file upload failed.");
+                return;
+            }
+
+            if (data) {
+                const { data: publicData } =
+                    supabase.storage
+                        .from("course_videos")
+                        .getPublicUrl(path);
+
+                setFileUrl((prev) => ({
+                    ...prev,
+                    [videoData.mData]:
+                        publicData?.publicUrl || null
+                }));
+            }
+
+            const newVideo = {
+                videoId: videoData.mData,
+                unitId: unit.unitId,
+                lessonId,
+                title,
+                driveUrl: path,
+                duration: null,
+                sortOrder: 0
+            };
+
+            setLessonArray((prev) =>
+                prev.map((lesson) =>
+                    lesson.lessonId === lessonId
+                        ? {
+                              ...lesson,
+                              videos: [
+                                  ...(lesson.videos || []),
+                                  newVideo
+                              ]
+                          }
+                        : lesson
+                )
+            );
+
+            alert("Added video successfully.");
+
+            setVideoTitles((prev) => ({
+                ...prev,
+                [lessonId]: ""
+            }));
+            setFileLoading(false)
+            cancelMaterials();
+        } catch (error) {
+            console.error(error);
+            setFileLoading(false)
+            alert("Adding video failed");
+        }
+    }
+
+    /* -------------------------------------------------------
+       DELETE VIDEO
+    ------------------------------------------------------- */
+
+    async function deleteFile(
+        driveurl,
+        lessonId,
+        videoId
+    ) {
+        const confirmed = window.confirm(
+            "Delete this video?"
+        );
+
+        if (!confirmed) return;
+
+        try {
+            setFileLoading(true)
+            const videoEntry = await fetch(
+                `${API}/delete/unit_videos/unit/${unit.unitId}/lesson/${lessonId}/videoId/${videoId}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
+            );
+
+            const videoEntryData =
+                await videoEntry.json();
+
+            if (videoEntryData.mStatus !== "ok") {
+                setFileLoading(false)
+                alert("Deleting video failed");
+                return;
+            }
+
+            if (
+                driveurl &&
+                driveurl !== "empty" &&
+                !driveurl.includes("http")
+            ) {
+                const { error } =
+                    await supabase.storage
+                        .from("course_videos")
+                        .remove([driveurl]);
+
+                if (error) {
+                    console.error(error);
+                }
+            }
+
+            setLessonArray((prev) =>
+                prev.map((lesson) =>
+                    lesson.lessonId === lessonId
+                        ? {
+                              ...lesson,
+                              videos: lesson.videos.filter(
+                                  (video) =>
+                                      video.videoId !== videoId
+                              )
+                          }
+                        : lesson
+                )
+            );
+
+            setFileUrl((prev) => {
+                const copy = { ...prev };
+                delete copy[videoId];
+                return copy;
+            });
+
+            if (activeVideo === videoId) {
+                setActiveVideo(null);
+            }
+            setFileLoading(false)
+        } catch (error) {
+            setFileLoading(false)
+            console.error(error);
+        }
+    }
+
+    /* -------------------------------------------------------
+       VIDEO REORDER
+    ------------------------------------------------------- */
+
+    function toggleVideoSelection(videoId) {
+        setSelectedVideos((prev) => ({
+            ...prev,
+            [videoId]: !prev[videoId]
+        }));
+    }
+
+    function startReorder(lessonId) {
+        setReorderingLesson(lessonId);
+
+        setSelectedVideos((prev) => {
+            const copy = { ...prev };
+
+            const lesson = lessonsArray.find(
+                (l) => l.lessonId === lessonId
+            );
+
+            lesson?.videos?.forEach((video) => {
+                copy[video.videoId] = false;
+            });
+
+            return copy;
+        });
+    }
+
+    function cancelReorder() {
+        setReorderingLesson(null);
+        setSelectedVideos({});
+    }
+
+    async function swapVideoId(lId) {
+        const lesson = lessonsArray.find(
+            (l) => l.lessonId === lId
+        );
+
+        if (!lesson) return;
+
+        const selected = (lesson.videos || []).filter(
+            (video) => selectedVideos[video.videoId]
+        );
+
+        if (selected.length !== 2) {
+            alert("Select exactly two videos to swap");
+            return;
+        }
+
+        const [video1, video2] = selected;
+
+        try {
+            const videoTitles = {
+                videoTitle1: video1.title,
+                videoTitle2: video2.title
+            };
+
+            const response = await fetch(
+                `${API}/course_units/unit/${unit.unitId}/lesson/${lId}/swap/${video1.videoId}/${video2.videoId}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(videoTitles)
+                }
+            );
+
+            const responseData =
+                await response.json();
+
+            if (responseData.mStatus !== "ok") {
+                alert(
+                    "Swapping failed: " +
+                    responseData.mMessage
+                );
+                return;
+            }
+
+            /*
+             * Swap locally as well so the UI immediately updates.
+             */
+            setLessonArray((prev) =>
+                prev.map((lessonItem) => {
+                    if (lessonItem.lessonId !== lId) {
+                        return lessonItem;
+                    }
+
+                    const videos = [...lessonItem.videos];
+
+                    const index1 = videos.findIndex(
+                        (v) =>
+                            v.videoId === video1.videoId
+                    );
+
+                    const index2 = videos.findIndex(
+                        (v) =>
+                            v.videoId === video2.videoId
+                    );
+
+                    if (index1 !== -1 && index2 !== -1) {
+                        [
+                            videos[index1],
+                            videos[index2]
+                        ] = [
+                            videos[index2],
+                            videos[index1]
+                        ];
+                    }
+
+                    return {
+                        ...lessonItem,
+                        videos
+                    };
+                })
+            );
+
+            cancelReorder();
+        } catch (error) {
+            console.error(error);
+            alert("Could not reorder videos");
+        }
+    }
+
+    /* -------------------------------------------------------
+       NEXT VIDEO
+    ------------------------------------------------------- */
+
+    function goToNextVideo(
+        lessonId,
+        currentVideoId
+    ) {
+        const currentLesson = lessonsArray.find(
+            (lesson) => lesson.lessonId === lessonId
+        );
+
+        if (!currentLesson) return;
+
+        const videos = currentLesson.videos || [];
+
+        const idx = videos.findIndex(
+            (v) => v.videoId === currentVideoId
+        );
+
+        if (
+            idx === -1 ||
+            idx === videos.length - 1
+        ) {
+            return;
+        }
+
+        setActiveVideo(
+            videos[idx + 1].videoId
+        );
+    }
+
+    /* -------------------------------------------------------
+       GA4
+    ------------------------------------------------------- */
+
+    function ga4AddView(
+        vId,
+        vidTitle,
+        unitTitle,
+        courseTitle
+    ) {
+        ReactGA.event({
+            category: "course videos",
+            action:
+                "viewed " +
+                vidTitle +
+                " course " +
+                courseTitle +
+                " unit " +
+                unitTitle,
+            label: vId
+        });
+    }
+
+    /* -------------------------------------------------------
+       RENDER
+    ------------------------------------------------------- */
 
     return (
-        <div style={{ border: '1px solid #e5e5e5', opacity:sendingVideo? 0.5 : 1, borderRadius: '12px', overflow: 'hidden', backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-            <div className = 'loader' style={{display:sendingVideo?'flex':'none'}}></div>
-            <div onClick={() => {setOpen(o => !o) }} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '16px 20px', cursor: 'pointer',
-                backgroundColor: open ? PURPLE_LIGHT : '#fff',
-                transition: 'background-color 0.15s', userSelect: 'none',
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0, backgroundColor: open ? PURPLE : '#e8e8e8', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.15s' }}>
-                        <span style={{ fontSize: '25px', color: open ? '#fff' : '#555' }}>📁</span>
-                    </div>
-                    <div>
-                        {/* <button className = "delete-unit" onClick={()=>deleteUnit(course.courseId, unit.unitId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
-                            <i className="fa-solid fa-trash-can"></i>
-                        </button>  */}
-                        <div style={{ fontSize: '30px', fontWeight: '700', color: '#111' }}>{unit.title}</div>
-                        <div style={{ fontSize: '20px', color: '#999', marginTop: '2px' }}>{lessonsArray.length || 0} lessons</div>
-                    </div>
-                </div>
-                <span style={{ fontSize: '20px', color: '#bbb', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block' }}>›</span>
-            </div>
-            
-            {(role==="admin" || username===instructor ) && (
-                <div>
-                    <button onClick={addLesson} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
-                        Add Lesson
-                    </button>
-                </div>
-            )}
-            <div id ={`addLesson-${unit.unitId}`} style={{display:'none'}}>
-                <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="materials-unit" style={{opacity:fileLoading? 0.5 : 1}}>
 
-                    <label style={{ marginTop: 0 }}>Lesson Title</label>
-                    <input type="text" id={`addLessonTitle-${unit.unitId}`} style={{ padding: '5px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '50%'}} />
+            <div className = 'loader' style={{display:fileLoading?'flex':'none'}}></div>
 
-                    <label style={{ marginTop: 0 }}>Lesson Description</label>
-                    {/* defaultValue={course.description} */}
-                    <textarea id={`addLessonDescription-${unit.unitId}`} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', minHeight: '80px', boxSizing: 'border-box' }}></textarea>
-                    
-                    <button onClick={()=>createNewLesson(courseId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
-                        Create Lesson for Unit {unit.title}
-                    </button>
-                    <button variant="secondary" onClick={cancelLesson} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
-                        Cancel
-                    </button>
+            {/* ================= UNIT HEADER ================= */}
+
+            <div
+                className={`materials-unit-header ${
+                    open ? "is-open" : ""
+                }`}
+                onClick={() => setOpen((prev) => !prev)}
+            >
+                <div className="materials-unit-header-left">
+
+                    <div
+                        className={`materials-icon-badge ${
+                            open ? "is-active" : ""
+                        }`}
+                    >
+                        📁
+                    </div>
+
+                    <div className="materials-unit-title-group">
+
+                        <div className="materials-unit-title">
+                            {unit.title}
+                        </div>
+
+                        <div className="materials-unit-subtitle">
+                            {lessonsArray.length} lesson
+                            {lessonsArray.length !== 1
+                                ? "s"
+                                : ""}
+                        </div>
+
+                    </div>
                 </div>
+
+                <span
+                    className={`materials-chevron ${
+                        open ? "is-open" : ""
+                    }`}
+                >
+                    ›
+                </span>
             </div>
-            {/*// {(!unit.videos || unit.videos.length === 0) ? (
-            //         // <div style={{ padding: '20px', color: '#aaa', fontSize: '14px', textAlign: 'center' }}>No videos in this unit yet.</div>
-            //         <div style={{ padding: '20px', color: '#aaa', fontSize: '14px', textAlign: 'center' }}>No videos in this unit yet.
-            //         </div>
-            //     ) : unit.videos.map((video, idx) => ( */}
-            <div style={{ borderTop: '1px solid #eee' }}>
-                {open && (
-                    <div style={{ borderTop: '1px solid #eee', padding:'20px',margin:'20px' }}>
-                        {(unit.lessons.length===0) ? (
-                            <div style={{ padding: '20px', color: '#aaa', fontSize: '14px', textAlign: 'center' }}>
-                                No lessons in this unit yet.
+
+            {/* ================= UNIT CONTENT ================= */}
+
+            {open && (
+                <div className="materials-unit-body">
+
+                    {/* ADD LESSON BUTTON */}
+
+                    {canManage && !showAddLesson && (
+                        <div className="materials-add-unit-row">
+                            <button
+                                className="materials-icon-btn"
+                                onClick={addLesson}
+                            >
+                                + Add Lesson
+                            </button>
+                        </div>
+                    )}
+
+                    {/* ADD LESSON FORM */}
+
+                    {canManage && showAddLesson && (
+                        <div className="materials-add-lesson-form">
+
+                            <label>
+                                Lesson Title
+                            </label>
+
+                            <input
+                                type="text"
+                                value={newLessonTitle}
+                                onChange={(e) =>
+                                    setNewLessonTitle(
+                                        e.target.value
+                                    )
+                                }
+                                className="materials-inline-input"
+                                placeholder="Enter lesson title"
+                            />
+
+                            <label>
+                                Lesson Description
+                            </label>
+
+                            <textarea
+                                value={newLessonDescription}
+                                onChange={(e) =>
+                                    setNewLessonDescription(
+                                        e.target.value
+                                    )
+                                }
+                                className="materials-inline-input"
+                                style={{
+                                    minHeight: 70
+                                }}
+                                placeholder="Enter lesson description"
+                            />
+
+                            <div
+                                style={{
+                                    display: "flex",
+                                    gap: 8
+                                }}
+                            >
+                                <button
+                                    className="materials-icon-btn"
+                                    onClick={
+                                        createNewLesson
+                                    }
+                                >
+                                    Create Lesson
+                                </button>
+
+                                <button
+                                    className="materials-icon-btn"
+                                    onClick={
+                                        cancelLesson
+                                    }
+                                >
+                                    Cancel
+                                </button>
                             </div>
-                        ) : lessonsArray.map((lesson,idx)=>(
-                            <div key={lesson.lessonId} style={{ borderBottom: idx < lessonsArray.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
-                                { (role==="admin" || username===instructor) && (
-                                    <button onClick={() => editLessonButton(lesson.lessonId)} style={{ float:"right", marginLeft:'auto', background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'#555' }}>
-                                        Edit <i className="fas fa-edit"></i>
-                                    </button>
-                                )}
-                                {(role==="admin" || username===instructor) && (
-                                    <button onClick={() => deleteLessonButton(lesson.lessonId)} style={{ float:"right", background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'#555' }}>
-                                        Delete <i className="fa-solid fa-trash-can"></i>
-                                    </button>
-                                )}
-                                {(role==="admin" || username===instructor ) && (
-                                    <div>
-                                        <button onClick={()=>addMaterials(lesson.lessonId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
-                                            Add File
-                                        </button>
-                                        <div id={`changeOrderButton-${lesson.lessonId}`} style={{display:'block', padding:'10px'}}>
-                                            <button onClick={()=>editFileOrder(lesson.lessonId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
-                                                Change order
-                                            </button>
-                                        </div>
-                                        <div id={`cancelChangeOrderButton-${lesson.lessonId}`} style={{display:'none', padding:'10px'}}>
-                                            <button id={`swapVideoButton-${lesson.lessonId}`} onClick={()=>swapVideoId(lesson.lessonId)} style={{padding:'15px'}}>
-                                                Swap
-                                            </button>
-                                            <button onClick={()=>cancelEditFileOrder(lesson.lessonId)} style={{padding:'15px', margin:'10px'}}>
-                                                Cancel order change
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                                <div style={{padding:'9px 20px'}}>
-                                    <label style={{fontFamily:'ui-sans-serif', fontSize: '25px'}}>Lesson {idx+1}: {lesson.lessonTitle}</label>
-                                </div>
 
-                                <div style={{padding:'9px 20px'}}>
-                                    <label style={{fontFamily:'ui-sans-serif', fontSize:'20px'}}>{lesson.lessonDescription}</label>
-                                </div>
+                        </div>
+                    )}
 
-                                <div id={`editLessonTab-${lesson.lessonId}`} style={{display:'none',marginTop: '15px',padding:'10px'}}>
-                                    <h3 style={{ marginTop: 0 }}>Edit Lesson Tab</h3>
-                                    <label style={{ marginTop: '15px' }}>Lesson Title</label>
-                                    <input type="text" defaultValue={lesson.lessonTitle} id={`editLessonTitle-${lesson.lessonId}`} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
-                    
-                                    <label style={{ marginTop: 0 }}>Lesson Description</label>
-                                    <textarea id={`editLessonDescription-${lesson.lessonId}`} defaultValue={lesson.lessonDescription} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', minHeight: '80px', boxSizing: 'border-box' }}></textarea>
+                    {/* NO LESSONS */}
 
-                                    <button onClick={() => sendEditLesson(lesson.lessonId)} style={{ float:"right", marginLeft:'auto', background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'#555' }}>
-                                        Save
-                                    </button>
-                                    <button onClick={() => closeEditLesson(lesson.lessonId)} style={{ float:"right", marginLeft:'auto', background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'#555' }}>
-                                        Close
-                                    </button>
-                                </div>
-                                            
-                                <div id={`addVideo-${lesson.lessonId}`} style={{ display: 'none' }}>
-                    
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                                        <input type="file" id={`hiddenAddFileInput-${lesson.lessonId}`} onChange={uploadFileHandler} style={{ display: 'none' }}></input>
-                                        <button variant="secondary" onClick={() => document.getElementById(`hiddenAddFileInput-${lesson.lessonId}`).click()}>Upload File</button>
-                                        
-                                        <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal' }}>{fileName}</span>
-                                    </div>
-                    
-                                        <label style={{ marginTop: 0 }}>Enter Title</label>
-                                        <input type="text" id={`videoTitle-${lesson.lessonId}`} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
-                    
-                                    {fileUpload &&(
-                                        <div id={`fileUpload-${lesson.lessonId}`} style={{ margin: '10px 0', fontSize: '14px', color: '#666' }}>
-                                            <p>Selected File: {`fileUpload-${lesson.lessonId}`.name}</p>
-                                            <p>Size: {`fileUpload-${lesson.lessonId}`.size} bytes</p>
-                                            <p>Type: {`fileUpload-${lesson.lessonId}`.type}</p>
-                                        </div>
-                                    )}
+                    {lessonsArray.length === 0 ? (
+                        <div className="materials-empty">
+                            No lessons in this unit yet.
+                        </div>
+                    ) : (
 
-                                    <div style={{ display: 'flex', gap: '10px' }}>
-                                        <button onClick={()=>uploadNewMaterials(fileName,fileUpload,lesson.lessonId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Send</button>
-                                        <button variant="secondary" onClick={()=>cancelMaterials(lesson.lessonId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
-                                    </div>
-                                </div>
+                        /* LESSON LIST */
 
-                                <div id={`changeOrderVideos-${lesson.lessonId}`} style={{display:'none'}}>
-                                    {(!lesson.videos || lesson.videos.length ===0 ) ? (
-                                        <label>No files in this lesson</label>
-                                    ): lesson.videos.sort((a,b)=>a.videoId > b.videoId ? 1: -1).map((video)=>(
-                                        <div key={video.videoId}>
-                                            <button id={`unselectedVideo-${video.videoId}`} onClick={()=>selectVideo(video.videoId)} style={{display:'block',height:'30px',width:'30px' }}>
-                                                <i className="fa-light fa-circle"></i>
-                                            </button>
+                        <div className="materials-lesson-list">
 
-                                            <button id={`selectedVideo-${video.videoId}`} onClick={()=>unselectVideo(video.videoId)} style={{display:'none',height:'30px',width:'30px'}}>
-                                                <i className="fa-solid fa-circle" style={{color: '#3bd138'}}></i>
-                                            </button>
+                            {lessonsArray.map(
+                                (lesson, idx) => {
 
-                                            <label style={{display:'flex', gap:'15px'}}>{video.title}</label>
-                                        </div>
-                                    ))}       
-                                </div>
+                                    const isLessonOpen =
+                                        !!openLessons[
+                                            lesson.lessonId
+                                        ];
 
-                                <div onClick={() => {handleLessonClick(lesson.lessonId) }} style={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                        padding: '16px 20px', cursor: 'pointer',
-                                        backgroundColor: lessonOpen.find((obj => obj.lessonId === lesson.lessonId))?.isOpen ? PURPLE_LIGHT : '#fff',
-                                        transition: 'background-color 0.15s', userSelect: 'none',
-                                    }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0, backgroundColor: lessonOpen[lesson.lessonId]?.isOpen ? PURPLE : '#e8e8e8', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.15s' }}>
-                                            <span style={{ fontSize: '14px', color: lessonOpen.find((obj => obj.lessonId === lesson.lessonId))?.isOpen ? '#fff' : '#555' }}>📁</span>
-                                        </div>
-                                        <div>
-                                            <div style={{ fontSize: '25px', color: '#999', marginTop: '2px' }}>{lesson.videos?.length || 0} videos</div>
-                                        </div>
-                                    </div>
-                                    <span style={{ fontSize: '20px', color: '#bbb', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block' }}>›</span>
-                                </div>
-                            
-                                {lessonOpen.find((obj => obj.lessonId === lesson.lessonId))?.isOpen && (
-                                    <div style={{ borderTop: '1px solid #eee', padding: '20px', margin:'20px' }}>
-                                        {(!lesson.videos || lesson.videos.length === 0) ? (
-                                            // <div style={{ padding: '20px', color: '#aaa', fontSize: '14px', textAlign: 'center' }}>No videos in this unit yet.</div>
-                                            <div style={{ padding: '20px', color: '#aaa', fontSize: '14px', textAlign: 'center' }}>
-                                                No videos in this lesson yet.
-                                            </div>
-                                        ) : lesson.videos.map((video, idx) => (
-                                            <div key={video.videoId} style={{ borderBottom: idx < lesson.videos.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
-                    
-                                                <div onClick={() => {setActiveVideo(activeVideo === video.videoId ? null : video.videoId); ga4AddView(video.videoId, video.title, unit.title,courseTitle)} }
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px 14px 28px', cursor: 'pointer', backgroundColor: activeVideo === video.videoId ? '#f9f9f9' : '#fff', transition: 'background-color 0.12s' }}>
-                                                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0, backgroundColor: activeVideo === video.videoId ? PURPLE : '#ebebeb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', transition: 'all 0.15s' }}>
-                                                        <span style={{ color: activeVideo === video.videoId ? '#fff' : '#666' }}>▶</span>
+                                    return (
+                                        <div
+                                            className="materials-lesson"
+                                            key={
+                                                lesson.lessonId
+                                            }
+                                        >
+
+                                            {/* LESSON HEADER */}
+
+                                            <div className="materials-lesson-top">
+
+                                                <div
+                                                    style={{
+                                                        minWidth: 0
+                                                    }}
+                                                >
+                                                    <div className="materials-lesson-heading">
+                                                        Lesson{" "}
+                                                        {idx + 1}:{" "}
+                                                        {
+                                                            lesson.lessonTitle
+                                                        }
                                                     </div>
-                                                    <div style={{ flex: 1 }}>
-                                                        { (role==="admin" || username===instructor) && (
-                                                            <div>
-                                                                {/* <button className = "edit-video" onClick={()=>editFile(video.driveUrl,unitId,video.videoId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
-                                                                    <i className="fas fa-edit"></i>
-                                                                </button> */}
-                                                                <button className = "delete-video" onClick={()=>deleteFile(video.driveUrl,lesson.lessonId,video.videoId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
-                                                                    <i className="fa-solid fa-trash-can"></i>
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#222' }}>
-                                                            {video.title}
-                                                        </div>
-                                                        <div id={`editFileDisplay-${video.videoId}`} style={{display: "none"}}>
-                                                            <label>New title:</label>
-                                                            <label>Current file path: {video.driveUrl}</label>
-                                                        </div>
-                                                        {video.duration && <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{video.duration}</div>}
+
+                                                    <div className="materials-lesson-desc">
+                                                        {
+                                                            lesson.lessonDescription
+                                                        }
                                                     </div>
-                                                    <span style={{ fontSize: '16px', color: '#ccc', transform: activeVideo === video.videoId ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block' }}>›</span>
                                                 </div>
-                                                {/* backgroundColor: '#1a1a1a',  */}
-                                                {activeVideo === video.videoId && (
-                                                    <div style={{ backgroundColor:'#f5c8f3' }}>
-                                                        {video.driveUrl && !video.driveUrl.includes('FILE_ID') && video.driveUrl!=="empty" ? (
-                                                            <iframe src={fileUrl.find((v)=>v.videoId===video.videoId).dataUrl} width="100%" height="800" allow="autoplay" style={{ border: 'none', display: 'block' }} title={video.title} />
-                                                        ) : (
-                                                            <div style={{height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', gap: '10px' }}>
-                                                                <a href={video.title} target="_blank" rel="noopener noreferrer" style={{fontSize: '25px' }}>Take your quiz here</a>
-                                                                <span style={{fontSize: '23px' }}>Click the link to take your quiz!</span>
-                                                            </div>
-                                                        )}
-                                                        {lesson.videos.findIndex(v => v.videoId === video.videoId) < lesson.videos.length - 1 && (
-                                                            <div style={{ padding: '14px 20px', display: 'flex', justifyContent: 'flex-end' }}>
-                                                                <button
-                                                                    onClick={() => goToNextVideo(lesson.lessonId,video.videoId)}
-                                                                    style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
-                                                                >
-                                                                    Next Video ›
-                                                                </button>
-                                                            </div>
-                                                        )}
+
+                                                {canManage && (
+                                                    <div
+                                                        style={{
+                                                            display:
+                                                                "flex",
+                                                            gap: 6,
+                                                            flexShrink: 0,
+                                                            flexWrap:
+                                                                "wrap",
+                                                            justifyContent:
+                                                                "flex-end"
+                                                        }}
+                                                    >
+                                                        <button
+                                                            className="materials-icon-btn"
+                                                            onClick={() =>
+                                                                editLessonButton(
+                                                                    lesson
+                                                                )
+                                                            }
+                                                        >
+                                                            Edit
+                                                        </button>
+
+                                                        <button
+                                                            className="materials-icon-btn danger"
+                                                            onClick={() =>
+                                                                deleteLessonButton(
+                                                                    lesson.lessonId
+                                                                )
+                                                            }
+                                                        >
+                                                            Delete
+                                                        </button>
                                                     </div>
                                                 )}
+
                                             </div>
-                                        ))} 
-                                    </div>
-                                )}
+
+                                            {/* EDIT LESSON */}
+
+                                            {editingLesson ===
+                                                lesson.lessonId && (
+                                                <div className="materials-add-lesson-form">
+
+                                                    <label>
+                                                        Lesson
+                                                        Title
+                                                    </label>
+
+                                                    <input
+                                                        type="text"
+                                                        value={
+                                                            editLessonTitle
+                                                        }
+                                                        onChange={(
+                                                            e
+                                                        ) =>
+                                                            setEditLessonTitle(
+                                                                e
+                                                                    .target
+                                                                    .value
+                                                            )
+                                                        }
+                                                        className="materials-inline-input"
+                                                    />
+
+                                                    <label>
+                                                        Lesson
+                                                        Description
+                                                    </label>
+
+                                                    <textarea
+                                                        value={
+                                                            editLessonDescription
+                                                        }
+                                                        onChange={(
+                                                            e
+                                                        ) =>
+                                                            setEditLessonDescription(
+                                                                e
+                                                                    .target
+                                                                    .value
+                                                            )
+                                                        }
+                                                        className="materials-inline-input"
+                                                        style={{
+                                                            minHeight: 70
+                                                        }}
+                                                    />
+
+                                                    <div
+                                                        style={{
+                                                            display:
+                                                                "flex",
+                                                            gap: 8
+                                                        }}
+                                                    >
+                                                        <button
+                                                            className="materials-icon-btn"
+                                                            onClick={() =>
+                                                                sendEditLesson(
+                                                                    lesson.lessonId
+                                                                )
+                                                            }
+                                                        >
+                                                            Save
+                                                        </button>
+
+                                                        <button
+                                                            className="materials-icon-btn"
+                                                            onClick={
+                                                                closeEditLesson
+                                                            }
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+
+                                                </div>
+                                            )}
+
+                                            {/* LESSON TOOLBAR */}
+
+                                            {canManage && (
+                                                <div className="materials-lesson-toolbar">
+
+                                                    <button
+                                                        className="materials-icon-btn"
+                                                        onClick={() =>
+                                                            addingMaterials ===
+                                                            lesson.lessonId
+                                                                ? cancelMaterials()
+                                                                : addMaterials(
+                                                                      lesson.lessonId
+                                                                  )
+                                                        }
+                                                    >
+                                                        {addingMaterials ===
+                                                        lesson.lessonId
+                                                            ? "Cancel"
+                                                            : "+ Add File"}
+                                                    </button>
+
+                                                    {reorderingLesson !==
+                                                    lesson.lessonId ? (
+                                                        <button
+                                                            className="materials-icon-btn"
+                                                            onClick={() =>
+                                                                startReorder(
+                                                                    lesson.lessonId
+                                                                )
+                                                            }
+                                                        >
+                                                            Reorder Videos
+                                                        </button>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                className="materials-icon-btn"
+                                                                onClick={() =>
+                                                                    swapVideoId(
+                                                                        lesson.lessonId
+                                                                    )
+                                                                }
+                                                            >
+                                                                Swap Selected
+                                                            </button>
+
+                                                            <button
+                                                                className="materials-icon-btn"
+                                                                onClick={
+                                                                    cancelReorder
+                                                                }
+                                                            >
+                                                                Cancel Reorder
+                                                            </button>
+                                                        </>
+                                                    )}
+
+                                                </div>
+                                            )}
+
+                                            {/* ADD VIDEO */}
+
+                                            {addingMaterials ===
+                                                lesson.lessonId && (
+                                                <div className="materials-add-lesson-form">
+
+                                                    <label>
+                                                        Select
+                                                        File
+                                                    </label>
+
+                                                    <div
+                                                        style={{
+                                                            display:
+                                                                "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            gap: 10
+                                                        }}
+                                                    >
+
+                                                        <input
+                                                            type="file"
+                                                            id={`hiddenAddFileInput-${lesson.lessonId}`}
+                                                            onChange={
+                                                                uploadFileHandler
+                                                            }
+                                                            style={{
+                                                                display:
+                                                                    "none"
+                                                            }}
+                                                        />
+
+                                                        <button
+                                                            className="materials-icon-btn"
+                                                            onClick={() =>
+                                                                document
+                                                                    .getElementById(
+                                                                        `hiddenAddFileInput-${lesson.lessonId}`
+                                                                    )
+                                                                    .click()
+                                                            }
+                                                        >
+                                                            Choose File
+                                                        </button>
+
+                                                        <span
+                                                            style={{
+                                                                fontSize:
+                                                                    13,
+                                                                color:
+                                                                    "#6d6877",
+                                                                overflow:
+                                                                    "hidden",
+                                                                textOverflow:
+                                                                    "ellipsis"
+                                                            }}
+                                                        >
+                                                            {
+                                                                fileName
+                                                            }
+                                                        </span>
+
+                                                    </div>
+
+                                                    <label>
+                                                        Video / Quiz
+                                                        Title
+                                                    </label>
+
+                                                    <input
+                                                        type="text"
+                                                        value={
+                                                            videoTitles[
+                                                                lesson
+                                                                    .lessonId
+                                                            ] || ""
+                                                        }
+                                                        onChange={(
+                                                            e
+                                                        ) =>
+                                                            setVideoTitles(
+                                                                (
+                                                                    prev
+                                                                ) => ({
+                                                                    ...prev,
+                                                                    [lesson.lessonId]:
+                                                                        e
+                                                                            .target
+                                                                            .value
+                                                                })
+                                                            )
+                                                        }
+                                                        className="materials-inline-input"
+                                                        placeholder="Enter title"
+                                                    />
+
+                                                    {fileUpload && (
+                                                        <div
+                                                            style={{
+                                                                fontSize:
+                                                                    12,
+                                                                color:
+                                                                    "#6d6877"
+                                                            }}
+                                                        >
+                                                            Selected:{" "}
+                                                            {
+                                                                fileUpload.name
+                                                            }
+                                                        </div>
+                                                    )}
+
+                                                    <div
+                                                        style={{
+                                                            display:
+                                                                "flex",
+                                                            gap: 8
+                                                        }}
+                                                    >
+                                                        <button
+                                                            className="materials-icon-btn"
+                                                            onClick={() =>
+                                                                uploadNewMaterials(
+                                                                    fileName,
+                                                                    fileUpload,
+                                                                    lesson.lessonId
+                                                                )
+                                                            }
+                                                        >
+                                                            Upload
+                                                        </button>
+
+                                                        <button
+                                                            className="materials-icon-btn"
+                                                            onClick={
+                                                                cancelMaterials
+                                                            }
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+
+                                                </div>
+                                            )}
+
+                                            {/* REORDER LIST */}
+
+                                            {reorderingLesson ===
+                                                lesson.lessonId && (
+                                                <div
+                                                    style={{
+                                                        padding:
+                                                            "8px 16px 12px"
+                                                    }}
+                                                >
+
+                                                    <div
+                                                        style={{
+                                                            fontSize:
+                                                                12,
+                                                            color:
+                                                                "#97919c",
+                                                            marginBottom:
+                                                                8
+                                                        }}
+                                                    >
+                                                        Select exactly
+                                                        two videos to
+                                                        swap.
+                                                    </div>
+
+                                                    {(
+                                                        lesson.videos ||
+                                                        []
+                                                    )
+                                                        .slice()
+                                                        .map(
+                                                            (
+                                                                video
+                                                            ) => (
+                                                                <div
+                                                                    key={
+                                                                        video.videoId
+                                                                    }
+                                                                    style={{
+                                                                        display:
+                                                                            "flex",
+                                                                        alignItems:
+                                                                            "center",
+                                                                        gap: 10,
+                                                                        padding:
+                                                                            "6px 0"
+                                                                    }}
+                                                                >
+
+                                                                    <button
+                                                                        className="materials-icon-btn"
+                                                                        onClick={() =>
+                                                                            toggleVideoSelection(
+                                                                                video.videoId
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        {selectedVideos[
+                                                                            video
+                                                                                .videoId
+                                                                        ]
+                                                                            ? "✓"
+                                                                            : "○"}
+                                                                    </button>
+
+                                                                    <span>
+                                                                        {
+                                                                            video.title
+                                                                        }
+                                                                    </span>
+
+                                                                </div>
+                                                            )
+                                                        )}
+
+                                                </div>
+                                            )}
+
+                                            {/* LESSON CLICK HEADER */}
+
+                                            <div
+                                                className={`materials-video-row ${
+                                                    isLessonOpen
+                                                        ? "is-active"
+                                                        : ""
+                                                }`}
+                                                onClick={() =>
+                                                    toggleLesson(
+                                                        lesson.lessonId
+                                                    )
+                                                }
+                                                style={{
+                                                    margin:
+                                                        "0 16px 8px"
+                                                }}
+                                            >
+
+                                                <div className="materials-video-play">
+                                                    {isLessonOpen
+                                                        ? "−"
+                                                        : "+"}
+                                                </div>
+
+                                                <div
+                                                    style={{
+                                                        flex: 1
+                                                    }}
+                                                >
+                                                    <div className="materials-video-title">
+                                                        Lesson
+                                                        materials
+                                                    </div>
+
+                                                    <div className="materials-video-meta">
+                                                        {
+                                                            lesson
+                                                                .videos
+                                                                ?.length ||
+                                                            0
+                                                        }{" "}
+                                                        video
+                                                        {(
+                                                            lesson
+                                                                .videos
+                                                                ?.length ||
+                                                            0
+                                                        ) !== 1
+                                                            ? "s"
+                                                            : ""}
+                                                    </div>
+                                                </div>
+
+                                                <span
+                                                    className={`materials-chevron ${
+                                                        isLessonOpen
+                                                            ? "is-open"
+                                                            : ""
+                                                    }`}
+                                                >
+                                                    ›
+                                                </span>
+
+                                            </div>
+
+                                            {/* VIDEOS */}
+
+                                            {isLessonOpen && (
+                                                <div className="materials-lesson-body">
+
+                                                    {(
+                                                        lesson.videos ||
+                                                        []
+                                                    ).length === 0 ? (
+                                                        <div className="materials-empty">
+                                                            No videos
+                                                            in this
+                                                            lesson
+                                                            yet.
+                                                        </div>
+                                                    ) : (
+                                                        <div className="materials-video-list">
+
+                                                            {lesson.videos.map(
+                                                                (
+                                                                    video
+                                                                ) => {
+
+                                                                    const isActive =
+                                                                        activeVideo ===
+                                                                        video.videoId;
+
+                                                                    return (
+                                                                        <div
+                                                                            key={
+                                                                                video.videoId
+                                                                            }
+                                                                        >
+
+                                                                            {/* VIDEO ROW */}
+
+                                                                            <div
+                                                                                className={`materials-video-row ${
+                                                                                    isActive
+                                                                                        ? "is-active"
+                                                                                        : ""
+                                                                                }`}
+                                                                                onClick={() => {
+                                                                                    setActiveVideo(
+                                                                                        isActive
+                                                                                            ? null
+                                                                                            : video.videoId
+                                                                                    );
+
+                                                                                    ga4AddView(
+                                                                                        video.videoId,
+                                                                                        video.title,
+                                                                                        unit.title,
+                                                                                        courseTitle
+                                                                                    );
+                                                                                }}
+                                                                            >
+
+                                                                                <div className="materials-video-play">
+                                                                                    ▶
+                                                                                </div>
+
+                                                                                <div
+                                                                                    style={{
+                                                                                        flex: 1,
+                                                                                        minWidth: 0
+                                                                                    }}
+                                                                                >
+                                                                                    <div className="materials-video-title">
+                                                                                        {
+                                                                                            video.title
+                                                                                        }
+                                                                                    </div>
+
+                                                                                    {video.duration && (
+                                                                                        <div className="materials-video-meta">
+                                                                                            {
+                                                                                                video.duration
+                                                                                            }
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+
+                                                                                {canManage && (
+                                                                                    <button
+                                                                                        className="materials-icon-btn danger"
+                                                                                        onClick={(
+                                                                                            e
+                                                                                        ) => {
+                                                                                            e.stopPropagation();
+
+                                                                                            deleteFile(
+                                                                                                video.driveUrl,
+                                                                                                lesson.lessonId,
+                                                                                                video.videoId
+                                                                                            );
+                                                                                        }}
+                                                                                    >
+                                                                                        Delete
+                                                                                    </button>
+                                                                                )}
+
+                                                                                <span
+                                                                                    className={`materials-chevron ${
+                                                                                        isActive
+                                                                                            ? "is-open"
+                                                                                            : ""
+                                                                                    }`}
+                                                                                >
+                                                                                    ›
+                                                                                </span>
+
+                                                                            </div>
+
+                                                                            {/* VIDEO PLAYER */}
+
+                                                                            {isActive && (
+                                                                                <div
+                                                                                    style={{
+                                                                                        background:
+                                                                                            "#f5c8f3",
+                                                                                        borderRadius:
+                                                                                            8,
+                                                                                        overflow:
+                                                                                            "hidden",
+                                                                                        marginBottom:
+                                                                                            8
+                                                                                    }}
+                                                                                >
+
+                                                                                    {video.driveUrl &&
+                                                                                    !video.driveUrl.includes(
+                                                                                        "FILE_ID"
+                                                                                    ) &&
+                                                                                    video.driveUrl !==
+                                                                                        "empty" ? (
+                                                                                        fileUrl[
+                                                                                            video
+                                                                                                .videoId
+                                                                                        ] ? (
+                                                                                            <iframe
+                                                                                                src={
+                                                                                                    fileUrl[
+                                                                                                        video
+                                                                                                            .videoId
+                                                                                                    ]
+                                                                                                }
+                                                                                                width="100%"
+                                                                                                height="600"
+                                                                                                allow="autoplay"
+                                                                                                style={{
+                                                                                                    border:
+                                                                                                        "none",
+                                                                                                    display:
+                                                                                                        "block"
+                                                                                                }}
+                                                                                                title={
+                                                                                                    video.title
+                                                                                                }
+                                                                                            />
+                                                                                        ) : (
+                                                                                            <div
+                                                                                                style={{
+                                                                                                    height: 220,
+                                                                                                    display:
+                                                                                                        "flex",
+                                                                                                    alignItems:
+                                                                                                        "center",
+                                                                                                    justifyContent:
+                                                                                                        "center",
+                                                                                                    color:
+                                                                                                        "#777"
+                                                                                                }}
+                                                                                            >
+                                                                                                Loading video...
+                                                                                            </div>
+                                                                                        )
+                                                                                    ) : (
+                                                                                        <div
+                                                                                            style={{
+                                                                                                height: 220,
+                                                                                                display:
+                                                                                                    "flex",
+                                                                                                flexDirection:
+                                                                                                    "column",
+                                                                                                alignItems:
+                                                                                                    "center",
+                                                                                                justifyContent:
+                                                                                                    "center",
+                                                                                                color:
+                                                                                                    "#666",
+                                                                                                gap: 10
+                                                                                            }}
+                                                                                        >
+
+                                                                                            <a
+                                                                                                href={
+                                                                                                    video.title
+                                                                                                }
+                                                                                                target="_blank"
+                                                                                                rel="noopener noreferrer"
+                                                                                                style={{
+                                                                                                    fontSize:
+                                                                                                        18,
+                                                                                                    color:
+                                                                                                        "#6C63FF",
+                                                                                                    fontWeight:
+                                                                                                        700
+                                                                                                }}
+                                                                                            >
+                                                                                                Take your quiz
+                                                                                                here
+                                                                                            </a>
+
+                                                                                            <span
+                                                                                                style={{
+                                                                                                    fontSize:
+                                                                                                        13
+                                                                                                }}
+                                                                                            >
+                                                                                                Click
+                                                                                                the
+                                                                                                link
+                                                                                                to
+                                                                                                take
+                                                                                                your
+                                                                                                quiz.
+                                                                                            </span>
+
+                                                                                        </div>
+                                                                                    )}
+
+                                                                                    {/* NEXT VIDEO */}
+
+                                                                                    {lesson.videos.findIndex(
+                                                                                        (
+                                                                                            v
+                                                                                        ) =>
+                                                                                            v.videoId ===
+                                                                                            video.videoId
+                                                                                    ) <
+                                                                                        lesson
+                                                                                            .videos
+                                                                                            .length -
+                                                                                            1 && (
+                                                                                        <div
+                                                                                            style={{
+                                                                                                padding:
+                                                                                                    "12px 16px",
+                                                                                                display:
+                                                                                                    "flex",
+                                                                                                justifyContent:
+                                                                                                    "flex-end"
+                                                                                            }}
+                                                                                        >
+
+                                                                                            <button
+                                                                                                className="materials-icon-btn"
+                                                                                                onClick={() =>
+                                                                                                    goToNextVideo(
+                                                                                                        lesson.lessonId,
+                                                                                                        video.videoId
+                                                                                                    )
+                                                                                                }
+                                                                                            >
+                                                                                                Next Video
+                                                                                                ›
+                                                                                            </button>
+
+                                                                                        </div>
+                                                                                    )}
+
+                                                                                </div>
+                                                                            )}
+
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                            )}
+
+                                                        </div>
+                                                    )}
+
+                                                </div>
+                                            )}
+
+                                        </div>
+                                    );
+                                }
+                            )}
+
                         </div>
-                    ))}
+                    )}
+
                 </div>
-                )}
-            </div>
+            )}
         </div>
     );
 }
+
  
 function MaterialsTab({ course, userData }) {
 
     const[unitArr, setUnitArr]=useState([])
+    const [editingUnits, setEditingUnits] = useState(false);
+    const canManageUnits = userData?.role === "admin" || userData?.username === course.instructor;
     // const [isDraggable, setIsDraggable] = useState(false)
 
     // console.log('course =',course)
@@ -1079,26 +2271,17 @@ function MaterialsTab({ course, userData }) {
             addUnitDom(data.mData)
         } catch (error) { console.log(error.message); }
     }
-    function deleteUnitButton(){
-        if(document.getElementById("deleteUnit").style.display==="block"){
-            document.getElementById("deleteUnit").style.display="none"
-        }
-        else{
-            document.getElementById("deleteUnit").style.display="block"
-        }
-    }
-    function cancelDeleteButton(){
-        document.getElementById("deleteUnit").style.display="none"
-    }
-    async function sendDeleteUnits(){
+    async function sendDeleteUnits(unitId){
+        const unit = unitArr.find(item => item.unitId === unitId);
+        if (!unit || !window.confirm(`Delete "${unit.title}" and its contents? This cannot be undone.`)) return;
         try{
-            const unitsToKeep = unitArr.filter((unit)=> document.getElementById(`option-${unit.unitId}`).checked!==true)
+            const unitsToKeep = unitArr.filter((unit)=> unit.unitId !== unitId)
             // console.log('unitsToKeep =',unitsToKeep)
 
-            const unitIdsToDelete = unitArr.filter((unit)=>document.getElementById(`option-${unit.unitId}`).checked===true).map((unit)=>{return unit.unitId})
+            const unitIdsToDelete = unitArr.filter((unit)=>unit.unitId === unitId).map((unit)=>{return unit.unitId})
             // console.log('unitsIdsToDelete =',unitIdsToDelete)
 
-            const videosToDelete = unitArr.filter((unit)=>document.getElementById(`option-${unit.unitId}`).checked===true)?.flatMap(unit=>unit?.lessons.flatMap((lesson)=>lesson?.videos.flatMap((video)=> {console.log('video =',video); return video.driveUrl})))
+            const videosToDelete = unitArr.filter((unit)=>unit.unitId === unitId)?.flatMap(unit=>unit?.lessons.flatMap((lesson)=>lesson?.videos.flatMap((video)=> {console.log('video =',video); return video.driveUrl})))
             // console.log('videostodelete= ',videosToDelete)
 
             if(videosToDelete.length!==0){
@@ -1236,9 +2419,13 @@ function MaterialsTab({ course, userData }) {
             <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
                 No materials available yet.
                 <div style={{ marginTop: '20px' }}>
-                    { (userData?.role==="admin" || userData?.username===course.instructor) && (
+                    { (userData?.role==="admin" || userData?.username===course.instructor) && (<>
+                        <button onClick={() => setEditingUnits(!editingUnits)} aria-expanded={editingUnits} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>{editingUnits ? 'Done Editing Units' : 'Edit Unit'}</button>
+                        <div hidden={!editingUnits}>
                         <button onClick={newUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Add a New Unit</button>
-                    )}
+                        </div>
+                    </>)}
+                    <div hidden={!editingUnits || !canManageUnits}>
                     <div id="addUnit" style={{ display: 'none', marginTop: '16px', textAlign: 'left' }}>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Unit name</label>
                         <input type="text" id="unitName" style={{ padding: '8px 12px', border: '1.5px solid #e0e0e0', borderRadius: '8px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
@@ -1246,6 +2433,7 @@ function MaterialsTab({ course, userData }) {
                             <button onClick={() => submitNewUnit(course.courseId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Create</button>
                             <button onClick={cancelNewUnit} style={{ padding: '9px 16px', borderRadius: '8px', border: '1.5px solid #e0e0e0', backgroundColor: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -1255,12 +2443,15 @@ function MaterialsTab({ course, userData }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
              <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
                 { (userData?.role==="admin" || userData?.username===course.instructor) && (
-                    <div id ="unitButtons">
+                    <div>
+                        <button onClick={() => setEditingUnits(!editingUnits)} aria-expanded={editingUnits} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>{editingUnits ? 'Done Editing Units' : 'Edit Unit'}</button>
+                    <div id ="unitButtons" hidden={!editingUnits}>
                         <button onClick={newUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Add a New Unit</button>
-                        <button onClick={deleteUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Delete Units</button>
                         {/* <button onClick={swapUnitsButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Edit Unit Order</button> */}
                     </div>
+                    </div>
                 )}
+                <div hidden={!editingUnits || !canManageUnits}>
                 <div id="addUnit" style={{display: 'none'}}>
                         <label style={{ marginTop: 0 }}>Unit name</label>
                         <input type="text" id="unitName" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
@@ -1268,18 +2459,6 @@ function MaterialsTab({ course, userData }) {
                         <div style={{ display: 'flex', gap: '10px' }}>
                         <button onClick={()=>submitNewUnit(course.courseId)}>Create</button>
                         <button variant="secondary" onClick={cancelNewUnit}>Cancel</button>
-                    </div>
-                </div>
-                <div id="deleteUnit" style={{display:'none'}}>
-                    <button onClick={()=>sendDeleteUnits(course.courseId)}>Delete</button>
-                    <button variant="secondary" onClick={cancelDeleteButton}>Cancel</button>
-                    <div style={{display:'flex',flexDirection:'row'}}>
-                        {unitArr.sort((a,b)=>a.unitId-b.unitId).map(unit=>
-                            <div key={unit.unitId} style={{padding:'10px'}}>
-                                <input type="checkbox" id={`option-${unit.unitId}`} name={`option-${unit.unitId}`}/>
-                                <label htmlFor={`option-${unit.unitId}`} style={{fontSize:'20px'}}>{unit.title}</label>
-                            </div>
-                        )}
                     </div>
                 </div>
                 {/* <div id ="swapUnit" style={{display:isDraggable? 'block' : 'none'}}>
@@ -1290,9 +2469,10 @@ function MaterialsTab({ course, userData }) {
                     <button variant="secondary" onClick={cancelOrderChange}>Cancel</button>
                 </div> */}
             </div>
+            </div>
             {unitArr.sort((a,b)=>a.sortOrder-b.sortOrder).map(unit => 
                 <div id={`dragUnit-${unit.unitId}`} key={unit.unitId} draggable={ (userData?.role==="admin" || userData?.username===course.instructor)? "true": "false"} onDragStart={()=>handleStartDrag(unit.unitId, unit.sortOrder)} onDrag={()=>handleDrag(unit.unitId)} onDragOver={(e)=>handleDragOver(e,unit.unitId, unit.sortOrder)} onDragEnd={()=>handleDragEnd(unit.unitId)}>
-                    <UnitMaterials key={unit.unitId} unit={unit} initialOpen={location.state?.unitId === unit.unitId} initialTab={location.state?.unitId === unit.unitId ? location.state?.unitTab || 'videos' : 'videos'}>
+                    <UnitMaterials key={unit.unitId} unit={unit} canManage={canManageUnits && editingUnits} onDelete={() => sendDeleteUnits(unit.unitId)} onTitleChange={title => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, title } : item))} initialOpen={location.state?.unitId === unit.unitId} initialTab={location.state?.unitId === unit.unitId ? location.state?.unitTab || 'videos' : 'videos'}>
                         <UnitSection embedded unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>
                     </UnitMaterials>
                 </div>

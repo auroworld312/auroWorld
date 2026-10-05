@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import { useUser } from './UserContext';
 import ReactGA from "react-ga4";
+import './spinner/spin.css'
 
 const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
@@ -107,6 +108,8 @@ function Posts(){
     const navigate=useNavigate();
     const { displayName, email, avatarUrl } = useUser();
 
+    const [changeLoading, setChangeLoading] = useState(false)
+
     function getInitials() {
         const name = displayName || email || '';
         const parts = name.trim().split(' ');
@@ -127,15 +130,22 @@ function Posts(){
         if(error){ return }
         else if(user){ return user.id }
     }
-    // async function getUsername(uuid){
-    //     try{
-    //         const usernameResponse = await fetch(`${API}/username/${uuid}`)
-    //         const usernameData = await usernameResponse.json()
-    //         if (usernameData.mStatus!=="ok"){ alert("Problem grabbing username") }
-    //         return usernameData.mData
-    //     }catch(error){ console.log(error.message) }
-    //     return
-    // }
+
+    // Resolves the current user's username without depending on the
+    // userAttributes state having finished loading yet. Falls back to a
+    // direct fetch (and finally "Unknown") so posting/commenting never
+    // silently fails just because /userdata hasn't resolved.
+    async function resolveUsername(uuid){
+        if(userAttributes?.username){ return userAttributes.username }
+        try{
+            const res = await fetch(`${API}/userdata/${uuid}`)
+            const data = await res.json()
+            return data?.mData?.username || "Unknown"
+        }catch(err){
+            console.log("Couldn't fetch username, proceeding anyway: "+err.message)
+            return "Unknown"
+        }
+    }
 
     const [userAttributes,setUserAttributes]=useState(null)
     useEffect(()=>{
@@ -170,15 +180,15 @@ function Posts(){
         document.getElementById("addPost").style.display="block";
     }
 
-    async function addPostButton(username){
+    async function addPostButton(){
         //console.log("username: "+username)
         if(!document.getElementById("newTitle").value || !document.getElementById("newPost").value){
             alert("Title or caption aren't filled out")
             return
         }
-        console.log('fileUpload name: '+fileUpload.name+' fileUpload.type: '+fileUpload.type)
+        console.log('fileUpload name: '+fileUpload?.name+' fileUpload.type: '+fileUpload?.type)
         if(fileUpload && (!fileUpload.type || (fileUpload.type && (fileUpload.type!=='image/jpeg' 
-        && fileUpload.type!=='image/png' && fileUpload.type!=='image/svg' 
+        && fileUpload.type!=='image/png' && fileUpload.type!=='image/svg+xml' 
         && fileUpload.type!=='image/webp')))){
             alert('Files must have webp, jpg, png or svg extension')
             return
@@ -189,8 +199,13 @@ function Posts(){
         // }
         //console.log("prevUrl: "+prevUrl)
         try{
+            setChangeLoading(true)
             const current_uuid = await getCurrentUserId()
-            // const username = await getUsername(current_uuid)
+            if(!current_uuid){
+                alert("You must be logged in to post.")
+                return
+            }
+            const username = await resolveUsername(current_uuid)
             const postBody = {
                 subject: document.getElementById("newTitle").value,
                 message: document.getElementById("newPost").value,
@@ -202,14 +217,15 @@ function Posts(){
                 body: JSON.stringify(postBody)
             });
             const data = await response.json();
-            if(data.mStatus!=="ok"){ alert("Message Post failed some fields are empty"); return; }
+            if(data.mStatus!=="ok"){ setChangeLoading(false); alert("Message Post failed some fields are empty"); return; }
             if(fileUpload) { addFileToTable(data.mData.msgId) }
+            setChangeLoading(false)
             testDomButton(
                 document.getElementById("newTitle").value, document.getElementById("newPost").value,
                 0, username, data.mData.msgId, current_uuid, []
             )
 
-        } catch(error){ console.error(error.message) }
+        } catch(error){ setChangeLoading(false); console.error(error.message) }
         cancelPostButton();
     }
 
@@ -261,13 +277,15 @@ function Posts(){
 
     async function sendEditCommentButton(msg_id,com_id){
         try{
+            setChangeLoading(true)
             const comBody={ comment:document.getElementById(`editCommentText-${com_id}`).value }
             const response = await fetch(`${API}/put/comment/${com_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(comBody) })
             const editCommentData = await response.json()
-            if(editCommentData.mStatus!=="ok"){ alert("Editing comment failed. Try again later"); return }
+            if(editCommentData.mStatus!=="ok"){ setChangeLoading(false); alert("Editing comment failed. Try again later"); return }
+            setChangeLoading(false)
             editCommentDom(msg_id,com_id,document.getElementById(`editCommentText-${com_id}`).value)
             cancelEditCommentButton(com_id)
-        }catch(error){ console.log(error.message) }
+        }catch(error){ setChangeLoading(false); console.log(error.message) }
     }
 
     function editCommentDom(msgId, comId, text){
@@ -298,6 +316,7 @@ function Posts(){
             return
         }
         try{
+            setChangeLoading(true)
             const putBody={
                 subject:document.getElementById(`editTitle-${msg_id}`).value,
                 message:document.getElementById(`editMessage-${msg_id}`).value,
@@ -306,8 +325,9 @@ function Posts(){
             const data = await response.json()
             if (data.mStatus!=="ok"){ alert("Edit post failed: "+data.mMessage); return }
             //if(fileUpload){ editFileInTable(msg_id) }
+            setChangeLoading(false)
             editDomButton(msg_id,document.getElementById(`editTitle-${msg_id}`).value,document.getElementById(`editMessage-${msg_id}`).value)
-        }catch(error){ console.error(error.message) }
+        }catch(error){ setChangeLoading(false); console.error(error.message) }
         cancelEditPostButton(msg_id);
     }
 
@@ -323,14 +343,6 @@ function Posts(){
         document.getElementById(`editPost-${msg_id}`).style.display="none";
     }
 
-    // async function editFileInTable(msg_id){
-    //     try{
-    //         const editFileBody={ filename:fileUpload.name }
-    //         const response=await fetch(`${API}/files/${msg_id}`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(editFileBody) });
-    //         const fileData = await response.json()
-    //         if (fileData.mStatus!=="ok"){ alert("File Post failed: "+fileData.mMessage); return }
-    //     }catch (error){ console.error(error.message) }
-    // }
 
     function addCommentButton(msg_id){
         document.getElementById(`addComment-${msg_id}`).style.display="block";
@@ -341,8 +353,6 @@ function Posts(){
         document.getElementById(`addComment-${msg_id}`).style.display="none";
         document.getElementById(`openAddComment-${msg_id}`).style.display="block";
 
-        // const p = posts.find((item) => item.msgId === msg_id);
-        // console.log('p= ',p)
     }
 
     function commentButton(msg_id){
@@ -382,25 +392,32 @@ function Posts(){
         document.getElementById(`commentList-${msg_id}`).style.display="block"
     }
 
-    async function sendCommentButton(msg_id,username){
+    async function sendCommentButton(msg_id){
         try{
             const current_uuid = await getCurrentUserId()
-            //const username = await getUsername(current_uuid)
+            if(!current_uuid){
+                alert("You must be logged in to comment.")
+                return
+            }
+            setChangeLoading(true)
+            const username = await resolveUsername(current_uuid)
             const commBody={ user_uuid:current_uuid, comment:document.getElementById(`newComment-${msg_id}`).value }
             const res = await fetch(`${API}/messages/${msg_id}/comments`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(commBody) })
             const data = await res.json()
-            if(data.mStatus!=="ok"){ alert("Comment failed: "+data.mMessage); return }
+            if(data.mStatus!=="ok"){ setChangeLoading(false); alert("Comment failed: "+data.mMessage); return; }
+            setChangeLoading(false)
             commentDomButton(document.getElementById(`newComment-${msg_id}`).value,msg_id,data.mData,username,current_uuid)
             cancelCommentButton(msg_id)
-        }catch(error){ console.error(error.message) }
+        }catch(error){ setChangeLoading(false); console.error(error.message) }
     }
 
     async function upvoteButton(msg_id){
         try{
+            setChangeLoading(true)
             const current_uuid = await getCurrentUserId()
             const res = await fetch(`${API}/vote_messages/${msg_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ user_uuid:current_uuid }) })
             const data=await res.json()
-            if(data.mStatus!=="ok"){ return }
+            if(data.mStatus!=="ok"){ setChangeLoading(false); return }
             if(data.mData===0){ 
                 messageUpvoteDom(msg_id,-1) 
 
@@ -419,7 +436,8 @@ function Posts(){
                     label:msg_id,
                 })
             }
-        }catch(error){ console.error(error.message) }
+            setChangeLoading(false)
+        }catch(error){ setChangeLoading(false); console.error(error.message) }
     }
 
     function messageUpvoteDom(msg_id,change){
@@ -435,10 +453,11 @@ function Posts(){
 
     async function upvoteCommentButton(comment_id, msg_id){
         try{
+            setChangeLoading(true)
             const current_uuid = await getCurrentUserId()
             const res=await fetch(`${API}/vote_comments/comment/${comment_id}/msg/${msg_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ user_uuid:current_uuid }) })
             const data = await res.json()
-            if(data.mStatus!=="ok"){ alert("Upvoting comment failed. Try again later"); return }
+            if(data.mStatus!=="ok"){ setChangeLoading(false); alert("Upvoting comment failed. Try again later"); return }
             if(data.mData===0){ 
                 commentUpvoteDom(msg_id,comment_id,-1) 
 
@@ -457,7 +476,8 @@ function Posts(){
                     label:comment_id,
                 })
             }
-        }catch(error){ console.error(error.message) }
+            setChangeLoading(false)
+        }catch(error){ setChangeLoading(false); console.error(error.message) }
     }
 
     function commentUpvoteDom(msg_id,com_id,change){
@@ -478,10 +498,12 @@ function Posts(){
     }
 
     async function downloadFile(msg_id){
+        setChangeLoading(true)
         const downloadFilename = imageUrls[msg_id].split('/').pop()
         const { data, error } = await supabase.storage.from('community_feed_file_upload').download('posts/'+msg_id+'/'+downloadFilename)
-        if(error){ console.log("downloadFile: "+error); alert("Problem downloading file, try again later"); return }
+        if(error){ console.log("downloadFile: "+error); setChangeLoading(false); alert("Problem downloading file, try again later"); return }
         else if(data){
+            setChangeLoading(false)
             const url = URL.createObjectURL(data);
             const link = document.createElement('a');
             link.href = url;
@@ -498,12 +520,14 @@ function Posts(){
 
     async function deleteCommentButton(msgId,commentId){
         try{
+            setChangeLoading(true)
             const deleteCommentResponse = await fetch(`${API}/delete/comment/${commentId}`,{ method:"DELETE", headers:{"Content-Type":"application/json"} })
             const deleteCommentData = await deleteCommentResponse.json()
-            if(deleteCommentData.mStatus!=="ok"){ alert("Deleting comment failed. Try again later"); return }
+            if(deleteCommentData.mStatus!=="ok"){ setChangeLoading(false); alert("Deleting comment failed. Try again later"); return }
+            setChangeLoading(false)
             alert("Comment deleted")
             deleteCommentDom(msgId,commentId)
-        }catch(error){ console.log(error.message) }
+        }catch(error){ setChangeLoading(false); console.log(error.message) }
     }
 
     function deleteCommentDom(msgId,commentId){
@@ -519,14 +543,16 @@ function Posts(){
 
     async function deletePostButton(msgId, uuid){
         try{
+            setChangeLoading(true)
             const deleteBody={ userUuid:uuid }
             const deleteMessageResponse = await fetch(`${API}/delete/message/${msgId}`,{ method:"DELETE", headers:{"Content-Type":"application/json"}, body:JSON.stringify(deleteBody) })
             const deleteMessageData = await deleteMessageResponse.json()
-            if (deleteMessageData.mStatus!=="ok"){ alert("Deleting post failed"); return }
+            if (deleteMessageData.mStatus!=="ok"){ setChangeLoading(false); alert("Deleting post failed"); return }
             else if(deleteMessageData.mData!==null){
                 const { data, error } = await supabase.storage.from('community_feed_file_upload').remove([deleteMessageData.mData])
                 if(data){ console.log(data) } else if(error){ console.log(error.message) }
             }
+            setChangeLoading(false)
             testDeleteDom(msgId)
             alert("Post deleted")
         }catch(error){ console.log(error.message) }
@@ -599,10 +625,6 @@ function Posts(){
         // eslint-disable-next-line react-hooks/exhaustive-deps
     },[posts])
 
-    // for (const u of imageUrls){
-    //     console.log("u: "+u)
-    // }
-
     const [fileUpload,setFileUpload]=useState()
     const [previewUrl, setPreviewUrl] = useState();
     const [fileName, setFileName] = useState("No file chosen");
@@ -668,8 +690,8 @@ function Posts(){
     // console.log("userAttributes.username: "+userAttributes?.username)
 
     return(
-        <div style={{ display:'flex', height:'100vh', width:'100vw', margin:'0', overflow:'hidden', backgroundColor:'#E3C7E6', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize:'16px', color:'#111' }}>
-            
+        <div style={{ display:'flex', height:'100vh', width:'100vw', margin:'0', overflow:'hidden', backgroundColor:'#E3C7E6', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize:'16px', color:'#111', opacity:changeLoading? 0.5 : 1 }}>
+            <div className = 'loader' style={{display:changeLoading?'flex':'none'}}></div>
             <Sidebar onMainpage={mainpageButton} onCourses={coursesButton} onSignout={signoutButton} onAdmin={adminButton} />
 
             <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
@@ -715,7 +737,7 @@ function Posts(){
                                 <input type="text" id="newTitle" style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', boxSizing:'border-box' }} />
                                 <textarea id="newPost" style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', minHeight:'80px', boxSizing:'border-box' }}></textarea>
                                 <div style={{ display:'flex', gap:'10px' }}>
-                                    <Button onClick={()=> addPostButton(userAttributes.username)}>Send</Button>
+                                    <Button onClick={addPostButton}>Send</Button>
                                     <Button variant="secondary" onClick={cancelPostButton}>Cancel</Button>
                                 </div>
                             </Card>
@@ -814,7 +836,7 @@ function Posts(){
                                         <label style={{ fontWeight:'bold' }}>Message</label>
                                         <textarea id={`newComment-${post.msgId}`} style={{ padding:'8px', border:'1px solid #ccc', borderRadius:'4px', marginBottom:'10px', width:'100%', minHeight:'60px', boxSizing:'border-box' }}></textarea>
                                         <div style={{ display:'flex', gap:'10px' }}>
-                                            <Button onClick={() => sendCommentButton(post.msgId,userAttributes.username)}>Send</Button>
+                                            <Button onClick={() => sendCommentButton(post.msgId)}>Send</Button>
                                             <Button variant="secondary" onClick={() => cancelCommentButton(post.msgId)}>Cancel</Button>
                                         </div>
                                     </Card>
