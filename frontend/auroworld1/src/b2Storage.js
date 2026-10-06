@@ -63,8 +63,9 @@ export async function uploadToB2(file, key, getToken, onProgress) {
   try {
     for (let n = 1; n <= totalParts; n++) {
       const blob = file.slice((n - 1) * PART_SIZE, n * PART_SIZE);
+      const bytesBefore = finishedBytes; // snapshot for this part, so the callback doesn't capture a changing variable
       const etag = await uploadPartWithRetry(key, uploadId, n, blob, getToken,
-        loaded => onProgress?.(Math.round(((finishedBytes + loaded) / file.size) * 100)));
+        loaded => onProgress?.(Math.round(((bytesBefore + loaded) / file.size) * 100)));
       finishedBytes += blob.size;
       parts.push({ partNumber: n, etag });
       onProgress?.(Math.round((finishedBytes / file.size) * 100));
