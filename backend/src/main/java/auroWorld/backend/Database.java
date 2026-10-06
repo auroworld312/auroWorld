@@ -1229,8 +1229,8 @@ public class Database{
         String unitVideosStatement = "DELETE FROM unit_videos WHERE drive_url ~ ?";
         String lessonsStatement = "DELETE FROM unit_lessons WHERE course_id = ?";
 
-        String regex = "^course/"+courseId+".*";
-
+       // String regex = "^course/"+courseId+".*";
+        String regex = "^(b2:)?course/" + courseId + "/.*";
         try(Connection conn = getConnection();
         PreparedStatement ps1 = conn.prepareStatement(courseStatement);
         PreparedStatement ps2 = conn.prepareStatement(enrollmentStatement);
@@ -1302,7 +1302,7 @@ public class Database{
 
      public boolean doesLessonVideoTitleExist(int unitId, int lessonId, String videoTitle){
         String selectVideoFilepath="SELECT drive_url " +
-        "FROM \"unit_videos\" WHERE \"title\"=? AND \"unit_id\"=? AND \"lesson_id\"=?";
+        "FROM unit_videos WHERE lesson_id = ? ORDER BY sort_order, video_id";
         try(Connection conn = getConnection();
         PreparedStatement ps = conn.prepareStatement(selectVideoFilepath)){
             ps.setString(1,videoTitle);
@@ -1355,36 +1355,27 @@ public class Database{
     //     }
     // }
 
-    public int addLessonVideo(int unitId, int lessonId, String title, String filepath){
-        String insertVideo="INSERT INTO unit_videos (unit_id, lesson_id, title, drive_url) VALUES (?,?,?,?) ";
-        try(Connection conn = getConnection();
-            PreparedStatement ps = conn.prepareStatement(insertVideo,PreparedStatement.RETURN_GENERATED_KEYS)){
-            ps.setInt(1,unitId);
-            ps.setInt(2,lessonId);
-            ps.setString(3,title);
-            ps.setString(4,filepath);
-
-            int rowsAffected=ps.executeUpdate();
-            if (rowsAffected > 0) {
-                // Retrieve the auto-generated keys (insert ID)
-                ResultSet generatedKeys = ps.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    int videoId = generatedKeys.getInt(1);
-                    System.out.println("Record inserted successfully with ID: " + videoId);
-                    return videoId;
-                } else {
-                    System.out.println("Failed to retrieve insert ID.");
-                    return -1;
-                }
-            } else {
-                return -1;
-            }
-        }
-        catch(SQLException e){
-            e.printStackTrace();
+public int addLessonVideo(int unitId, int lessonId, String title, String filepath){
+    String insertVideo = "INSERT INTO unit_videos (unit_id, lesson_id, title, drive_url, sort_order) " +
+    "VALUES (?,?,?,?, COALESCE((SELECT MAX(sort_order) FROM unit_videos WHERE lesson_id = ?), 0) + 1) " +
+    "RETURNING video_id";
+    try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(insertVideo)){
+        ps.setInt(1, unitId);
+        ps.setInt(2, lessonId);
+        ps.setString(3, title);
+        ps.setString(4, filepath);
+        ps.setInt(5, lessonId);
+        try(ResultSet rs = ps.executeQuery()){
+            if (rs.next()) return rs.getInt("video_id");
             return -1;
         }
     }
+    catch(SQLException e){
+        e.printStackTrace();
+        return -1;
+    }
+}
 
     public int editLesson(int lessonId, String title, String description){
         String editLessonSql = "UPDATE unit_lessons SET lesson_title = ?, lesson_description = ? WHERE lesson_id = ? ";
@@ -1654,37 +1645,47 @@ public class Database{
     }
 
     public int swapUnitVideo(int unitId, int lessonId, int id1, int id2, String title1, String title2){
-        String swapVideoId = "UPDATE unit_videos SET video_id = ? WHERE unit_id = ? AND lesson_id = ? AND video_id = ? AND title = ?";
+        String selectSql = "SELECT video_id FROM unit_videos WHERE unit_id = ? AND lesson_id = ? " +
+                        "ORDER BY sort_order NULLS LAST, video_id";
+        String updateSql = "UPDATE unit_videos SET sort_order = ? WHERE video_id = ?";
 
-        try(Connection conn = getConnection();
-        PreparedStatement ps = conn.prepareStatement(swapVideoId)){
-            //cant have two keys o fthe same value. so change video_id to negative value, acting as temporary value
-            ps.setInt(1,-1);
-            ps.setInt(2,unitId);
-            ps.setInt(3,lessonId);
-            ps.setInt(4,id2);
-            ps.setString(5,title2);
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                List<Integer> ids = new ArrayList<>();
+                try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                    ps.setInt(1, unitId);
+                    ps.setInt(2, lessonId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) ids.add(rs.getInt("video_id"));
+                    }
+                }
 
-            // System.out.println("temp swap = "+ps);
-            ps.executeUpdate();
+                int i1 = ids.indexOf(id1);
+                int i2 = ids.indexOf(id2);
+                if (i1 < 0 || i2 < 0) {
+                    conn.rollback();
+                    return -1;
+                }
 
-            ps.setInt(1,id2);
-            ps.setInt(2,unitId);
-            ps.setInt(3,lessonId);
-            ps.setInt(4,id1);
-            ps.setString(5,title1);
-            // System.out.println("first swap = "+ps);
-            ps.executeUpdate();
+                Collections.swap(ids, i1, i2);
 
-            ps.setInt(1,id1);
-            ps.setInt(2,unitId);
-            ps.setInt(3,lessonId);
-            ps.setInt(4,-1);
-            ps.setString(5,title2);
-            // System.out.println("second swap = "+ps);
+                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                    for (int i = 0; i < ids.size(); i++) {
+                        ps.setInt(1, i + 1);
+                        ps.setInt(2, ids.get(i));
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
 
-            return ps.executeUpdate();
-        }catch(SQLException e){
+                conn.commit();
+                return 1;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
             e.printStackTrace();
             return -1;
         }
@@ -1804,8 +1805,8 @@ public class Database{
     public ArrayList<String> getCourseVideoFilepaths(int courseId){
         ArrayList<String> filepaths = new ArrayList<>();
         String selectFilepaths = "SELECT drive_url FROM unit_videos WHERE drive_url ~ ?";
-        String selectRegex = "^course/"+courseId+".*";
-
+        //String selectRegex = "^course/"+courseId+".*";
+        String selectRegex = "^(b2:)?course/" + courseId + "/.*";
         try(Connection conn = getConnection();
         PreparedStatement ps = conn.prepareStatement(selectFilepaths)){
             ps.setString(1,selectRegex);

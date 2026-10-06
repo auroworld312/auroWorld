@@ -21,8 +21,8 @@ public final class QuizApi {
     private static final Gson JSON = new Gson();
     private static final int FILE_LIMIT = 10 * 1024 * 1024;
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-    private static final String AUTH_URL = System.getenv().getOrDefault("SUPABASE_URL", "https://rduempiojxizkwwbzaml.supabase.co");
-    private static final String AUTH_KEY = System.getenv().getOrDefault("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo");
+    static final String AUTH_URL = System.getenv().getOrDefault("SUPABASE_URL", "https://rduempiojxizkwwbzaml.supabase.co");
+    static final String AUTH_KEY = System.getenv().getOrDefault("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo");
     private static final Map<String, String> TYPES = Map.ofEntries(
         Map.entry("pdf", "application/pdf"), Map.entry("png", "image/png"),
         Map.entry("jpg", "image/jpeg"), Map.entry("jpeg", "image/jpeg"), Map.entry("webp", "image/webp"),

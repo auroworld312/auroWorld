@@ -1453,6 +1453,7 @@ public class App
     });
 
         new QuizApi(db).register(app);
+        new B2Api(db).register(app);
         app.start(8080);
     }  
     
