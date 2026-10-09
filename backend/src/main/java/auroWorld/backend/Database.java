@@ -137,14 +137,16 @@ public class Database{
         public final String lessonTitle;
         public final String lessonDescription;
         public final List<VideoData> videos;
+        public final int sortOrder;
 
         public LessonData(int lessonId, int unitId, String lessonTitle, 
-        String lessonDescription, List<VideoData> videos){
+        String lessonDescription, List<VideoData> videos, int sortOrder){
             this.lessonId=lessonId;
             this.unitId=unitId;
             this.lessonTitle=lessonTitle;
             this.lessonDescription=lessonDescription;
             this.videos = videos;
+            this.sortOrder = sortOrder;
         }
         public List<VideoData> getVideos(){
             return this.videos;
@@ -1321,40 +1323,6 @@ public class Database{
         }
     }
 
-    // public int createLesson(int courseId, int unitId, String title, String description){
-    //     // String generatedColumns[] = { "lesson_id" };
-        
-    //     String insertLesson = "INSERT INTO unit_lessons (unit_id, lesson_title, lesson_description, course_id) VALUES (?,?,?,?) ";
-    //     try(Connection conn = getConnection();
-            // PreparedStatement ps = conn.prepareStatement(insertLesson,PreparedStatement.RETURN_GENERATED_KEYS)){
-    //         ps.setInt(1,unitId);
-    //         ps.setString(2,title);
-    //         ps.setString(3,description);
-    //         ps.setInt(4,courseId);
-
-    //         int rowsAffected = ps.executeUpdate();
-
-            // if (rowsAffected > 0) {
-            //     // Retrieve the auto-generated keys (insert ID)
-            //     ResultSet generatedKeys = ps.getGeneratedKeys();
-            //     if (generatedKeys.next()) {
-            //         int lessonId = generatedKeys.getInt(1);
-            //         System.out.println("Record inserted successfully with ID: " + lessonId);
-            //         return lessonId;
-            //     } else {
-            //         System.out.println("Failed to retrieve insert ID.");
-            //         return -1;
-            //     }
-            // } else {
-            //     return -1;
-            // }
-    //     }
-    //     catch(SQLException e){
-    //         e.printStackTrace();
-    //         return -1;
-    //     }
-    // }
-
 public int addLessonVideo(int unitId, int lessonId, String title, String filepath){
     String insertVideo = "INSERT INTO unit_videos (unit_id, lesson_id, title, drive_url, sort_order) " +
     "VALUES (?,?,?,?, COALESCE((SELECT MAX(sort_order) FROM unit_videos WHERE lesson_id = ?), 0) + 1) " +
@@ -1445,7 +1413,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
 
     public ArrayList<LessonData> getLessonData(int unitId){
         ArrayList<LessonData> lessons = new ArrayList<>();
-        String getLessonsSql = "SELECT lesson_id, lesson_title, lesson_description FROM unit_lessons WHERE unit_id = ?";
+        String getLessonsSql = "SELECT lesson_id, lesson_title, lesson_description, sort_order FROM unit_lessons WHERE unit_id = ?";
         try (Connection conn = getConnection();
         PreparedStatement ps = conn.prepareStatement(getLessonsSql)) {
             ps.setInt(1, unitId);
@@ -1458,7 +1426,8 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
                         unitId,
                         rs.getString("lesson_title"),
                         rs.getString("lesson_description"),
-                        videos
+                        videos,
+                        rs.getInt("sort_order")
                     ));
                 }
             }
@@ -1469,16 +1438,37 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
         return lessons;
     }
 
-    public int createLesson(int courseId, int unitId, String title, String description){
+    public int swapLessons(int lesson1, int lesson2, int sort1, int sort2){
+        String swapUnit = "UPDATE unit_lessons SET sort_order = ? WHERE lesson_id = ?";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(swapUnit)){
+            
+            ps.setInt(1,sort1);
+            ps.setInt(2,lesson2);
+            ps.executeUpdate();
+            ps.setInt(1,sort2);
+            ps.setInt(2,lesson1);
+            ps.executeUpdate();
+            return 1;
+
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public int createLesson(int courseId, int unitId, int sortIndex, String title, String description){
         // String generatedColumns[] = { "lesson_id" };
         
-        String insertLesson = "INSERT INTO unit_lessons (unit_id, lesson_title, lesson_description, course_id) VALUES (?,?,?,?) ";
+        String insertLesson = "INSERT INTO unit_lessons (unit_id, lesson_title, sort_order, lesson_description, course_id) VALUES (?,?,?,?,?) ";
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(insertLesson,PreparedStatement.RETURN_GENERATED_KEYS)){
             ps.setInt(1,unitId);
             ps.setString(2,title);
-            ps.setString(3,description);
-            ps.setInt(4,courseId);
+            ps.setInt(3,sortIndex);
+            ps.setString(4,description);
+            ps.setInt(5,courseId);
 
             int rowsAffected = ps.executeUpdate();
 
@@ -1506,23 +1496,56 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
     public int swapUnits(int unit1, int unit2, int sort1, int sort2){
         String swapUnit = "UPDATE course_units SET sort_order = ? WHERE unit_id = ?";
 
+//         UPDATE t1
+// SET PlateNo = t2.PlateNo, Type = t2.Type, [Image Name] = t2.[Image Name]
+// FROM table_name t1
+// INNER JOIN table_name t2 ON
+//     (t2.ID = 27 AND t1.ID = 32) OR
+//     (t2.ID = 32 AND t1.ID = 27)
+        // String swapUnit = "UPDATE unit1 SET sort_order = unit2.sort_order "+
+        // "FROM course_units unit1 "+
+        // "INNER JOIN course_units unit2 ON "+
+        // "(unit1.unit_id = ? AND unit2.unit_id = ?) OR "+
+        // "(unit1.unit_id = ? AND unit2.unit_id = ?) ";
+
+// UPDATE t1
+// SET
+// t1.col1 = t2.col1
+// ,t1.col2 = t2.col2
+// ,t1.col3 = t2.col3
+// ,t1.col4 = t2.col4
+// --and so forth...
+// FROM YourTable AS t1
+// INNER JOIN YourTable AS t2
+//     ON      (t1.ID = '1'
+//             AND t2.ID = '2')
+//         OR
+//             (t1.ID = '2'
+//             AND t2.ID = '1')
+
+        // String swapUnit = "UPDATE u1 SET u1.sort_order = u2.sort_order "+
+        // "FROM course_units u1 INNER JOIN course_units u2 "+
+        // "ON (u1.unit_id = ? AND u2.unit_id = ?) OR (u1.unit_id = ? AND u2.unit_id = ?)";
+        // String swapUnit = "UPDATE course_units SET u1.sort_order = u2.sort_order "+
+        // "FROM course_units AS u1 INNER JOIN course_units AS u2 "+
+        // "ON (u1.unit_id = ? AND u2.unit_id = ?) OR (u1.unit_id = ? AND u2.unit_id = ?) "+
+        // "WHERE (u1.unit_id = ? AND u2.unit_id = ?) OR (u1.unit_id = ? AND u2.unit_id = ?) ";
+
         try(Connection conn = getConnection();
         PreparedStatement ps = conn.prepareStatement(swapUnit)){
+
+            // ps.setInt(1,unit1);
+            // ps.setInt(2,unit2); 
+            // ps.setInt(3,unit2);
+            // ps.setInt(4,unit1);
+            // ps.executeUpdate();
             
             ps.setInt(1,sort1);
             ps.setInt(2,unit2);
-            
-            // System.out.println("swap preparedstatement = "+ps);
-
             ps.executeUpdate();
-
             ps.setInt(1,sort2);
             ps.setInt(2,unit1);
-
-            // System.out.println("swap preparedstatement = "+ps);
-
             ps.executeUpdate();
-
             return 1;
 
         }catch(SQLException e){
@@ -1849,7 +1872,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
     private List<LessonData> selectLessonsForUnit(Connection conn, int unitId) throws SQLException{
         // List<VideoData> videos = new ArrayList<>();
         List<LessonData> lessons = new ArrayList<>();
-        String sql = "SELECT lesson_id, unit_id, lesson_title, lesson_description " +
+        String sql = "SELECT lesson_id, unit_id, lesson_title, lesson_description, sort_order " +
                      "FROM unit_lessons WHERE unit_id = ?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, unitId);
@@ -1862,7 +1885,8 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
                         rs.getInt("unit_id"),
                         rs.getString("lesson_title"),
                         rs.getString("lesson_description"),
-                        videos
+                        videos,
+                        rs.getInt("sort_order")
                     ));
                 }
             }
@@ -1892,59 +1916,6 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
         return videos;
     }
 
-    /** Load all videos for a given unit_id */
-    // private List<VideoData> selectVideosForUnit(Connection conn, int unitId) throws SQLException {
-    //     List<VideoData> videos = new ArrayList<>();
-    //     String sql = "SELECT video_id, lesson_id, unit_id, title, drive_url, duration, sort_order " +
-    //                  "FROM unit_videos WHERE unit_id = ? ORDER BY sort_order";
-    //     try (PreparedStatement ps = conn.prepareStatement(sql)) {
-    //         ps.setInt(1, unitId);
-    //         try (ResultSet rs = ps.executeQuery()) {
-    //             while (rs.next()) {
-    //                 videos.add(new VideoData(
-    //                     rs.getInt("video_id"),
-    //                     rs.getInt("unit_id"),
-    //                     rs.getInt("lesson_id"),
-    //                     rs.getString("title"),
-    //                     rs.getString("drive_url"),
-    //                     rs.getString("duration"),
-    //                     rs.getInt("sort_order")
-    //                 ));
-    //             }
-    //         }
-    //     }
-    //     return videos;
-    // }
-
-    /** Build a CourseData from a ResultSet row (connection still open) */
-    // private CourseData courseFromRow(Connection conn, ResultSet rs) throws SQLException {
-    //     int courseId = rs.getInt("course_id");
-    //     return new CourseData(
-    //         courseId,
-    //         rs.getString("title"),
-    //         rs.getString("description"),
-    //         rs.getString("instructor"),
-    //         rs.getString("times"),
-    //         rs.getString("start_date"),
-    //         rs.getString("level"),
-    //         rs.getString("price"),
-    //         rs.getString("thumbnail"),
-    //         rs.getString("live_url"),
-    //         rs.getBoolean("in_session"),
-    //         selectUnitsForCourse(conn, courseId)
-    //     );
-    // }
-    // "SELECT m.msg_id, m.subject, m.message, " +
-    //         "m.upvote AS message_upvote, m.downvote, m.unique_id AS your_uuid, " +
-    //         "c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
-    //         "f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
-    //         "FROM messages m " +
-    //         "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
-    //         "LEFT JOIN files f ON m.msg_id = f.msg_id " +
-    //         "LEFT JOIN users u ON m.unique_id = u.unique_id " +
-    //         "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
-    //         "ORDER BY m.msg_id DESC";
-
     /** GET /courses — all courses */
     public List<CourseData> selectAllCourses() {
         // List<CourseData> res = new ArrayList<>();
@@ -1957,7 +1928,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
             "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
             "uv.video_id AS v_id, uv.lesson_id AS uv_l_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort, " +
-            "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description "+
+            "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description, ul.sort_order AS l_sort_order "+
             "FROM courses c " +
             "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
             "LEFT JOIN unit_lessons ul ON ul.unit_id = cu.unit_id "+
@@ -2017,7 +1988,8 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
                                     unitId,
                                     rs.getString("l_title"),
                                     rs.getString("l_description"),
-                                    new ArrayList<>()
+                                    new ArrayList<>(),
+                                    rs.getInt("l_sort_order")
                                 );
                                 lessonMap.put(lessonId,lesson);
                                 unit.getLessons().add(lesson);
@@ -2056,7 +2028,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
                 "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
             "uv.video_id AS v_id, uv.lesson_id AS uv_l_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort, " +
-            "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description "+
+            "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description, ul.sort_order AS l_sort_order "+
             "FROM courses c " +
             "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
             "LEFT JOIN unit_lessons ul ON ul.unit_id = cu.unit_id "+ 
@@ -2116,7 +2088,8 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
                                     unitId,
                                     rs.getString("l_title"),
                                     rs.getString("l_description"),
-                                    new ArrayList<>()
+                                    new ArrayList<>(),
+                                    rs.getInt("l_sort_order")
                                 );
                                 lessonMap.put(lessonId,lesson);
                                 unit.getLessons().add(lesson);
@@ -2161,7 +2134,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
                 "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
             "uv.video_id AS v_id, uv.lesson_id AS uv_l_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort, " +
-            "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description "+
+            "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description, ul.sort_order AS l_sort_order "+
             "FROM courses c " +
             "JOIN enrollments e ON c.course_id = e.course_id " +
             "LEFT JOIN course_units cu ON c.course_id = cu.course_id " +
@@ -2230,7 +2203,8 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
                                     unitId,
                                     rs.getString("l_title"),
                                     rs.getString("l_description"),
-                                    new ArrayList<>()
+                                    new ArrayList<>(),
+                                    rs.getInt("l_sort_order")
                                 );
                                 lessonMap.put(lessonId,lesson);
                                 unit.getLessons().add(lesson);

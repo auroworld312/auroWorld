@@ -401,8 +401,10 @@ function UnitSection({
 
         const lessonArr = unit.lessons.map((lesson) => ({
             lessonId: lesson.lessonId,
+            unitId: lesson.unitId,
             lessonTitle: lesson.lessonTitle,
             lessonDescription: lesson.lessonDescription,
+            sortOrder: lesson.sortOrder,
             videos: lesson.videos || []
         }));
 
@@ -515,13 +517,15 @@ function UnitSection({
         }
 
         try {
+            console.log('lessonsArray.length = ',lessonsArray.length)
+            // return
             const lessonBody = {
                 lessonTitle: newLessonTitle.trim(),
                 lessonDescription: newLessonDescription.trim()
             };
 
             const response = await fetch(
-                `${API}/course/${courseId}/unit/${unitId}/addlesson`,
+                `${API}/course/${courseId}/unit/${unitId}/addlesson/${lessonsArray.length}`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -540,7 +544,8 @@ function UnitSection({
                 lessonId: lessonData.mData,
                 lessonTitle: newLessonTitle.trim(),
                 lessonDescription: newLessonDescription.trim(),
-                videos: []
+                videos: [],
+
             };
 
             setLessonArray((prev) => [...prev, newLesson]);
@@ -658,6 +663,92 @@ function UnitSection({
             alert("Deleting lesson failed");
         } finally {
             setFileLoading(false);
+        }
+    }
+
+    let Id1='-1'
+    let Id2='-1'
+
+    let sort1 = '-1'
+    let sort2 = '-1'
+
+    async function swapLessons(){
+        try{
+            const lessons = [Id1, Id2, sort1, sort2]
+            console.log('lessons = ',lessons)
+            const swapResponse = await fetch(`${API}/swaplessons`,{
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: lessons
+            })
+
+            const swapData = await swapResponse.json()
+            if(swapData.mStatus !== "ok"){ console.log('swapping units mstatus = ',swapData.mStatus) }
+        }catch(error){
+            console.log('swapping units failed ',error.message)
+        }finally{
+            Id1=-1
+            Id2=-1
+
+            sort1 = -1
+            sort2 = -1
+        }
+        return
+    }
+
+    function handleStartDrag(lessonId, sort){
+        const drag = document.getElementById(`dragLesson-${lessonId}`)
+        drag.style.opacity=0.33
+        Id1=lessonId
+        sort1 = sort
+        console.log('id1 = ',Id1)
+        console.log('sort1 = ',sort1)
+    }
+    function handleDrag(lessonId){
+        console.log("drag for ",lessonId)
+    }
+    function handleDragOver(event, lessonId, sort){
+        event.preventDefault()
+        Id2=lessonId
+        sort2 = sort
+        console.log('id2 = ',Id2)
+        console.log('sort2 = ',sort2)
+    }
+    function handleDragEnd(lessonId){
+        const drag = document.getElementById(`dragLesson-${lessonId}`)
+        drag.style.opacity=1
+        if(Id1===-1 || Id2===-1 || Id1===Id2){
+            Id1 = -1
+            Id2 = -1
+
+            sort1=-1
+            sort2 = -1
+            return
+        }
+        else{
+            let id1Changed = false
+            let id2Changed = false
+
+            console.log('lessonsArray = ',lessonsArray)
+
+            const newLessonOrder = lessonsArray.map((lesson)=>{
+                if(lesson.lessonId===Id1 && !id1Changed){
+                    id1Changed = !id1Changed
+                    return {lessonId: lesson.lessonId, unitId: lesson.unitId, lessonTitle: lesson.lessonTitle,
+                        lessonDescription: lesson.lessonDescription, sortOrder: sort2, videos: lesson.videos}
+                }
+                else if(lesson.lessonId===Id2 && !id2Changed){
+                    id2Changed= !id2Changed
+                    return {lessonId: lesson.lessonId, unitId: lesson.unitId, lessonTitle: lesson.lessonTitle,
+                        lessonDescription: lesson.lessonDescription, sortOrder: sort1, videos: lesson.videos}
+                }
+                else{
+                    return lesson
+                }
+            })
+            console.log('new lesson order = ',newLessonOrder)
+            setLessonArray(newLessonOrder)
+            swapLessons()
         }
     }
 
@@ -966,13 +1057,12 @@ function UnitSection({
                         <div className="materials-empty">No lessons in this unit yet.</div>
                     ) : (
                         <div className="materials-lesson-list">
-
-                            {lessonsArray.map((lesson, idx) => {
+                            {lessonsArray.sort((a,b)=>a.sortOrder-b.sortOrder).map((lesson, idx) => {
 
                                 const isLessonOpen = !!openLessons[lesson.lessonId];
 
                                 return (
-                                    <div className="materials-lesson" key={lesson.lessonId}>
+                                    <div id = {`dragLesson-${lesson.lessonId}`} className="materials-lesson" draggable={canManage? "true": "false"} onDragStart={()=>handleStartDrag(lesson.lessonId, lesson.sortOrder)} onDrag={()=>handleDrag(lesson.lessonId)} onDragOver={(e)=>handleDragOver(e,lesson.lessonId, lesson.sortOrder)} onDragEnd={()=>handleDragEnd(lesson.lessonId)} key={lesson.lessonId}>
 
                                         {/* LESSON HEADER */}
 
@@ -1380,16 +1470,15 @@ function MaterialsTab({ course, userData }) {
             })
             const swapData = await swapResponse.json()
             if(swapData.mStatus !== "ok"){ console.log('swapping units mstatus = ',swapData.mStatus) }
-            return
         }catch(error){
             console.log('swapping units failed ',error.message)
+        }finally{
+            uId1=-1
+            uId2=-1
+
+            sortNum1 = -1
+            sortNum2 = -1
         }
-
-        uId1=-1
-        uId2=-1
-
-        sortNum1 = -1
-        sortNum2 = -1
     }
 
     function handleStartDrag(uId, sort){

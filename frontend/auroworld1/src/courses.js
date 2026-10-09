@@ -90,6 +90,7 @@ function Courses() {
         try {
             const res = await fetch(`${API}/courses`);
             const data = await res.json();
+            // console.log('courses = ',data.mData)
             setAllCourses(data.mData || []);
         } catch (e) { console.error('loadCourses:', e); }
     }, []);
@@ -171,22 +172,14 @@ function Courses() {
             return;
         }
         const times = `${startOption.label} - ${endOption.label}`;
-        console.log("title: "+title)
-        console.log("description: "+description)
-        console.log("instructor: "+instructor)
-        console.log("times: "+times)
-        console.log("start_date: "+start_date)
-        console.log("level: "+level)
-        console.log("price: "+price)
-        console.log("newCourse: "+newCourse)
-        // console.log("title: "+newCourse.title)
-        // console.log("description: "+newCourse.description)
-        // console.log("instructor: "+newCourse.instructor)
-        // console.log("times: "+newCourse.times)
-        // console.log("start_date: "+newCourse.start_date)
-        // console.log("level: "+newCourse.level)
-        // console.log("price: "+newCourse.price)
-        // console.log("live_url: "+newCourse.live_url)
+        // console.log("title: "+title)
+        // console.log("description: "+description)
+        // console.log("instructor: "+instructor)
+        // console.log("times: "+times)
+        // console.log("start_date: "+start_date)
+        // console.log("level: "+level)
+        // console.log("price: "+price)
+        // console.log("newCourse: "+newCourse)
         if (!title || !description || !instructor || !times || !start_date || !level || !price || !live_url) {
             alert('Please fill out all fields'); return;
         }
@@ -199,7 +192,7 @@ function Courses() {
             const data = await response.json();
             if (data.mStatus !== 'ok') { setLoadingChanges(false); alert('Adding course failed: ' + data.mMessage); return; }
             setLoadingChanges(false)
-            setShowAddCourse(false);
+            setShowAddCourse(false)
             setNewCourse({ title: '', description: '', instructor: '', startTime: '', endTime: '', start_date: '', level: 'Beginner', price: 'Free', live_url: '', unitCount: 1 });
             setSelectedDays([]);
             loadCourses();

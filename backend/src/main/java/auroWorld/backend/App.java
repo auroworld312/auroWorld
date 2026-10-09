@@ -598,24 +598,6 @@ public class App
             ctx.result(gson.toJson(resp));
         });
 
-        // app.put("/file/{msg_id}",ctx->{
-        //     ctx.status(200);
-        //     ctx.contentType("application/json");
-
-        //     int msg_id=Integer.parseInt(ctx.pathParam("msg_id"));
-        //     System.out.println(msg_id);
-
-        //     ChangeFileRequest cfr = gson.fromJson(ctx.body(),ChangeFileRequest.class);
-        //     if(cfr==null || cfr.filename==null || cfr.filename.trim().isEmpty()){
-        //         ctx.status(400);
-        //         ctx.result(gson.toJson(new StructuredResponse(
-        //             "error","missing filepath",null)));
-        //         return;
-        //     }
-
-        //     int success = db.editFileInTable(msg_id,cfr.filename);
-        // });
-
         app.post("/messages/{id}/comments", ctx -> {
             // // Require login
             SessionData session = requireSession(ctx);
@@ -825,23 +807,7 @@ public class App
             ctx.status(200);
             ctx.contentType("application/json");
 
-            // SessionData session = requireSession(ctx);
-            // // if (session == null) return;   // requireSession already sends error JSON
-            // String userId = cache.get(ctx.header("X-Session-Token")).toString();
-            // if(userId==null){
-            //     return;
-            // }
-
             int msgId = Integer.parseInt(ctx.pathParam("id"));
-
-            // String cacheKey="messages_"+msgId+"_comments";
-            // String cachedJson = (String) cache.get(cacheKey);
-
-            // if (cachedJson != null) {
-            //     System.out.println("CACHE HIT: messages-"+msgId+"-comments");
-            //     ctx.result(cachedJson);
-            //     return;
-            // }
 
             ArrayList<Database.CommentData> comments = db.selectComments(msgId);
 
@@ -857,14 +823,6 @@ public class App
         app.get("/profile/{userId}", ctx -> {
             ctx.status(200);
             ctx.contentType("application/json");
-
-            // you could require auth here; we'll do it to line up with "app use requires auth"
-            //SessionData session = requireSession(ctx);
-            // if (session == null) return;   // requireSession already sends error JSON
-            //String userId = cache.get(ctx.header("X-Session-Token")).toString();
-            // if(userId==null){
-            //     return;
-            // }
 
             String targetId = ctx.pathParam("userId");
 
@@ -884,12 +842,6 @@ public class App
             ctx.result(gson.toJson(resp));
         });
 
-    // private static final class CreateCourseRequest{
-    //     public String title;
-    //     public String description;
-    //     public String instructor;
-
-    // }
     app.put("/change/role", ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
@@ -1004,12 +956,43 @@ public class App
         ctx.result(gson.toJson(new StructuredResponse("ok",null,lessons)));
     });
 
-    app.post("/course/{courseId}/unit/{uId}/addlesson",ctx->{
+    app.put("/swaplessons",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        String ctxString = ctx.body();
+
+        // System.out.println("ctxstring = "+ctxString);
+
+        String regex = "[,]";
+        String[] idArray = ctxString.split(regex);
+
+        // System.out.println("idArray ="+Arrays.toString(idArray));
+
+        int lesson1 = Integer.parseInt(idArray[0]);
+        int lesson2 = Integer.parseInt(idArray[1]);
+        int sortNum1 = Integer.parseInt(idArray[2]);
+        int sortNum2 = Integer.parseInt(idArray[3]);
+
+        // System.out.println("final ids are "+uId1+" and "+uId2);
+
+        int swapResult=db.swapLessons(lesson1, lesson2, sortNum1, sortNum2);
+
+        if(swapResult <0){
+            ctx.result(gson.toJson(new StructuredResponse("fail", null, swapResult)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, swapResult)));
+        }
+    });
+
+    app.post("/course/{courseId}/unit/{uId}/addlesson/{sortIndex}",ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
 
         int courseId = Integer.parseInt(ctx.pathParam("courseId"));
         int unitId = Integer.parseInt(ctx.pathParam("uId"));
+        int sortIndex = Integer.parseInt(ctx.pathParam("sortIndex"));
 
         CreateLessonRequest crl = gson.fromJson(ctx.body(), CreateLessonRequest.class);
 
@@ -1021,7 +1004,7 @@ public class App
                         "error", "missing lesson feature", null)));
                 return;
         }
-        int lessonId = db.createLesson(courseId, unitId, crl.lessonTitle, crl.lessonDescription);
+        int lessonId = db.createLesson(courseId, unitId, sortIndex, crl.lessonTitle, crl.lessonDescription);
 
         ctx.result(gson.toJson(new StructuredResponse("ok",null,lessonId)));
     });
