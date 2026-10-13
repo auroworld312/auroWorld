@@ -13,9 +13,11 @@ import { AccessibilityProvider } from './AccessibilityContext.js';
 import { UserProvider } from './UserContext.js';
 import ReactGA from "react-ga4";
 import { useEffect } from "react";
+// import { createClient } from '@supabase/supabase-js';
 
 const GOOGLE_CLIENT_ID = "134970251770-d7nviqn0qn0p0qpll7ru770kf2ntqu1h.apps.googleusercontent.com"
 
+// const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 // ReactGA.initialize('G-KJDT0BJZ61'); 
 
 function App() {

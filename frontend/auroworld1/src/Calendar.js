@@ -77,36 +77,42 @@ function Calendar() {
     }
   }, []);
 
+  const enrolledCoursesGrabbed = useRef(false)
   useEffect(() => {
-    async function loadEnrolledCourses() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      try {
-        const res = await fetch(`${API}/courses/enrolled/${user.id}`);
-        const data = await res.json();
-        const courses = data.mData || [];
-        const events = [];
-        courses.forEach((course, index) => {
-          const schedule = parseCourseSchedule(course.times, course.daysOfWeek);
-          if (!schedule) return;
-          events.push({
-            courseId: course.courseId,
-            title: course.title,
-            color: COURSE_COLORS[index % COURSE_COLORS.length],
-            liveUrl: course.liveUrl || null,
-            instructor: course.instructor || '',
-            times: course.times || '',
-            days: schedule.days,
-            startHour: schedule.startHour,
-            startMinute: schedule.startMinute,
-            endHour: schedule.endHour,
-            endMinute: schedule.endMinute,
+    if(enrolledCoursesGrabbed.current===false){
+      async function loadEnrolledCourses() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        try {
+          const res = await fetch(`${API}/courses/enrolled/${user.id}`);
+          const data = await res.json();
+          const courses = data.mData || [];
+          const events = [];
+          courses.forEach((course, index) => {
+            const schedule = parseCourseSchedule(course.times, course.daysOfWeek);
+            if (!schedule) return;
+            events.push({
+              courseId: course.courseId,
+              title: course.title,
+              color: COURSE_COLORS[index % COURSE_COLORS.length],
+              liveUrl: course.liveUrl || null,
+              instructor: course.instructor || '',
+              times: course.times || '',
+              days: schedule.days,
+              startHour: schedule.startHour,
+              startMinute: schedule.startMinute,
+              endHour: schedule.endHour,
+              endMinute: schedule.endMinute,
+            });
           });
-        });
-        setCourseEvents(events);
-      } catch (e) { console.error('loadEnrolledCourses:', e); }
+          setCourseEvents(events);
+        } catch (e) { console.error('loadEnrolledCourses:', e); }
+      }
+      loadEnrolledCourses();
     }
-    loadEnrolledCourses();
+    return ()=>{
+        enrolledCoursesGrabbed.current=true
+    }
   }, []);
 
   const daysInMonth = new Date(panelDate.getFullYear(), panelDate.getMonth() + 1, 0).getDate();

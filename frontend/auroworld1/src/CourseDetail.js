@@ -1,5 +1,5 @@
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -413,46 +413,52 @@ function UnitSection({
 
     /* LOAD VIDEO URLS (old Supabase files) */
 
+    const fileUrlGrabbed = useRef(false)
     useEffect(() => {
-        async function getFileUrls() {
-            if (!unit?.lessons) {
-                setFileUrl({});
-                return;
-            }
+        if(fileUrlGrabbed.current===false){
+            async function getFileUrls() {
+                if (!unit?.lessons) {
+                    setFileUrl({});
+                    return;
+                }
 
-            const urls = {};
+                const urls = {};
 
-            for (const lesson of unit.lessons) {
-                if (!lesson.videos) continue;
+                for (const lesson of unit.lessons) {
+                    if (!lesson.videos) continue;
 
-                for (const video of lesson.videos) {
-                    if (isB2(video.driveUrl)) continue;
+                    for (const video of lesson.videos) {
+                        if (isB2(video.driveUrl)) continue;
 
-                    if (
-                        video.driveUrl.includes(
-                            `course/${courseId}/unit/${unitId}/lesson/${lesson.lessonId}`
-                        )
-                    ) {
-                        try {
-                            const { data } = supabase.storage
-                                .from("course_videos")
-                                .getPublicUrl(video.driveUrl);
+                        if (
+                            video.driveUrl.includes(
+                                `course/${courseId}/unit/${unitId}/lesson/${lesson.lessonId}`
+                            )
+                        ) {
+                            try {
+                                const { data } = supabase.storage
+                                    .from("course_videos")
+                                    .getPublicUrl(video.driveUrl);
 
-                            urls[video.videoId] = data?.publicUrl || null;
-                        } catch (error) {
-                            console.error(error);
-                            urls[video.videoId] = null;
+                                urls[video.videoId] = data?.publicUrl || null;
+                            } catch (error) {
+                                console.error(error);
+                                urls[video.videoId] = null;
+                            }
+                        } else {
+                            urls[video.videoId] = video.driveUrl;
                         }
-                    } else {
-                        urls[video.videoId] = video.driveUrl;
                     }
                 }
+
+                setFileUrl(urls);
             }
 
-            setFileUrl(urls);
+            getFileUrls();
         }
-
-        getFileUrls();
+        return ()=>{
+            fileUrlGrabbed.current=true
+        }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -696,25 +702,26 @@ function UnitSection({
         return
     }
 
-    function handleStartDrag(lessonId, sort){
+    function handleStartDragLesson(lessonId, sort){
+        // event.stopPropagation()
         const drag = document.getElementById(`dragLesson-${lessonId}`)
         drag.style.opacity=0.33
         Id1=lessonId
         sort1 = sort
-        console.log('id1 = ',Id1)
-        console.log('sort1 = ',sort1)
+        // console.log('id1 = ',Id1)
+        // console.log('sort1 = ',sort1)
     }
-    function handleDrag(lessonId){
+    function handleDragLesson(lessonId){
         console.log("drag for ",lessonId)
     }
-    function handleDragOver(event, lessonId, sort){
+    function handleDragOverLesson(event, lessonId, sort){
         event.preventDefault()
         Id2=lessonId
         sort2 = sort
-        console.log('id2 = ',Id2)
-        console.log('sort2 = ',sort2)
+        // console.log('id2 = ',Id2)
+        // console.log('sort2 = ',sort2)
     }
-    function handleDragEnd(lessonId){
+    function handleDragEndLesson(lessonId){
         const drag = document.getElementById(`dragLesson-${lessonId}`)
         drag.style.opacity=1
         if(Id1===-1 || Id2===-1 || Id1===Id2){
@@ -729,7 +736,7 @@ function UnitSection({
             let id1Changed = false
             let id2Changed = false
 
-            console.log('lessonsArray = ',lessonsArray)
+            // console.log('lessonsArray = ',lessonsArray)
 
             const newLessonOrder = lessonsArray.map((lesson)=>{
                 if(lesson.lessonId===Id1 && !id1Changed){
@@ -746,7 +753,7 @@ function UnitSection({
                     return lesson
                 }
             })
-            console.log('new lesson order = ',newLessonOrder)
+            // console.log('new lesson order = ',newLessonOrder)
             setLessonArray(newLessonOrder)
             swapLessons()
         }
@@ -992,6 +999,111 @@ function UnitSection({
         });
     }
 
+    let vidLessonId1 = '-1'
+    let vidLessonId2 = '-1'
+
+    let vidId1='-1'
+    let vidId2='-1'
+
+    let vidSort1 = '-1'
+    let vidSort2 = '-1'
+
+    async function swapVideos(){
+        try{
+            const videos = [vidId1, vidId2, vidSort1, vidSort2]
+            // console.log('videos = ',videos)
+            const swapResponse = await fetch(`${API}/swapvideos`,{
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: videos
+            })
+
+            const swapData = await swapResponse.json()
+            if(swapData.mStatus !== "ok"){ console.log('swapping videos mstatus = ',swapData.mStatus) }
+        }catch(error){
+            console.log('swapping vidoes failed ',error.message)
+        }finally{
+            vidLessonId1 = -1
+            vidLessonId2=-1
+
+            vidId1=-1
+            vidId2=-1
+
+            vidSort1 = -1
+            vidSort2 = -1
+        }
+        return
+    }
+    // function stopLessonDrag(event,){
+
+    // }
+    function handleStartDragVideo(event, lessonId, videoId, sort){
+        event.stopPropagation()
+        const drag = document.getElementById(`dragVideo-${videoId}`)
+        drag.style.opacity=0.33
+        vidLessonId1 = lessonId
+        vidId1=videoId
+        vidSort1 = sort
+        console.log('vidId1 = ',vidId1)
+        console.log('vidSort1 = ',vidSort1)
+    }
+    function handleDragVideo(event,videoId){
+        event.stopPropagation()
+        console.log("drag for ",videoId)
+    }
+    function handleDragOverVideo(event, lessonId, videoId, sort){
+        event.stopPropagation()
+        event.preventDefault()
+        vidLessonId2=lessonId
+        vidId2=videoId
+        vidSort2 = sort
+        console.log('vidId2 = ',vidId2)
+        console.log('vidSort2 = ',vidSort2)
+    }
+    function handleDragEndVideo(event,videoId){
+        event.stopPropagation()
+        const drag = document.getElementById(`dragVideo-${videoId}`)
+        drag.style.opacity=1
+        if(vidId1===-1 || vidId2===-1 || vidId1===vidId2 
+            || vidLessonId1==='-1' || vidLessonId2==='-1' || vidLessonId1!==vidLessonId2
+        ){
+            vidLessonId1=-1
+            vidLessonId2=-1
+
+            vidId1 = -1
+            vidId2 = -1
+
+            vidSort1=-1
+            vidSort2 = -1
+            return
+        }
+        else{
+            console.log('lessonsArray = ',lessonsArray)
+            const newVideoOrder = lessonsArray.map((lesson)=>{
+                if(lesson.lessonId===vidLessonId1 && lesson.lessonId === vidLessonId2){
+                    const editedVideos=lesson.videos.map((video)=>{
+                        if(video.videoId===vidId1){ 
+                            return{
+                                 ...video, sortOrder:vidSort2 
+                            } 
+                        }
+                        else if(video.videoId===vidId2){
+                            return{
+                                 ...video, sortOrder:vidSort1
+                            }
+                        }
+                        return video
+                    })
+                    return{ ...lesson, videos:editedVideos }
+                }
+                return lesson
+            })
+            console.log('newVideoOrder = ',newVideoOrder)
+            setLessonArray(newVideoOrder)
+            swapVideos()
+        }
+    }
+
     /* RENDER */
 
     return (
@@ -1062,7 +1174,7 @@ function UnitSection({
                                 const isLessonOpen = !!openLessons[lesson.lessonId];
 
                                 return (
-                                    <div id = {`dragLesson-${lesson.lessonId}`} className="materials-lesson" draggable={canManage? "true": "false"} onDragStart={()=>handleStartDrag(lesson.lessonId, lesson.sortOrder)} onDrag={()=>handleDrag(lesson.lessonId)} onDragOver={(e)=>handleDragOver(e,lesson.lessonId, lesson.sortOrder)} onDragEnd={()=>handleDragEnd(lesson.lessonId)} key={lesson.lessonId}>
+                                    <div id = {`dragLesson-${lesson.lessonId}`} className="materials-lesson" draggable={canManage? "true": "false"} onDragStart={()=>handleStartDragLesson(lesson.lessonId, lesson.sortOrder)} onDrag={()=>handleDragLesson(lesson.lessonId)} onDragOver={(e)=>handleDragOverLesson(e,lesson.lessonId, lesson.sortOrder)} onDragEnd={()=>handleDragEndLesson(lesson.lessonId)} key={lesson.lessonId}>
 
                                         {/* LESSON HEADER */}
 
@@ -1249,13 +1361,12 @@ function UnitSection({
                                                     <div className="materials-empty">No videos in this lesson yet.</div>
                                                 ) : (
                                                     <div className="materials-video-list">
-
-                                                        {lesson.videos.map((video) => {
+                                                        {lesson.videos.sort((c,d)=>c.sortOrder-d.sortOrder).map((video) => {
 
                                                             const isActive = activeVideo === video.videoId;
 
                                                             return (
-                                                                <div key={video.videoId}>
+                                                                <div id = {`dragVideo-${video.videoId}`}draggable={canManage? "true": "false"} onDragStart={(e)=>handleStartDragVideo(e,video.lessonId, video.videoId, video.sortOrder)} onDrag={(e)=>handleDragVideo(e,video.videoId)} onDragOver={(e)=>handleDragOverVideo(e,video.lessonId, video.videoId, video.sortOrder)} onDragEnd={(e)=>handleDragEndVideo(e,video.videoId)} key={video.videoId}>
 
                                                                     {/* VIDEO ROW */}
 
@@ -1596,48 +1707,42 @@ function CourseDetail() {
     const location = useLocation();
 
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [userAttributes,setUserAttributes]=useState(null)
     const [course, setCourse] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState(['video', 'materials'].includes(location.state?.activeTab) ? location.state.activeTab : 'course');
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
 
+    const initGrabbed = useRef(false)
     useEffect(() => {
-        async function init() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) { navigate('/login'); return; }
-            setCurrentUserId(user.id);
-
-            const enrollRes = await fetch(`${API}/courses/enrolled/${user.id}`);
-            const enrollData = await enrollRes.json();
-            const enrolledIds = new Set((enrollData.mData || []).map(c => c.courseId));
-            setIsEnrolled(enrolledIds.has(parseInt(courseId)));
-
-            const res = await fetch(`${API}/courses/${courseId}`);
-            const data = await res.json();
-            if (data.mStatus === 'ok') setCourse(data.mData);
-            setLoading(false);
-        }
-        init();
-    }, [courseId, navigate]);
-
-    const [userAttributes,setUserAttributes]=useState(null)
-    useEffect(()=>{
-        async function getUserAtts(){
-            try{
+        if(initGrabbed.current===false){
+            async function init() {
                 const { data: { user } } = await supabase.auth.getUser();
-                if (!user) { return; }
-                const uuidString = user.id
-                const res= await fetch(`${API}/userdata/${uuidString}`)
-                const data = await res.json()
-                setUserAttributes(data.mData)
-            }catch(error){
-                console.log(error.message)
+                if (!user) { navigate('/login'); return; }
+                setCurrentUserId(user.id);
+
+                const enrollRes = await fetch(`${API}/courses/enrolled/${user.id}`);
+                const enrollData = await enrollRes.json();
+                const enrolledIds = new Set((enrollData.mData || []).map(c => c.courseId));
+                setIsEnrolled(enrolledIds.has(parseInt(courseId)));
+
+                const res = await fetch(`${API}/courses/${courseId}`);
+                const data = await res.json();
+                if (data.mStatus === 'ok') setCourse(data.mData);
+                
+                const userRes= await fetch(`${API}/userdata/${user.id}`)
+                const userData = await userRes.json()
+                setUserAttributes(userData.mData)
+
+                setLoading(false);
             }
-            return
+            init();
         }
-        getUserAtts()
-    },[])
+        return ()=>{
+            initGrabbed.current=true
+        }
+    }, [courseId, navigate]);
 
     async function handleEnroll() {
         if (!currentUserId) return;
@@ -1760,3 +1865,24 @@ function CourseDetail() {
 }
 
 export default CourseDetail;
+
+
+    // const userAttsGrabbed = useRef(false)
+    // useEffect(()=>{
+    //     if(userAttsGrabbed.current===false){
+    //         async function getUserAtts(){
+    //             try{
+    //                 const res= await fetch(`${API}/userdata/${currentUserId}`)
+    //                 const data = await res.json()
+    //                 setUserAttributes(data.mData)
+    //             }catch(error){
+    //                 console.log(error.message)
+    //             }
+    //             return
+    //         }
+    //         getUserAtts()
+    //     }
+    //     return ()=>{
+    //         userAttsGrabbed.current=true
+    //     }
+    // },[currentUserId])

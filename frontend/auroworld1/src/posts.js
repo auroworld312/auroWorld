@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
 import Card from './components/Card';
@@ -148,22 +148,28 @@ function Posts(){
     }
 
     const [userAttributes,setUserAttributes]=useState(null)
+    const userAttsGrabbed = useRef(false)
     useEffect(()=>{
-        async function getUserAtts(){
-            try{
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) { return; }
-                const uuidString = user.id
-                const res= await fetch(`${API}/userdata/${uuidString}`)
-                const data = await res.json()
-                //console.log("getUserAtts mData: "+data.mData.role)
-                setUserAttributes(data.mData)
-            }catch(error){
-                console.log(error.message)
+        if(userAttsGrabbed.current===false){
+            async function getUserAtts(){
+                try{
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) { return; }
+                    const uuidString = user.id
+                    const res= await fetch(`${API}/userdata/${uuidString}`)
+                    const data = await res.json()
+                    //console.log("getUserAtts mData: "+data.mData.role)
+                    setUserAttributes(data.mData)
+                }catch(error){
+                    console.log(error.message)
+                }
+                return
             }
-            return
+            getUserAtts()
         }
-        getUserAtts()
+        return ()=>{
+            userAttsGrabbed.current=true
+        }
     },[])
 
     function mainpageButton(){ navigate("/posts") }
@@ -369,7 +375,7 @@ function Posts(){
 
         if(p.commentdata && p.commentdata.length>0 && document.getElementById(`commentList-${msg_id}`).style.display==="none"){
         // if(p.commentdata && p.commentdata.length>0 && document.getElementById(`commentList-${msg_id}`).style.display==="none"){
-            console.log('block')
+            // console.log('block')
             document.getElementById(`commentList-${msg_id}`).style.display="block"
         }
         else if(p.commentdata && p.commentdata.length>0 && document.getElementById(`commentList-${msg_id}`).style.display==="block"){
@@ -562,66 +568,88 @@ function Posts(){
         setPosts(posts.filter(p=> p.msgId!==msg_id))
     }
 
-    const [likedPosts,setLikedPosts]=useState([])
-    useEffect(()=>{
-        async function getLikedPosts(){
-            const userId = await getCurrentUserId()
-            fetch(`${API}/likedmessages/${userId}`)
-            .then(res=>res.json())
-            .then(data=>{ setLikedPosts(data.mData) })
-            .catch(err=>console.error("fetch error for liked posts: ",err))
+    const [posts, setPosts] = useState([])
+    const postsGrabbed = useRef(false)
+    useEffect(() => {
+        if(postsGrabbed.current===false){
+            async function gatherMyPosts(){
+                //const userId = await getCurrentUserId()
+                //console.log("userId is: "+userId)
+                fetch(`${API}/messages`)
+                .then(res => res.json())
+                .then(data => { setPosts(data.mData); })
+                .catch(err => console.error("FETCH ERROR for getting posts:", err))
+            }
+            gatherMyPosts()
         }
-        getLikedPosts()
+        return ()=>{
+            postsGrabbed.current=true
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    },[]);
+
+    const [likedPosts,setLikedPosts]=useState([])
+    const likedPostsGrabbed = useRef(false)
+    useEffect(()=>{
+        if(likedPostsGrabbed.current===false){
+            async function getLikedPosts(){
+                const userId = await getCurrentUserId()
+                fetch(`${API}/likedmessages/${userId}`)
+                .then(res=>res.json())
+                .then(data=>{ setLikedPosts(data.mData) })
+                .catch(err=>console.error("fetch error for liked posts: ",err))
+            }
+            getLikedPosts()
+        }
+        return ()=>{
+            likedPostsGrabbed.current=true
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     },[])
 
     const [likedComments,setLikedComments]=useState([])
+    const likedCommentsGrabbed = useRef(false)
     useEffect(()=>{
-        async function getLikedComments(){
-            const userId = await getCurrentUserId()
-            fetch(`${API}/likedcomments/${userId}`)
-            .then(res=>res.json())
-            .then(data=>{ setLikedComments(data.mData) })
-            .catch(err=>console.error("fetch error for liked comments: ",err))
+        if(likedCommentsGrabbed.current===false){
+            async function getLikedComments(){
+                const userId = await getCurrentUserId()
+                fetch(`${API}/likedcomments/${userId}`)
+                .then(res=>res.json())
+                .then(data=>{ setLikedComments(data.mData) })
+                .catch(err=>console.error("fetch error for liked comments: ",err))
+            }
+            getLikedComments()
         }
-        getLikedComments()
+        return ()=>{
+            likedCommentsGrabbed.current=true
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     },[])
 
-    const [posts, setPosts] = useState([])
-
-    useEffect(() => {
-        async function gatherMyPosts(){
-            //const userId = await getCurrentUserId()
-            //console.log("userId is: "+userId)
-            fetch(`${API}/messages`)
-            .then(res => res.json())
-            .then(data => { setPosts(data.mData); })
-            .catch(err => console.error("FETCH ERROR for getting posts:", err))
-        }
-        gatherMyPosts()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    },[]);
-
     const [imageUrls, setImageUrls] = useState({});
-
+    const imageUrlsGrabbed = useRef(false)
     useEffect(() =>{
-        async function loadImages(){
-            if(!posts) return
-            const newUrls=[]
-            for (const post of posts) {
-                try{
-                    const { data } = supabase.storage.from('community_feed_file_upload').getPublicUrl(post.filepath);
-                    newUrls[post.msgId] = data.publicUrl;
-                }catch(error){ 
-                    //console.log(error.message); 
-                    newUrls[post.msgId]=null 
+        if(imageUrlsGrabbed.current===false){
+            async function loadImages(){
+                if(!posts) return
+                const newUrls=[]
+                for (const post of posts) {
+                    try{
+                        const { data } = supabase.storage.from('community_feed_file_upload').getPublicUrl(post.filepath);
+                        newUrls[post.msgId] = data.publicUrl;
+                    }catch(error){ 
+                        //console.log(error.message); 
+                        newUrls[post.msgId]=null 
+                    }
                 }
+                //console.log("newUrls: "+newUrls)
+                setImageUrls(newUrls);
             }
-            //console.log("newUrls: "+newUrls)
-            setImageUrls(newUrls);
+            loadImages()
         }
-        loadImages()
+        return ()=>{
+            imageUrlsGrabbed.current=true
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     },[posts])
 
@@ -638,20 +666,26 @@ function Posts(){
     const [currentUserId, setCurrentUserId] = useState(null);
     const [currentUserName, setCurrentUserName] = useState("Loading...");
 
+    const userInfoGrabbed = useRef(false)
     useEffect(() => {
-        async function fetchUserData() {
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
-            if (user) {
-                setCurrentUserId(user.id);
-                try {
-                    const { data: profileData, error: profileError } = await supabase
-                        .from('users').select('firstname, lastname, username').eq('email', user.email).single();
-                    if (profileData) { setCurrentUserName(`${profileData.firstname} ${profileData.lastname}`); }
-                    else if(profileError){ setCurrentUserName(user.email?.split('@')[0] || "User"); }
-                } catch (err) { setCurrentUserName(user.email?.split('@')[0] || "User"); }
-            } else if(authError){ setCurrentUserName("Guest"); }
+        if(userInfoGrabbed.current===false){
+            async function fetchUserData() {
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
+                if (user) {
+                    setCurrentUserId(user.id);
+                    try {
+                        const { data: profileData, error: profileError } = await supabase
+                            .from('users').select('firstname, lastname, username').eq('email', user.email).single();
+                        if (profileData) { setCurrentUserName(`${profileData.firstname} ${profileData.lastname}`); }
+                        else if(profileError){ setCurrentUserName(user.email?.split('@')[0] || "User"); }
+                    } catch (err) { setCurrentUserName(user.email?.split('@')[0] || "User"); }
+                } else if(authError){ setCurrentUserName("Guest"); }
+            }
+            fetchUserData();
         }
-        fetchUserData();
+        return ()=>{
+            userInfoGrabbed.current=true
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -671,18 +705,23 @@ function Posts(){
     const [postUsernameQuery,setPostUsernameQuery] = useState("")
 
     const [enrolledCourses, setEnrolledCourses] = useState([]);
-
+    const enrolledGrabbed = useRef(false)
     useEffect(() => {
-        async function loadEnrolled() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-            try {
-                const res = await fetch(`${API}/courses/enrolled/${user.id}`);
-                const data = await res.json();
-                setEnrolledCourses(data.mData || []);
-            } catch(e) { console.error(e); }
+        if(enrolledGrabbed.current===false){
+            async function loadEnrolled() {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+                try {
+                    const res = await fetch(`${API}/courses/enrolled/${user.id}`);
+                    const data = await res.json();
+                    setEnrolledCourses(data.mData || []);
+                } catch(e) { console.error(e); }
+            }
+            loadEnrolled();
         }
-        loadEnrolled();
+        return ()=>{
+            enrolledGrabbed.current=true
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

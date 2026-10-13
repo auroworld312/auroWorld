@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -43,33 +43,45 @@ function Courses() {
         setSelectedDays(prev => prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx]);
     }  
 
+    const userAttsGrabbed = useRef(false)
     useEffect(() => {
-        async function getUserAtts() {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
-                const res = await fetch(`${API}/userdata/${user.id}`);
-                const data = await res.json();
-                setUserAttributes(data.mData);
-            } catch (error) {
-                console.log(error.message);
+        if(userAttsGrabbed.current===false){
+            async function getUserAtts() {
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) return;
+                    const res = await fetch(`${API}/userdata/${user.id}`);
+                    const data = await res.json();
+                    setUserAttributes(data.mData);
+                } catch (error) {
+                    console.log(error.message);
+                }
             }
+            getUserAtts();
         }
-        getUserAtts();
+        return ()=>{
+            userAttsGrabbed.current=true
+        }
     }, []);
+    
+    const instructorsGrabbed = useRef(false)
     useEffect(()=>{
-        async function getInstructors(){
-            fetch(`${API}/all/instructors`)
-            .then(res => res.json())
-            .then(data => {
-                //console.log("FULL RESPONSE:", data)
-                //console.log("Instructor list mData:", data.mData)
-                setInstructorList(data.mData);
-            })
-            .catch(err => console.error("FETCH ERROR for getting instructors:", err))
+        if(instructorsGrabbed.current===false){
+            async function getInstructors(){
+                fetch(`${API}/all/instructors`)
+                .then(res => res.json())
+                .then(data => {
+                    //console.log("FULL RESPONSE:", data)
+                    //console.log("Instructor list mData:", data.mData)
+                    setInstructorList(data.mData);
+                })
+                .catch(err => console.error("FETCH ERROR for getting instructors:", err))
+            }
+            getInstructors()
         }
-        getInstructors()
-
+        return ()=>{
+            instructorsGrabbed.current=true
+        }
     },[])
 
     const [newCourse, setNewCourse] = useState({
@@ -77,13 +89,19 @@ function Courses() {
         start_date: '', level: 'Beginner', price: 'Free', live_url: '', unitCount: 1
     });
 
+    const uuidGrabbed = useRef(false)
     useEffect(() => {
-        async function fetchUser() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-            setCurrentUserId(user.id);
+        if(uuidGrabbed.current===false){
+            async function fetchUser() {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+                setCurrentUserId(user.id);
+            }
+            fetchUser();
         }
-        fetchUser();
+        return ()=>{
+            uuidGrabbed.current=true
+        }
     }, []);
 
     const loadCourses = useCallback(async () => {
@@ -104,8 +122,27 @@ function Courses() {
         } catch (e) { console.error('loadEnrolled:', e); }
     }, []);
 
-    useEffect(() => { loadCourses(); }, [loadCourses]);
-    useEffect(() => { if (currentUserId) loadEnrolled(currentUserId); }, [currentUserId, loadEnrolled]);
+    const coursesGrabbed = useRef(false)
+    useEffect(() => { 
+        if(coursesGrabbed.current===false){
+            loadCourses();
+        } 
+        return ()=>{
+            coursesGrabbed.current=true
+        }
+    }, [loadCourses]);
+
+    const enrolledGrabbed = useRef(false)
+    useEffect(() => { 
+        if(enrolledGrabbed.current===false){
+            if (currentUserId){ 
+                loadEnrolled(currentUserId);
+            } 
+        }
+        return ()=>{
+            enrolledGrabbed.current=true
+        }
+    }, [currentUserId, loadEnrolled]);
 
     async function handleEnroll(courseId, courseTitle) {
         if (!currentUserId) { alert('Please log in to enroll.'); return; }

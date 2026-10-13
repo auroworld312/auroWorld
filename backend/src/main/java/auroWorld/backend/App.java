@@ -1171,27 +1171,25 @@ public class App
         }
     });
 
-    app.put("/course_units/unit/{uId}/lesson/{lId}/swap/{vId1}/{vId2}",ctx->{
+    app.put("/swapvideos",ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
 
-        int unitId = Integer.parseInt(ctx.pathParam("uId"));
-        int lessonId = Integer.parseInt(ctx.pathParam("lId"));
-        int vid1 = Integer.parseInt(ctx.pathParam("vId1"));
-        int vid2 = Integer.parseInt(ctx.pathParam("vId2"));
+        String ctxString = ctx.body();
 
-        SwapUnitMaterial sum = gson.fromJson(ctx.body(),SwapUnitMaterial.class);
+        // System.out.println("ctxString ="+ctxString);
 
-        if(sum==null || sum.videoTitle1==null || sum.videoTitle2==null){
-            System.out.println(sum);
-            System.out.println(sum.videoTitle1);
-            System.out.println(sum.videoTitle2);
-             ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "missgin swap attribute", null)));
-                return;
-        }
+        String regex = "[,]";
+        String[] idArray = ctxString.split(regex);
 
-        int success= db.swapUnitVideo(unitId, lessonId, vid1, vid2, sum.videoTitle1, sum.videoTitle2);
+        // System.out.println("idArray ="+Arrays.toString(idArray));
+
+        int vId1 = Integer.parseInt(idArray[0]);
+        int vId2 = Integer.parseInt(idArray[1]);
+        int sortNum1 = Integer.parseInt(idArray[2]);
+        int sortNum2 = Integer.parseInt(idArray[3]);
+
+        int success= db.swapVideos(vId1, vId2, sortNum1,sortNum2);
 
         if(success==-1){
             ctx.result(gson.toJson(new StructuredResponse("swap failed", null, success)));

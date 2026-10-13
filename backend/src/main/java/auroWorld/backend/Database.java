@@ -1439,10 +1439,10 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
     }
 
     public int swapLessons(int lesson1, int lesson2, int sort1, int sort2){
-        String swapUnit = "UPDATE unit_lessons SET sort_order = ? WHERE lesson_id = ?";
+        String swapLesson = "UPDATE unit_lessons SET sort_order = ? WHERE lesson_id = ?";
 
         try(Connection conn = getConnection();
-        PreparedStatement ps = conn.prepareStatement(swapUnit)){
+        PreparedStatement ps = conn.prepareStatement(swapLesson)){
             
             ps.setInt(1,sort1);
             ps.setInt(2,lesson2);
@@ -1667,47 +1667,21 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
         }
     }
 
-    public int swapUnitVideo(int unitId, int lessonId, int id1, int id2, String title1, String title2){
-        String selectSql = "SELECT video_id FROM unit_videos WHERE unit_id = ? AND lesson_id = ? " +
-                        "ORDER BY sort_order NULLS LAST, video_id";
-        String updateSql = "UPDATE unit_videos SET sort_order = ? WHERE video_id = ?";
+    public int swapVideos(int vId1, int vId2, int sortNum1, int sortNum2){
+        String updateVid = "UPDATE unit_videos SET sort_order = ? WHERE video_id = ?";
 
-        try (Connection conn = getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                List<Integer> ids = new ArrayList<>();
-                try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
-                    ps.setInt(1, unitId);
-                    ps.setInt(2, lessonId);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) ids.add(rs.getInt("video_id"));
-                    }
-                }
+        try (Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(updateVid)) {
+            
+            ps.setInt(1,sortNum2);
+            ps.setInt(2,vId1);
+            ps.executeUpdate();
 
-                int i1 = ids.indexOf(id1);
-                int i2 = ids.indexOf(id2);
-                if (i1 < 0 || i2 < 0) {
-                    conn.rollback();
-                    return -1;
-                }
-
-                Collections.swap(ids, i1, i2);
-
-                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
-                    for (int i = 0; i < ids.size(); i++) {
-                        ps.setInt(1, i + 1);
-                        ps.setInt(2, ids.get(i));
-                        ps.addBatch();
-                    }
-                    ps.executeBatch();
-                }
-
-                conn.commit();
-                return 1;
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            }
+            ps.setInt(1,sortNum1);
+            ps.setInt(2,vId2);
+            ps.executeUpdate();
+                
+            return 1;
         } catch (SQLException e) {
             e.printStackTrace();
             return -1;
