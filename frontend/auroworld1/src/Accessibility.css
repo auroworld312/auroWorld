@@ -1,0 +1,36 @@
+[data-scaled-text] { font-size: var(--accessible-font-size) !important; }
+html[data-bold-text="true"] :is(p, span, a, button, label, input, textarea, select, h1, h2, h3, h4, dt, dd, li, summary, div):not(.bold-preview *) { font-weight: 700 !important; }
+html[data-theme="dark"] { color-scheme: dark; background: #181525; }
+html[data-theme="dark"] body { background: #181525; color: #f7f5fb; }
+html[data-theme="dark"] :is(.account-page, .course-detail-layout, .courses-page, .courses-main, .quiz-page, .quiz-page-content) { background: #21182f !important; color: #f7f5fb !important; }
+html[data-theme="dark"] :is(.app-sidebar, .course-detail-sidebar, .courses-sidebar, .courses-card, .quiz-card, .account-profile-card, .course-detail-panel, .course-enrollment, .materials-unit, .materials-unit-body, .materials-lesson, .materials-lesson-body, .unit-editor) { background: #2e2340 !important; color: #f7f5fb !important; border-color: #5d4a70 !important; }
+html[data-theme="dark"] :is(.materials-unit-header, .materials-unit-header.is-open, .materials-lesson-top, .quiz-file, .course-description-box, .course-detail-tabs, .settings-segment, .unit-search, .courses-search, .courses-filters, .courses-tab-switcher) { background: #3c2c50 !important; border-color: #675278 !important; }
+html[data-theme="dark"] :is(h1, h2, h3, h4, p, label, dt, dd, strong, summary, .materials-unit-title, .materials-lesson-heading, .courses-title-link, .app-sidebar-item, .app-sidebar-brand, .theme-option, .account-role) { color: #f7f5fb !important; }
+html[data-theme="dark"] :is(.quiz-muted, .materials-unit-subtitle, .course-eyebrow, .course-payment-note, .courses-extra-details) { color: #c6b9d4 !important; }
+html[data-theme="dark"] :is(input, textarea, select) { background: #21182f !important; color: #f7f5fb !important; border-color: #7a638f !important; }
+html[data-theme="dark"] :is(button, a.course-purchase) { color: #f7f5fb !important; border-color: #8a6c9f !important; }
+html[data-theme="dark"] :is(.app-sidebar-item:hover, .app-sidebar-item[aria-current="page"], .course-enrollment-state, .account-role, .quiz-tag) { background: #684578 !important; color: #fff !important; }
+html[data-theme="dark"] .app-sidebar :is(.app-sidebar-brand, .app-sidebar-toggle, .app-sidebar-item:not(.app-sidebar-user)) img { filter: brightness(0) invert(1); }
+html[data-theme="dark"] [style*="background-color: rgb(255, 255, 255)"], html[data-theme="dark"] [style*="background-color: rgb(247, 245, 251)"], html[data-theme="dark"] [style*="background-color: rgb(238, 235, 245)"] { background-color: #2e2340 !important; }
+html[data-theme="dark"] [style*="color: rgb(17, 17, 17)"], html[data-theme="dark"] [style*="color: rgb(51, 51, 51)"], html[data-theme="dark"] [style*="color: rgb(85, 85, 85)"] { color: #f7f5fb !important; }
+html[data-theme="dark"] .calendar-time-grid { background: #3c2c50; }
+html[data-theme="dark"] :is(.quiz-panel button:not(.primary), .unit-editor-actions button, .materials-icon-btn, .course-detail-tabs button, .courses-title-link) { background: #3c2c50 !important; }
+html[data-theme="dark"] :is(.unit-add-card, .courses-create-card, .material-add-button) { background: #3c2c50 !important; color: #f7f5fb !important; }
+html[data-theme="dark"] .settings-segment button[aria-pressed="true"], html[data-theme="dark"] .course-detail-tabs button[aria-pressed="true"] { background: #7a4b8c !important; }
+html[data-theme="dark"] .theme-light .theme-sample, html[data-theme="dark"] .theme-light .theme-sample strong { background: #eeebf5 !important; color: #181525 !important; }
+html[data-theme="dark"] .theme-dark .theme-sample { background: #2e1a48 !important; color: #f7f5fb !important; }
+html[data-theme="dark"] {
+  --post-page: #21182f;
+  --post-card: #2e2340;
+  --post-inset: #3c2c50;
+  --post-text: #f7f5fb;
+  --post-muted: #c6b9d4;
+}
+html[data-theme="dark"] :is(.courses-card-info > p, .courses-menu-options, .courses-menu-options button, .courses-add-form, .quiz-overview > .quiz-muted, .online-option, .online-explanation) { background: #3c2c50 !important; color: #f7f5fb !important; border-color: #675278 !important; }
+html[data-theme="dark"] :is(.courses-card-details, .course-info-metadata, .course-overview, .course-enrollment-content, .courses-bookmark, .courses-filter-group, .courses-live-status) { color: #f7f5fb !important; }
+html[data-theme="dark"] :is(.courses-image-upload small, .courses-payment-field small, .account-content [style*="color: rgb(153, 153, 153)"], .account-content [style*="color: rgb(136, 136, 136)"], .account-content [style*="color: rgb(170, 170, 170)"]) { color: #c6b9d4 !important; }
+html[data-theme="dark"] .posts-page button { background-color: #3c2c50 !important; color: #f7f5fb !important; }
+html[data-theme="dark"] :is(.posts-page a, .quiz-panel a, .account-content a) { color: #dfb8f2 !important; }
+html[data-theme="dark"] :is(input, textarea)::placeholder { color: #bdb0ca; opacity: 1; }
+html[data-theme="dark"] :is(.courses-menu-options button:hover, .posts-page button:hover, .quiz-panel button:hover:not(:disabled)) { background: #684578 !important; }
+html[data-theme="dark"] button:disabled { background: #41364e !important; color: #bdb0ca !important; }

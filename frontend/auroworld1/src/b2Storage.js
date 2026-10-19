@@ -4,7 +4,7 @@ const PART_SIZE = 10 * 1024 * 1024; // B2 minimum part size is 5 MB (except the 
 export const B2_PREFIX = 'b2:';
 export const isB2 = path => typeof path === 'string' && path.startsWith(B2_PREFIX);
 export const toKey = path => path.slice(B2_PREFIX.length);
-export const isVideoFile = path => /\.(mp4|webm|mov|m4v|ogg)$/i.test(path || '');
+export const isVideoFile = path => /\.(mp4|webm|mov|m4v|ogg|ogv|mkv|avi|mpeg|mpg|wmv|3gp)$/i.test(path || '');
 
 // Keep keys safe: no accents/special characters (same reason as the old Supabase InvalidKey bug)
 export const safeSegment = text => String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '')

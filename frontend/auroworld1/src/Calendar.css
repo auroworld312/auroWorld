@@ -1,0 +1,7 @@
+.calendar-time-grid { background: #d8d3e8; }
+.calendar-course-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.calendar-course-heading img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.calendar-course-heading strong { min-width: 0; font-size: 14px; }
+.calendar-course-instructor { color: #181525; font-size: 12px; margin-bottom: 8px; }
+.calendar-schedule-card { color: #181525; transition: border-color .18s, box-shadow .18s; }
+.calendar-schedule-card:hover, .calendar-schedule-card:focus-visible { border-color: #7a4b8c !important; box-shadow: 0 3px 12px #4a2b6b14; outline: 2px solid #7a4b8c; outline-offset: 2px; }

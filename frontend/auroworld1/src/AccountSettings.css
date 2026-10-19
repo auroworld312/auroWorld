@@ -1,0 +1,29 @@
+.account-page { display: flex; height: 100vh; height: 100dvh; overflow: hidden; background: #eeebf5; color: #181525; font-family: 'Plus Jakarta Sans', sans-serif !important; }
+.settings-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.account-content { flex: 1; min-height: 0; overflow-y: auto; padding: 40px clamp(24px, 4vw, 60px); }
+.account-content h1 { font-size: 40px !important; color: #181525; margin: 0 0 28px; }
+.account-profile-card { background: #f7f5fb !important; border: 1px solid #d8d3e8; box-shadow: none !important; }
+.account-content button, .account-content input { font-family: inherit; }
+.account-content button { color: #4a2b6b; }
+.account-content button:focus-visible, .account-content input:focus-visible { outline: 3px solid #b497ca !important; outline-offset: 3px; }
+.account-role { display: inline-block; margin-left: 12px; padding: 4px 12px; border: 1px solid #d8cbe4; background: #e9dced; color: #4a2b6b; border-radius: 20px; font-size: 13px; vertical-align: middle; }
+.settings-section { padding: 0 0 30px; margin-bottom: 30px; border-bottom: 2px solid #4a2b6b; }
+.settings-section:last-child { border-bottom: 0; }
+.settings-section h2 { font-size: 26px; font-weight: 600; color: #2e1a48; margin: 0 0 24px; }
+.theme-options { display: flex; gap: 28px; flex-wrap: wrap; }
+.theme-option { width: 230px; padding: 0; text-align: left; border: 0; background: transparent; font: inherit; font-weight: 600; cursor: pointer; }
+.theme-sample { display: flex; height: 145px; align-items: flex-end; justify-content: space-between; padding: 20px; box-sizing: border-box; border: 2px solid #d8d3e8; border-radius: 10px; margin-bottom: 12px; background: #eeebf5; color: #181525; }
+.theme-sample strong { font-size: 38px; }
+.theme-sample > span { background: #4a2b6b; color: #f7f5fb; padding: 9px 14px; font-size: 13px; border-radius: 8px; }
+.theme-dark .theme-sample { background: #2e1a48; color: #f7f5fb; }
+.theme-dark .theme-sample > span { background: #f7f5fb; color: #181525; }
+.theme-option[aria-pressed="true"] .theme-sample { outline: 2px solid #7a4b8c; outline-offset: 4px; }
+.text-size-control { max-width: 500px; }
+.text-size-control input { width: 100%; margin: 24px 0; accent-color: #7a4b8c; cursor: pointer; }
+.text-size-samples, .text-size-labels { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.text-size-labels { font-size: 12px; }
+.bold-preview { display: flex; gap: 28px; align-items: center; font-size: 40px; margin: 0 24px 20px; }
+.settings-segment { display: inline-flex; width: 260px; padding: 4px; border: 1px solid #4a2b6b; border-radius: 10px; background: #f7f5fb; }
+.settings-segment button { flex: 1; padding: 12px; border: 0; background: transparent; border-radius: 8px; font: inherit; cursor: pointer; }
+.settings-segment button[aria-pressed="true"] { background: #7a4b8c; color: #fff; }
+@media (max-width: 700px) { .account-content { padding: 24px 16px !important; } .account-profile-card { padding: 20px !important; } .theme-option { width: min(230px, 100%); } .account-profile-card > div { flex-wrap: wrap; gap: 20px; } }

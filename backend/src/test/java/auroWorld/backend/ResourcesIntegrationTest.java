@@ -23,11 +23,39 @@ public class ResourcesIntegrationTest extends TestCase {
                 try (var sql = admin.createStatement()) {
                     sql.execute("CREATE SCHEMA " + schema);
                     sql.execute("SET search_path TO " + schema);
-                    sql.execute("CREATE TABLE courses(course_id SERIAL PRIMARY KEY,title TEXT,description TEXT,instructor TEXT,times TEXT,start_date TEXT,level TEXT,price TEXT,live_url TEXT,days_of_week TEXT)");
+                    sql.execute("CREATE TABLE courses(course_id SERIAL PRIMARY KEY,title TEXT,description TEXT,instructor TEXT,times TEXT,start_date TEXT,level TEXT,price TEXT,live_url TEXT,days_of_week TEXT,thumbnail TEXT)");
                     sql.execute("CREATE TABLE course_units(unit_id SERIAL PRIMARY KEY,course_id INTEGER REFERENCES courses(course_id) ON DELETE CASCADE,title TEXT,sort_order INTEGER)");
                     sql.execute("CREATE TABLE enrollments(course_id INTEGER,unique_id TEXT)");
                 }
                 var db = Database.getDatabase(uri + "&currentSchema=" + schema + "&prepareThreshold=0");
+                String cover = "data:image/jpeg;base64,/9j/2Q==";
+                int coveredCourse = db.createCourse("Cover", "Description", "teacher", "12:00 PM - 1:00 PM", "2026-10-01", "Beginner", "Free", "", "1", 0, cover, "https://example.com/pay");
+                assertTrue(coveredCourse > 0);
+                try (var sql = admin.createStatement(); var rows = sql.executeQuery("SELECT thumbnail,live_url,payment_url FROM courses WHERE course_id=" + coveredCourse)) {
+                    assertTrue(rows.next());
+                    assertEquals(cover, rows.getString("thumbnail"));
+                    assertEquals("https://example.com/pay", rows.getString("payment_url"));
+                    assertEquals("", rows.getString("live_url"));
+                }
+                String replacement = "data:image/jpeg;base64,/9j/AAAA/2Q==";
+                assertEquals(1, db.editCourseInfo(coveredCourse, "Updated cover", "Description", "teacher", "1:00 PM - 2:00 PM", "2026-10-01", "Advanced", "Free", "", "2", true, replacement, "https://example.com/updated"));
+                try (var sql = admin.createStatement(); var rows = sql.executeQuery("SELECT thumbnail,times,days_of_week,payment_url FROM courses WHERE course_id=" + coveredCourse)) {
+                    assertTrue(rows.next());
+                    assertEquals(replacement, rows.getString("thumbnail"));
+                    assertEquals("1:00 PM - 2:00 PM", rows.getString("times"));
+                    assertEquals("2", rows.getString("days_of_week"));
+                    assertEquals("https://example.com/updated", rows.getString("payment_url"));
+                }
+                assertEquals(1, db.editCourseInfo(coveredCourse, "Updated again", "Description", "teacher", "1:00 PM - 2:00 PM", "2026-10-01", "Advanced", "Free", "", "2"));
+                try (var sql = admin.createStatement(); var rows = sql.executeQuery("SELECT thumbnail,payment_url FROM courses WHERE course_id=" + coveredCourse)) {
+                    assertTrue(rows.next());
+                    assertEquals(replacement, rows.getString("thumbnail"));
+                }
+                assertEquals(1, db.editCourseInfo(coveredCourse, "Updated again", "Description", "teacher", "1:00 PM - 2:00 PM", "2026-10-01", "Advanced", "Free", "", "2", false, null, ""));
+                try (var sql = admin.createStatement(); var rows = sql.executeQuery("SELECT payment_url FROM courses WHERE course_id=" + coveredCourse)) {
+                    assertTrue(rows.next());
+                    assertEquals("", rows.getString("payment_url"));
+                }
                 int courseId = createCourse(db, 3);
                 assertTrue(courseId > 0);
                 long unitId = 0;

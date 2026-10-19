@@ -1,0 +1,37 @@
+.is-live-preview .course-detail-panel { padding: 28px !important; min-height: 0 !important; }
+.is-live-preview .course-detail-sidebar { padding-top: 28px; }
+.live-room-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+.live-room-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 1.8px; color: #82758e; }
+.live-room-status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #ded5e9; border-radius: 24px; font-size: 12px; color: #82758e; background: white; }
+.live-room-status i { width: 6px; height: 6px; border-radius: 50%; background: #a29aac; }
+.live-room-status.is-current { color: #4a2b6b; background: #eeebf5; }
+.live-room-status.is-current i { background: #a53454; }
+.live-room-stage { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 440px; padding: 48px 32px; box-sizing: border-box; border: 1px solid #51405f; border-radius: 14px; background: radial-gradient(ellipse at 50% 0, #493557 0, #2b2136 60%, #241d2d 100%); color: #f7f5fb; text-align: center; }
+.live-room-broadcast { position: relative; display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 28px; border: 1px solid #9986ac60; border-radius: 50%; background: #ffffff05; }
+.live-room-broadcast span { width: 30px; height: 30px; border: 1px solid #c8b6dc; border-radius: 50%; }
+.live-room-broadcast i { position: absolute; width: 8px; height: 8px; background: #e3c7e6; border-radius: 50%; }
+.live-room-stage-label { color: #b9aac7; font-size: 10px; letter-spacing: 2px; font-weight: 600; }
+.live-room-stage h2 { margin: 16px 0 10px; max-width: 700px; font-size: clamp(26px, 3vw, 40px); font-weight: 600; line-height: 1.35; letter-spacing: -.7px; overflow-wrap: anywhere; }
+.live-room-instructor { margin: 0; color: #c8b9d5; font-size: 14px; }
+.live-room-intro { font-size: 14px; line-height: 1.7; margin: 24px 0 28px; color: #c8b9d5; }
+.live-preview-join { display: flex; align-items: center; justify-content: center; gap: 14px; min-width: 190px; padding: 14px 24px; border: 1px solid #e3c7e6; border-radius: 10px; background: #e3c7e6; color: #2e1a48; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .15s; }
+.live-preview-join:hover:not(:disabled) { background: #f1e3f3; }
+.live-preview-join:disabled { background: #ffffff08; border-color: #75647f; color: #a99bb4; cursor: not-allowed; }
+.live-preview-join:focus-visible { outline: 3px solid #e3c7e6; outline-offset: 4px; }
+.live-room-external { width: 7px; height: 7px; border-top: 1.5px solid currentColor; border-right: 1.5px solid currentColor; position: relative; }
+.live-room-external::after { content: ''; position: absolute; width: 11px; height: 1.5px; background: currentColor; top: 3px; right: -2px; transform: rotate(-45deg); }
+.live-preview-hint { font-size: 12px; color: #b9aac7; line-height: 1.6; margin: 16px 0 0; }
+.live-room-footer { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding: 0 4px; }
+.live-room-footer p { margin: 0; color: #82758e; font-size: 12px; line-height: 1.7; }
+.live-room-footer-mark { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: #b4a0c8; }
+.live-session-details { background: #f7f5fb; border: 1px solid #ded5e9; border-radius: 14px; padding: 24px 22px; }
+.live-session-details h2 { font-size: 22px; font-weight: 600; color: #2e1a48; margin: 12px 0 26px; }
+.live-session-details dl { margin: 0; }
+.live-session-details dl > div { padding: 16px 0; border-top: 1px solid #e4deed; }
+.live-session-details dt { font-size: 12px; color: #82758e; margin-bottom: 7px; }
+.live-session-details dd { margin: 0; font-size: 14px; color: #352640; font-weight: 500; line-height: 1.6; overflow-wrap: anywhere; }
+.live-session-timezone { font-size: 11px; color: #82758e; line-height: 1.6; margin: 0 0 24px; }
+.live-session-note { border-top: 1px solid #ded5e9; padding-top: 20px; }
+.live-session-note h3 { font-size: 13px; font-weight: 600; color: #4a2b6b; margin: 0 0 8px; }
+.live-session-note p { color: #82758e; font-size: 12px; line-height: 1.8; margin: 0; }
+@media (max-width: 650px) { .is-live-preview .course-detail-panel { padding: 16px !important; } .live-room-stage { min-height: 390px; padding: 32px 20px; } }

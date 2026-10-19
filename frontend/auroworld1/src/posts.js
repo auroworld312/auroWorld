@@ -56,32 +56,32 @@ function TodaySchedule({ enrolledCourses, navigate }) {
     });
     return (
         <div style={{ width: '280px', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                <div style={{ fontSize: '13px', color: '#888', marginBottom: '4px' }}>Today is</div>
-                <div style={{ fontSize: '16px', fontWeight: '600', color: '#333' }}>{dayName}</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#111', lineHeight: 1.1, marginTop: '2px' }}>{monthName}</div>
-                <div style={{ fontSize: '52px', fontWeight: '900', color: '#111', lineHeight: 1 }}>{dateNum}</div>
-                <div style={{ fontSize: '16px', color: '#555', marginTop: '2px' }}>{year}</div>
+            <div style={{ backgroundColor: 'var(--post-card, #fff)', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div style={{ fontSize: '13px', color: 'var(--post-muted, #888)', marginBottom: '4px' }}>Today is</div>
+                <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--post-text, #333)' }}>{dayName}</div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--post-text, #111)', lineHeight: 1.1, marginTop: '2px' }}>{monthName}</div>
+                <div style={{ fontSize: '52px', fontWeight: '900', color: 'var(--post-text, #111)', lineHeight: 1 }}>{dateNum}</div>
+                <div style={{ fontSize: '16px', color: 'var(--post-text, #555)', marginTop: '2px' }}>{year}</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto' }}>
                 {todayCourses.length === 0 && (
-                    <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', color: '#aaa', fontSize: '14px', textAlign: 'center' }}>
+                    <div style={{ backgroundColor: 'var(--post-card, #fff)', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', color: 'var(--post-muted, #aaa)', fontSize: '14px', textAlign: 'center' }}>
                         No classes today.
                     </div>
                 )}
                 {todayCourses.map((course, idx) => {
                     const color = COURSE_COLORS[idx % COURSE_COLORS.length];
                     return (
-                        <div key={course.courseId} style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: course.inSession ? `1.5px solid ${color}` : '1px solid #e5e5e5' }}>
+                        <div key={course.courseId} style={{ backgroundColor: 'var(--post-card, #fff)', borderRadius: '14px', padding: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: course.inSession ? `1.5px solid ${color}` : '1px solid #e5e5e5' }}>
                             <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                                 <div style={{ width: '56px', height: '56px', borderRadius: '10px', backgroundColor: '#e8e8e8', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
                                     📚
                                 </div>
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#111', marginBottom: '2px' }}>{course.title}</div>
-                                    <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>Instructor: {course.instructor}</div>
-                                    <div style={{ fontSize: '12px', color: '#888' }}>Times: {course.times}</div>
+                                    <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--post-text, #111)', marginBottom: '2px' }}>{course.title}</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--post-muted, #888)', marginBottom: '2px' }}>Instructor: {course.instructor}</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--post-muted, #888)' }}>Times: {course.times}</div>
                                 </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
@@ -729,7 +729,7 @@ function Posts(){
     // console.log("userAttributes.username: "+userAttributes?.username)
 
     return(
-        <div style={{ display:'flex', height:'100vh', width:'100vw', margin:'0', overflow:'hidden', backgroundColor:'#E3C7E6', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize:'16px', color:'#111', opacity:changeLoading? 0.5 : 1 }}>
+        <div className="posts-page" style={{ display:'flex', height:'100vh', width:'100vw', margin:'0', overflow:'hidden', backgroundColor:'var(--post-page, #E3C7E6)', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize:'16px', color:'var(--post-text, #111)', opacity:changeLoading? 0.5 : 1 }}>
             <div className = 'loader' style={{display:changeLoading?'flex':'none'}}></div>
             <Sidebar onMainpage={mainpageButton} onCourses={coursesButton} onSignout={signoutButton} onAdmin={adminButton} />
 
@@ -742,7 +742,7 @@ function Posts(){
                     <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:'16px' }}>
 
                         {/* Post composer */}
-                        <div style={{ backgroundColor:'#fff', borderRadius:'12px', padding:'16px 20px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', gap:'12px' }}>
+                        <div style={{ backgroundColor:'var(--post-card, #fff)', borderRadius:'12px', padding:'16px 20px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', gap:'12px' }}>
                             {avatarUrl ? (
                                 <img src={avatarUrl} alt="avatar" style={{ width:'42px', height:'42px', borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />
                             ) : (
@@ -750,7 +750,7 @@ function Posts(){
                                     {getInitials()}
                                 </div>
                             )}
-                            <div onClick={postButton} style={{ flex:1, padding:'10px 16px', borderRadius:'24px', backgroundColor:'#f0f2f5', color:'#888', fontSize:'15px', cursor:'pointer' }}>
+                            <div onClick={postButton} style={{ flex:1, padding:'10px 16px', borderRadius:'24px', backgroundColor:'var(--post-inset, #f0f2f5)', color:'var(--post-muted, #888)', fontSize:'15px', cursor:'pointer' }}>
                                 What's on your mind?
                             </div>
                             <Button onClick={postButton}>Post</Button>
@@ -763,11 +763,11 @@ function Posts(){
                                 <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px' }}>
                                     <input type="file" id="hiddenAddFileInput" onChange={uploadImageHandler} style={{ display:'none' }}></input>
                                     <Button variant="secondary" onClick={() => document.getElementById("hiddenAddFileInput").click()}>Upload File</Button>
-                                    <span style={{ fontSize:'14px', color:'#666', fontWeight:'normal' }}>{fileName}</span>
+                                    <span style={{ fontSize:'14px', color:'var(--post-muted, #666)', fontWeight:'normal' }}>{fileName}</span>
                                 </div>
                                 <img src={previewUrl} alt="" style={{ maxWidth:'100%', borderRadius:'8px' }}></img>
                                 {fileUpload &&(
-                                    <div style={{ margin:'10px 0', fontSize:'14px', color:'#666' }}>
+                                    <div style={{ margin:'10px 0', fontSize:'14px', color:'var(--post-muted, #666)' }}>
                                         <p>Selected File: {fileUpload.name}</p>
                                         <p>Size: {fileUpload.size} bytes</p>
                                         <p>Type: {fileUpload.type}</p>
@@ -783,7 +783,7 @@ function Posts(){
                         </div>
 
                         <div style={{ display:'flex', gap:'10px' }}>
-                            <select onChange={(e) => setSortType(e.target.value)} style={{ flex:1, padding:'8px 12px', borderRadius:'8px', border:'1px solid #e0e0e0', backgroundColor:'#fff', fontSize:'14px' }}>
+                            <select onChange={(e) => setSortType(e.target.value)} style={{ flex:1, padding:'8px 12px', borderRadius:'8px', border:'1px solid #e0e0e0', backgroundColor:'var(--post-card, #fff)', fontSize:'14px' }}>
                                 <option value="sortByNewest">Sort Posts By New</option>
                                 <option value="sortByUpvotes">Sort Posts By Upvotes</option>
                             </select>
@@ -793,7 +793,7 @@ function Posts(){
                         <div id="messageList" style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
                             {data.filter((post)=>post.username?.toLowerCase().includes(postUsernameQuery))?.map((post) => (
                             
-                            <div key={post.msgId} style={{ backgroundColor:'#fff', borderRadius:'12px', padding:'20px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
+                            <div key={post.msgId} style={{ backgroundColor:'var(--post-card, #fff)', borderRadius:'12px', padding:'20px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
 
                                 {/* Post header */}
                                 <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'14px' }}>
@@ -801,24 +801,24 @@ function Posts(){
                                         {post.username?.[0]?.toUpperCase() || '?'}
                                     </div>
                                     <div>
-                                        <div style={{ fontWeight:'700', fontSize:'15px', color:'#111' }}>{post.username}</div>
-                                        <div style={{ fontSize:'12px', color:'#aaa' }}>#{post.msgId}</div>
+                                        <div style={{ fontWeight:'700', fontSize:'15px', color:'var(--post-text, #111)' }}>{post.username}</div>
+                                        <div style={{ fontSize:'12px', color:'var(--post-muted, #aaa)' }}>#{post.msgId}</div>
                                     </div>
                                     { (userAttributes?.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
-                                        <button onClick={() => editPostButton(post.msgId)} style={{ float:"right", marginLeft:'auto', background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'#555' }}>
+                                        <button onClick={() => editPostButton(post.msgId)} style={{ float:"right", marginLeft:'auto', background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'var(--post-text, #555)' }}>
                                             Edit <i className="fas fa-edit"></i>
                                         </button>
                                     )}
                                     {(userAttributes?.role==="admin" || (currentUserId && post.uuid === currentUserId)) && (
-                                        <button onClick={() => deletePostButton(post.msgId,currentUserId)} style={{ float:"right", background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'#555' }}>
+                                        <button onClick={() => deletePostButton(post.msgId,currentUserId)} style={{ float:"right", background:'none', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'20px', cursor:'pointer', color:'var(--post-text, #555)' }}>
                                             Delete <i className="fa-solid fa-trash-can"></i>
                                         </button>
                                     )}
                                 </div>
 
                                 {/* Post content */}
-                                <div style={{ fontSize:'25px', fontWeight:'700', marginBottom:'8px', color:'#111' }}>{post.subject}</div>
-                                <div style={{ fontSize:'20px', color:'#333', lineHeight:'1.5', marginBottom:'14px' }}>{post.message}</div>
+                                <div style={{ fontSize:'25px', fontWeight:'700', marginBottom:'8px', color:'var(--post-text, #111)' }}>{post.subject}</div>
+                                <div style={{ fontSize:'20px', color:'var(--post-text, #333)', lineHeight:'1.5', marginBottom:'14px' }}>{post.message}</div>
 
                                 {imageUrls[post.msgId] && (
                                     <img src={imageUrls[post.msgId]} alt="Post attachment" style={{ maxWidth:'100%', borderRadius:'10px', marginBottom:'14px' }} />
@@ -837,16 +837,16 @@ function Posts(){
                                 {/* Action bar */}
                                 <div style={{ display:'flex', alignItems:'center', gap:'16px', paddingTop:'12px', borderTop:'1px solid #f0f0f0' }}>
                                     {likedPosts.find((item) => item===post.msgId) && (
-                                        <button onClick={() => upvoteButton(post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'40px', color:'#555', fontWeight:'600' }}>
+                                        <button onClick={() => upvoteButton(post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'40px', color:'var(--post-text, #555)', fontWeight:'600' }}>
                                             <i className="fa-solid fa-thumbs-up" style={{color:" rgb(177, 151, 252)"}}></i>
                                         </button>
                                     )}
                                     {!(likedPosts.find((item) => item===post.msgId)) && (
-                                        <button onClick={() => upvoteButton(post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'40px', color:'#555', fontWeight:'600' }}>
+                                        <button onClick={() => upvoteButton(post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'40px', color:'var(--post-text, #555)', fontWeight:'600' }}>
                                            <i className="fa-regular fa-thumbs-up"></i>
                                         </button>
                                     )}
-                                    <button onClick={() => commentButton(post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'35px', color:'#555', fontWeight:'600' }}>
+                                    <button onClick={() => commentButton(post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'35px', color:'var(--post-text, #555)', fontWeight:'600' }}>
                                         💬 Comment
                                     </button>
                                 </div>
@@ -886,22 +886,22 @@ function Posts(){
                                     <div id={`commentList-${post.msgId}`} style={{display:"none"}}>
                                         <div style={{ marginTop:'15px', paddingTop:'15px', borderTop:'1px solid #f0f0f0', display:'flex', flexDirection:'column', gap:'10px' }}>
                                             {[...post.commentdata]?.reverse().map((comment)=>(
-                                                <div key={comment.commentId} style={{ backgroundColor:'#f7f7f7', padding:'12px 14px', borderRadius:'10px' }}>
+                                                <div key={comment.commentId} style={{ backgroundColor:'var(--post-inset, #f7f7f7)', padding:'12px 14px', borderRadius:'10px' }}>
                                                     <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
                                                         <div style={{ width:'28px', height:'28px', borderRadius:'50%', backgroundColor:'#43B89C', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', color:'#fff' }}>
                                                             {comment.username?.[0]?.toUpperCase() || '?'}
                                                         </div>
-                                                        <span style={{ fontSize:'20px', fontWeight:'700', color:'#333' }}>{comment.username}</span>
+                                                        <span style={{ fontSize:'20px', fontWeight:'700', color:'var(--post-text, #333)' }}>{comment.username}</span>
                                                     </div>
-                                                    <div style={{ fontSize:'25px', color:'#333', marginBottom:'8px' }}>{comment.comment}</div>
+                                                    <div style={{ fontSize:'25px', color:'var(--post-text, #333)', marginBottom:'8px' }}>{comment.comment}</div>
                                                     <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
                                                         {likedComments.find((item) => item===comment.commentId) && (
-                                                            <button onClick={() => upvoteCommentButton(comment.commentId,post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'30px', color:'#555', fontWeight:'600' }}>
+                                                            <button onClick={() => upvoteCommentButton(comment.commentId,post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'30px', color:'var(--post-text, #555)', fontWeight:'600' }}>
                                                                 <i className="fa-solid fa-thumbs-up" style={{color:" rgb(177, 151, 252)"}}></i>
                                                             </button>
                                                         )}
                                                         {!(likedComments.find((item) => item===comment.commentId)) && (
-                                                            <button onClick={() => upvoteCommentButton(comment.commentId,post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'30px', color:'#555', fontWeight:'600' }}>
+                                                            <button onClick={() => upvoteCommentButton(comment.commentId,post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'30px', color:'var(--post-text, #555)', fontWeight:'600' }}>
                                                                 <i className="fa-regular fa-thumbs-up"></i>
                                                             </button>
                                                         )}

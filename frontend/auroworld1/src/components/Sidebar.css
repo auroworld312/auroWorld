@@ -1,0 +1,24 @@
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('../../public/assets/courses/jakarta-400.ttf') format('truetype'); }
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 500; font-display: swap; src: url('../../public/assets/courses/jakarta-500.ttf') format('truetype'); }
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url('../../public/assets/courses/jakarta-600.ttf') format('truetype'); }
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('../../public/assets/courses/jakarta-700.ttf') format('truetype'); }
+
+.app-sidebar { width: 251px; flex: 0 0 251px; height: 100vh; height: 100dvh; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; gap: 32px; padding: 40px 14px 18px 22px; border-right: 1px solid #d8d3e8; background: #fff; color: #181525; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; overflow-y: auto; transition: width .2s ease, flex-basis .2s ease; }
+.app-sidebar button { font: inherit; color: inherit; border: 0; cursor: pointer; background: transparent; }
+.app-sidebar-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px 0 4px; margin-bottom: 44px; }
+.app-sidebar-brand { display: flex; align-items: center; gap: 6px; padding: 0; font-size: 20px !important; font-weight: 600 !important; white-space: nowrap; }
+.app-sidebar img { display: block; flex-shrink: 0; max-width: none; }
+.app-sidebar-toggle { padding: 4px 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+.app-sidebar-toggle span { display: flex; }
+.app-sidebar-navigation, .app-sidebar-account { display: flex; flex-direction: column; gap: 10px; }
+.app-sidebar-item { min-height: 48px; width: 100%; display: flex; align-items: center; gap: 9px; padding: 10px 12px; text-align: left; border-radius: 10px; font-size: 20px !important; font-weight: 600 !important; line-height: 28px !important; white-space: nowrap; }
+.app-sidebar-item:hover { background: #eeebf5; }
+.app-sidebar-item[aria-current="page"], .app-sidebar-item:active { background: #e3c7e6; }
+.app-sidebar button:focus-visible { outline: 2px solid #7a4b8c; outline-offset: 2px; }
+.app-sidebar-section-label { padding-left: 4px; font-size: 16px; font-weight: 500; }
+.app-sidebar-user > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.app-sidebar-collapsed { width: 80px; flex-basis: 80px; padding-left: 12px; padding-right: 12px; }
+.app-sidebar-collapsed .app-sidebar-brand-row { justify-content: center; padding: 0; }
+.app-sidebar-collapsed .app-sidebar-toggle span { transform: rotate(180deg); }
+.app-sidebar-collapsed .app-sidebar-item { justify-content: center; padding-left: 0; padding-right: 0; }
+@media (prefers-reduced-motion: reduce) { .app-sidebar { transition: none; } }

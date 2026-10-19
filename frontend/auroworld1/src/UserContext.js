@@ -15,7 +15,7 @@ export function UserProvider({ children }) {
 
   const refreshUser = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setDisplayName(''); setEmail(''); setAvatarUrl(''); return; }
     setEmail(user.email || '');
 
     const { data: userData } = await supabase
@@ -38,13 +38,16 @@ export function UserProvider({ children }) {
       .select('note')
       .eq('email', user.email);
 
-    if (profileData && profileData.length > 0 && profileData[0].note) {
-      setAvatarUrl(profileData[0].note);
-    }
+    setAvatarUrl(profileData?.[0]?.note || '');
   }, []);
 
   useEffect(() => {
     refreshUser();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      setDisplayName(''); setEmail(''); setAvatarUrl('');
+      setTimeout(refreshUser, 0);
+    });
+    return () => subscription.unsubscribe();
   }, [refreshUser]);
 
   return (

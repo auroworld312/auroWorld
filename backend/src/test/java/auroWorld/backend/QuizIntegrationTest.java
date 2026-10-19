@@ -26,13 +26,14 @@ public class QuizIntegrationTest extends TestCase {
                     sql.execute("CREATE SCHEMA " + schema);
                     sql.execute("SET search_path TO " + schema);
                     sql.execute("CREATE TABLE courses(course_id INTEGER PRIMARY KEY,title TEXT,instructor TEXT)");
+                    sql.execute("ALTER TABLE courses ADD COLUMN times TEXT, ADD COLUMN thumbnail TEXT, ADD COLUMN live_url TEXT, ADD COLUMN days_of_week TEXT");
                     sql.execute("CREATE TABLE course_units(unit_id INTEGER PRIMARY KEY,course_id INTEGER REFERENCES courses(course_id),title TEXT)");
                     sql.execute("CREATE TABLE users(unique_id TEXT,username TEXT,role TEXT)");
                     sql.execute("CREATE TABLE enrollments(course_id INTEGER,unique_id TEXT)");
-                    sql.execute("INSERT INTO courses VALUES(1,'Test Course','teacher'),(2,'Other Course','other-teacher')");
+                    sql.execute("INSERT INTO courses(course_id,title,instructor) VALUES(1,'Test Course','teacher'),(2,'Other Course','other-teacher')");
                     sql.execute("INSERT INTO course_units VALUES(1,1,'Unit 1'),(2,2,'Unit 2')");
                     sql.execute("INSERT INTO users VALUES('teacher','teacher','instructor'),('other-teacher','other-teacher','instructor'),('student','student','user'),('student2','student2','user')");
-                    sql.execute("INSERT INTO enrollments VALUES(1,'student'),(1,'student2')");
+                    sql.execute("INSERT INTO enrollments VALUES(1,'student'),(1,'student2'),(2,'teacher')");
                 }
                 var db = Database.getDatabase(uri + "&currentSchema=" + schema);
                 app = Javalin.create();
@@ -65,9 +66,17 @@ public class QuizIntegrationTest extends TestCase {
                 assertEquals(403, get("/files/" + questionId, "student").statusCode());
                 assertEquals(200, get("/files/" + questionId, "teacher").statusCode());
                 assertEquals(1, data(get("/calendar", "student")).getAsJsonArray().size());
+                assertEquals(1, data(get("/calendar", "teacher")).getAsJsonArray().size());
+                assertEquals(0, data(get("/calendar", "other-teacher")).getAsJsonArray().size());
+                assertEquals(1, data(get("/calendar-courses", "teacher")).getAsJsonArray().size());
+                assertEquals(1, data(get("/calendar-courses", "teacher")).getAsJsonArray().get(0).getAsJsonObject().get("courseId").getAsInt());
+                assertEquals(2, data(get("/calendar-courses", "other-teacher")).getAsJsonArray().get(0).getAsJsonObject().get("courseId").getAsInt());
+                assertEquals(1, data(get("/calendar-courses", "student")).getAsJsonArray().get(0).getAsJsonObject().get("courseId").getAsInt());
+
                 assertEquals(0, data(get("/calendar", "outsider")).getAsJsonArray().size());
 
                 var opened = metadata(true, now.minusSeconds(3600), now.plusSeconds(3600), null, List.of(questionId));
+                opened.put("max_attempts", 2);
                 data(upload("PUT", quizPath, "teacher", opened, null));
                 assertEquals(200, get("/files/" + questionId, "student").statusCode());
                 assertEquals(403, get(quizPath, "outsider").statusCode());
@@ -85,6 +94,7 @@ public class QuizIntegrationTest extends TestCase {
                 assertEquals(200, get("/files/" + answerFile, "teacher").statusCode());
                 assertFalse(data(get(quizPath, "student")).getAsJsonObject().getAsJsonArray("submissions").get(0).getAsJsonObject().get("late").getAsBoolean());
                 data(upload("POST", quizPath + "/answers", "student", Map.of("submit", true), "revised.txt"));
+                assertEquals(409, upload("POST", quizPath + "/answers", "student", Map.of("submit", true), "extra.txt").statusCode());
                 assertEquals(2, data(get(quizPath, "teacher")).getAsJsonObject().getAsJsonArray("submissions").size());
                 assertTrue(data(get("/calendar", "student")).getAsJsonArray().get(0).getAsJsonObject().get("submitted").getAsBoolean());
                 var late = metadata(true, now.minusSeconds(7200), now.minusSeconds(3600), now.plusSeconds(3600), List.of(questionId));
@@ -204,7 +214,17 @@ public class QuizIntegrationTest extends TestCase {
         form.put("questions", questions);
         assertEquals(409, upload("PUT", path, "teacher", form, null).statusCode());
         form.put("questions", changed); form.put("title", "Updated title");
+        form.put("max_attempts", 2);
         data(upload("PUT", path, "teacher", form, null));
+        var retryQuiz = data(get(path, "student")).getAsJsonObject();
+        assertEquals(1, retryQuiz.get("attempts_remaining").getAsInt());
+        answer.put("submit", false);
+        data(online(path, "student", answer));
+        assertEquals(1, data(get(path, "student")).getAsJsonObject().get("attempts_remaining").getAsInt());
+        answer.put("submit", true);
+        data(online(path, "student", answer));
+        assertEquals(409, online(path, "student", answer).statusCode());
+        assertFalse(data(get(path, "student")).getAsJsonObject().get("can_submit").getAsBoolean());
         assertEquals(400, upload("PUT", path + "/submissions/" + submitted.get("id").getAsLong() + "/grade", "teacher", Map.of("score", 100), null).statusCode());
         form.put("due_at", now.minusSeconds(60).toString());
         data(upload("PUT", path, "teacher", form, null));

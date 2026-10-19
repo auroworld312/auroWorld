@@ -46,7 +46,7 @@ export default function UnitResources({ unitId }) {
     <p className="quiz-muted">Links to readings, files, videos and useful websites. Resources open in a new tab.</p>
     {loadError && <p role="alert" className="quiz-error">{loadError} <button onClick={() => setRevision(r => r + 1)}>Retry</button></p>}
     {!data && !loadError && <p>Loading resources…</p>}
-    {data?.can_manage && !editing && <button className="primary" disabled={busy} onClick={() => { setError(''); setEditing({ title: '', url: '', description: '' }); }}>Add Resource</button>}
+    {data?.can_manage && !editing && <button className="primary material-add-button" disabled={busy} onClick={() => { setError(''); setEditing({ title: '', url: '', description: '' }); }}><span className="material-add-icon" aria-hidden="true" />Add Resource</button>}
     {data?.can_manage && editing && <div className="quiz-card quiz-form">
       <h4>{editing.id ? 'Edit Resource' : 'Add Resource'}</h4>
       <fieldset disabled={busy}>

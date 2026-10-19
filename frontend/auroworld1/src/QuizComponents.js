@@ -72,6 +72,7 @@ function DateTimePicker({ label, value, onChange, id }) {
 export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
   const formId = useId();
   const [mode, setMode] = useState(quiz?.mode || 'file');
+  const [maxAttempts, setMaxAttempts] = useState(quiz?.max_attempts || 1);
   const [questions, setQuestions] = useState(quiz?.questions?.length ? quiz.questions : [emptyQuestion()]);
   const [title, setTitle] = useState(quiz?.title || '');
   const [instructions, setInstructions] = useState(quiz?.instructions || '');
@@ -107,7 +108,7 @@ export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
       }
       const result = await quizRequest(quiz ? `/quizzes/${quiz.id}` : `/units/${unitId}`, {
         method: quiz ? 'PUT' : 'POST',
-        body: quizUpload({ title, instructions, published, mode, questions: mode === 'online' ? questions : [], release_at: releaseAt, due_at: dueAt, late_until: lateUntil, keep_file_ids: existing.map(f => f.id) }, mode === 'file' ? incoming : []),
+        body: quizUpload({ title, instructions, published, mode, max_attempts: maxAttempts, questions: mode === 'online' ? questions : [], release_at: releaseAt, due_at: dueAt, late_until: lateUntil, keep_file_ids: existing.map(f => f.id) }, mode === 'file' ? incoming : []),
       });
       onSaved(result);
     } catch (e) { setError(e.message); }
@@ -116,6 +117,11 @@ export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
   return <div className="quiz-card quiz-form">
     <h3>{quiz ? 'Edit Quiz' : 'Create Quiz'}</h3>
     <fieldset disabled={busy}>
+      <label htmlFor={`${formId}-attempts`}>Allowed attempts</label>
+      <select id={`${formId}-attempts`} value={maxAttempts} onChange={event => setMaxAttempts(Number(event.target.value))}>
+        {Array.from({ length: 20 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1} {index === 0 ? 'attempt' : 'attempts'}</option>)}
+      </select>
+      <p className="quiz-muted">Only submitted answers count as attempts. Saving a draft does not use an attempt.</p>
       <label htmlFor={`${formId}-mode`}>Quiz Method</label>
       <select id={`${formId}-mode`} value={mode} disabled={quiz?.mode_locked} onChange={e => setMode(e.target.value)}>
         <option value="file">Upload Files</option>
@@ -159,10 +165,10 @@ export function UnitQuizzes({ unitId }) {
   return <div className="quiz-panel" style={{ padding: 16 }}>
     {error && <p className="quiz-error" role="alert">{error} <button onClick={() => setRevision(r => r + 1)}>Retry</button></p>}
     {!data && !error && <p>Loading quizzes…</p>}
-    {data?.can_manage && !creating && <button className="primary" style={{ marginBottom: 16 }} onClick={() => setCreating(true)}>Create Quiz</button>}
+    {data?.can_manage && !creating && <button className="primary material-add-button" style={{ marginBottom: 16 }} onClick={() => setCreating(true)}><span className="material-add-icon" aria-hidden="true" />Create Quiz</button>}
     {creating && <QuizEditor unitId={unitId} onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setRevision(r => r + 1); }} />}
     {data && !data.quizzes.length && <p className="quiz-muted">No quizzes available yet.</p>}
-    {data?.quizzes.map(quiz => <div className="quiz-card" key={quiz.id}>
+    {data?.quizzes.map(quiz => <div className="quiz-card quiz-list-card" key={quiz.id}>
       <div className="quiz-row quiz-between"><h3>{quiz.title}</h3><span className="quiz-tag">{quiz.submitted ? '✓ Submitted' : quiz.status}</span></div>
       <p className="quiz-muted">Due: {displayDate(quiz.due_at)}<br />Release: {displayDate(quiz.release_at)}</p>
       <button onClick={() => navigate(`/quizzes/${quiz.id}`)}>{data.can_manage ? 'Manage Quiz' : 'Open Quiz'}</button>

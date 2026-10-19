@@ -79,11 +79,14 @@ public final class QuizApi {
             update(conn, "DELETE FROM unit_resources WHERE id=?", resource.get("id"));
             return Map.of("deleted", true);
         }));
+        app.get("/quiz-api/calendar-courses", ctx -> handle(ctx, (conn, user) -> rows(conn,
+            "SELECT " + ("instructor".equals(user.role) ? "true" : "false") + " AS \"calendarOwner\", c.course_id AS \"courseId\", c.title, c.instructor, c.times, c.thumbnail, c.live_url AS \"liveUrl\", c.days_of_week AS \"daysOfWeek\" FROM courses c WHERE " +
+            calendarCourseScope(user) + " ORDER BY c.course_id", "instructor".equals(user.role) ? user.username : user.id)));
         app.get("/quiz-api/calendar", ctx -> handle(ctx, (conn, user) -> rows(conn,
             "SELECT q.id, q.title, q.due_at, q.late_until, q.release_at, c.course_id, c.title AS course_title, u.title AS unit_title, " +
             "EXISTS(SELECT 1 FROM quiz_submissions s WHERE s.quiz_id=q.id AND s.user_id=? AND s.submitted_at IS NOT NULL) AS submitted " +
             "FROM course_quizzes q JOIN course_units u ON u.unit_id=q.unit_id JOIN courses c ON c.course_id=u.course_id " +
-            "WHERE q.published AND EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=c.course_id AND e.unique_id::text=?) ORDER BY q.due_at", user.id, user.id)));
+            ("instructor".equals(user.role) ? "WHERE q.due_at IS NOT NULL AND " : "WHERE q.published AND ") + calendarCourseScope(user) + " ORDER BY q.due_at", user.id, "instructor".equals(user.role) ? user.username : user.id)));
         app.get("/quiz-api/quizzes/{quizId}", ctx -> handle(ctx, (conn, user) -> {
             var quiz = quiz(conn, id(ctx, "quizId"), false);
             boolean manager = manage(user, quiz);
@@ -96,7 +99,10 @@ public final class QuizApi {
             quiz.put("mode_locked", !rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? LIMIT 1", quiz.get("id")).isEmpty());
             quiz.put("questions_locked", !rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND submitted_at IS NOT NULL LIMIT 1", quiz.get("id")).isEmpty());
             quiz.put("can_manage", manager);
-            quiz.put("can_submit", !manager && canSubmit(quiz, now));
+            int used = attemptsUsed(conn, quiz.get("id"), user.id);
+            quiz.put("attempts_used", used);
+            quiz.put("attempts_remaining", Math.max(0, ((Number) quiz.get("max_attempts")).intValue() - used));
+            quiz.put("can_submit", !manager && canSubmit(quiz, now) && used < ((Number) quiz.get("max_attempts")).intValue());
             quiz.put("status", status(quiz, now));
             quiz.put("server_now", now.toString());
             quiz.put("files", manager || (released && !"online".equals(quiz.get("mode"))) ? files(conn, quiz.get("id"), null) : List.of());
@@ -187,6 +193,8 @@ public final class QuizApi {
         var body = JSON.fromJson(ctx.formParam("metadata"), QuizForm.class);
         require(body != null && body.title != null && !body.title.isBlank() && body.title.length() <= 200, 400, "Enter a title (up to 200 characters).");
         require(body.instructions == null || body.instructions.length() <= 20000, 400, "Instructions are too long.");
+        int maxAttempts = body.max_attempts == null ? create ? 1 : ((Number) target.get("max_attempts")).intValue() : body.max_attempts;
+        require(maxAttempts >= 1 && maxAttempts <= 20, 400, "Choose between 1 and 20 attempts.");
         String mode = body.mode == null ? create ? "file" : (String) target.get("mode") : body.mode;
         require("file".equals(mode) || "online".equals(mode), 400, "Choose file upload or online questions.");
         var questions = "online".equals(mode) ? body.questions == null && !create ? OnlineQuiz.read((String) target.get("questions_json")) : body.questions : List.<OnlineQuiz.Question>of();
@@ -210,6 +218,7 @@ public final class QuizApi {
                 body.title.trim(), body.instructions == null ? "" : body.instructions, body.published, release, due, late, quizId);
         }
         update(conn, "UPDATE course_quizzes SET mode=?,questions_json=?,question_version=question_version+? WHERE id=?", mode, questionsJson, changed ? 1 : 0, quizId);
+        update(conn, "UPDATE course_quizzes SET max_attempts=? WHERE id=?", maxAttempts, quizId);
         if ("file".equals(mode)) {
             replaceFiles(ctx, conn, quizId, null, body.keep_file_ids);
             require(!body.published || !files(conn, quizId, null).isEmpty(), 400, "Upload at least one question file before publishing.");
@@ -224,6 +233,7 @@ public final class QuizApi {
         require(!"online".equals(quiz.get("mode")), 400, "Use the online question form for this quiz.");
         require(!manage(user, quiz) && enrolled(conn, user, quiz), 403, "Only enrolled students can submit answers.");
         require(canSubmit(quiz, Instant.now()), 403, "The submission window is closed or has not opened.");
+        requireAttempt(conn, quiz, user);
         var form = JSON.fromJson(ctx.formParam("metadata"), AnswerForm.class);
         require(form != null, 400, "Missing submission details.");
         long quizId = ((Number) quiz.get("id")).longValue();
@@ -248,7 +258,7 @@ public final class QuizApi {
         require(canSubmit(quiz, Instant.now()), 403, "The submission window is closed or has not opened.");
         var form = JSON.fromJson(ctx.body(), OnlineAnswerForm.class);
         require(form != null && form.question_version != null && form.question_version.intValue() == ((Number) quiz.get("question_version")).intValue(), 409, "The questions have changed. Reload the quiz before answering.");
-        require(rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND user_id=? AND submitted_at IS NOT NULL", quiz.get("id"), user.id).isEmpty(), 409, "This quiz has already been submitted. Reload to view your results.");
+        requireAttempt(conn, quiz, user);
         var questions = OnlineQuiz.read((String) quiz.get("questions_json"));
         OnlineQuiz.validateAnswers(questions, form.answers);
         var drafts = rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND user_id=? AND submitted_at IS NULL", quiz.get("id"), user.id);
@@ -260,6 +270,14 @@ public final class QuizApi {
             JSON.toJson(form.answers), form.question_version, form.submit ? now : null, form.submit && !now.isBefore(time(quiz, "due_at")), result == null ? null : JSON.toJson(result), result == null ? null : result.get("score"), form.submit ? now : null, submissionId);
         conn.commit();
         return Map.of("id", submissionId, "submitted", form.submit);
+    }
+
+    private int attemptsUsed(Connection conn, Object quizId, String userId) throws SQLException {
+        return ((Number) one(conn, "SELECT COUNT(*) AS used FROM quiz_submissions WHERE quiz_id=? AND user_id=? AND submitted_at IS NOT NULL", quizId, userId).get("used")).intValue();
+    }
+
+    private void requireAttempt(Connection conn, Map<String, Object> quiz, User user) throws SQLException {
+        require(attemptsUsed(conn, quiz.get("id"), user.id) < ((Number) quiz.get("max_attempts")).intValue(), 409, "You have used all attempts for this quiz.");
     }
 
     private void replaceFiles(Context ctx, Connection conn, long quizId, Long submissionId, List<Long> keepIds) throws Exception {
@@ -407,10 +425,15 @@ public final class QuizApi {
         require(!values.isEmpty(), 404, "Quiz, unit or file not found.");
         return values.get(0);
     }
+    static String calendarCourseScope(User user) {
+        return "instructor".equals(user.role) ? "c.instructor=?" : "EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=c.course_id AND e.unique_id::text=?)";
+    }
+
     record User(String id, String username, String role) {}
     private record AuthUser(String id) {}
     private static class QuizForm {
         String title, instructions, release_at, due_at, late_until, mode;
+        Integer max_attempts;
         List<OnlineQuiz.Question> questions;
         boolean published;
         List<Long> keep_file_ids;

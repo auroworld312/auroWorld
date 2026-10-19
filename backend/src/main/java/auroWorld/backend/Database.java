@@ -183,6 +183,7 @@ public class Database{
         public final String   level;
         public final String    price;
         public final String   thumbnail;
+        public final String paymentUrl;
         public final String   liveUrl;
         public final String   daysOfWeek;      // NEW
         public final boolean   inSession;
@@ -190,7 +191,7 @@ public class Database{
 
         public CourseData(int courseId, String title, String description,
                         String instructor, String times, String startDate,
-                        String level, String price, String thumbnail,
+                        String level, String price, String thumbnail, String paymentUrl,
                         String liveUrl, String daysOfWeek, boolean inSession,
                         List<UnitData> units) {
             this.courseId   = courseId;
@@ -202,6 +203,7 @@ public class Database{
             this.level   = level;
             this.price   = price;
             this.thumbnail = thumbnail;
+            this.paymentUrl = paymentUrl;
             this.liveUrl   = liveUrl;
             this.daysOfWeek = daysOfWeek;
             this.inSession = inSession;
@@ -258,6 +260,9 @@ public class Database{
         try {
             // Optional: test initial connection so we fail fast if URI is bad
             try (Connection conn = DriverManager.getConnection(dbUri)) {
+                try (Statement schema = conn.createStatement()) {
+                    schema.execute("ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS payment_url TEXT");
+                }
                 System.out.println("Database: initial connection OK");
             }
             return new Database(dbUri);
@@ -1262,10 +1267,20 @@ public class Database{
 
     public int createCourse(String title, String description, String instructor, String times,
         String start_date, String level, String price, String live_url, String daysOfWeek, int unitCount){
+        return createCourse(title, description, instructor, times, start_date, level, price, live_url, daysOfWeek, unitCount, null);
+    }
+
+    public int createCourse(String title, String description, String instructor, String times,
+        String start_date, String level, String price, String live_url, String daysOfWeek, int unitCount, String thumbnail){
+        return createCourse(title, description, instructor, times, start_date, level, price, live_url, daysOfWeek, unitCount, thumbnail, null);
+    }
+
+    public int createCourse(String title, String description, String instructor, String times,
+        String start_date, String level, String price, String live_url, String daysOfWeek, int unitCount, String thumbnail, String paymentUrl){
         if (unitCount < 0 || unitCount > 50) return -1;
         String sql="INSERT INTO courses (title, description, instructor, times, start_date, level, "+
-        "price, live_url, days_of_week) "+
-        "VALUES (?,?,?,?,?,?,?,?,?) RETURNING course_id";
+        "price, live_url, days_of_week, thumbnail, payment_url) "+
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?) RETURNING course_id";
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
             conn.setAutoCommit(false);
@@ -1279,6 +1294,8 @@ public class Database{
             ps.setString(7,price);
             ps.setString(8,live_url);
             ps.setString(9,daysOfWeek);
+            ps.setString(10,thumbnail);
+            ps.setString(11,paymentUrl);
             try(ResultSet rs = ps.executeQuery()){
                 if (!rs.next()) throw new SQLException("Course creation returned no ID");
                 int courseId = rs.getInt("course_id");
@@ -1899,7 +1916,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
 
         String sql = "SELECT " +
             "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
-            "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
+            "c.start_date, c.level, c.price, c.thumbnail, c.payment_url, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
             "uv.video_id AS v_id, uv.lesson_id AS uv_l_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort, " +
             "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description, ul.sort_order AS l_sort_order "+
@@ -1929,6 +1946,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
                             rs.getString("level"),
                             rs.getString("price"),
                             rs.getString("thumbnail"),
+                            rs.getString("payment_url"),
                             rs.getString("live_url"),
                             rs.getString("c_days"),      // NEW
                             rs.getBoolean("in_session"),
@@ -1999,7 +2017,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
 
             String sql = "SELECT " +
                 "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
-                "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
+                "c.start_date, c.level, c.price, c.thumbnail, c.payment_url, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
             "uv.video_id AS v_id, uv.lesson_id AS uv_l_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort, " +
             "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description, ul.sort_order AS l_sort_order "+
@@ -2029,6 +2047,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
                             rs.getString("level"),
                             rs.getString("price"),
                             rs.getString("thumbnail"),
+                            rs.getString("payment_url"),
                             rs.getString("live_url"),
                             rs.getString("c_days"),      // NEW
                             rs.getBoolean("in_session"),
@@ -2105,7 +2124,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
 
             String sql = "SELECT " +
                 "c.course_id AS c_id, c.title AS c_title, c.description, c.instructor, c.times, " +
-                "c.start_date, c.level, c.price, c.thumbnail, c.live_url, c.days_of_week AS c_days, c.in_session, " +
+                "c.start_date, c.level, c.price, c.thumbnail, c.payment_url, c.live_url, c.days_of_week AS c_days, c.in_session, " +
             "cu.unit_id AS u_id, cu.title AS u_title, cu.sort_order AS u_sort, " +
             "uv.video_id AS v_id, uv.lesson_id AS uv_l_id, uv.title AS v_title, uv.drive_url, uv.duration, uv.sort_order AS v_sort, " +
             "ul.lesson_id AS l_id, ul.unit_id AS lesson_unit_id, ul.lesson_title AS l_title, ul.lesson_description AS l_description, ul.sort_order AS l_sort_order "+
@@ -2139,6 +2158,7 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
                             rs.getString("level"),
                             rs.getString("price"),
                             rs.getString("thumbnail"),
+                            rs.getString("payment_url"),
                             rs.getString("live_url"),
                             rs.getString("c_days"),      // NEW
                             rs.getBoolean("in_session"),
@@ -2263,8 +2283,18 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
     public int editCourseInfo(int courseId, String title, String description, String instructor,
         String times, String start_date, String level, String price, String live_url, String daysOfWeek){
 
+        return editCourseInfo(courseId, title, description, instructor, times, start_date, level, price, live_url, daysOfWeek, false, null);
+    }
+
+    public int editCourseInfo(int courseId, String title, String description, String instructor,
+        String times, String start_date, String level, String price, String live_url, String daysOfWeek, boolean updateThumbnail, String thumbnail){
+        return editCourseInfo(courseId, title, description, instructor, times, start_date, level, price, live_url, daysOfWeek, updateThumbnail, thumbnail, null);
+    }
+
+    public int editCourseInfo(int courseId, String title, String description, String instructor,
+        String times, String start_date, String level, String price, String live_url, String daysOfWeek, boolean updateThumbnail, String thumbnail, String paymentUrl){
         String updateCourseInfo = "UPDATE courses SET title = ?, description = ?, instructor = ?, "
-        +"times = ?, start_date = ?, level = ?, price = ?, live_url = ?, days_of_week = ? WHERE course_id = ? ";
+        +"times = ?, start_date = ?, level = ?, price = ?, live_url = ?, days_of_week = ?, thumbnail = CASE WHEN ? THEN ? ELSE thumbnail END, payment_url = COALESCE(?, payment_url) WHERE course_id = ? ";
 
         try(Connection conn = getConnection();
         PreparedStatement ps = conn.prepareStatement(updateCourseInfo)){
@@ -2277,7 +2307,10 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
             ps.setString(7,price);
             ps.setString(8,live_url);
             ps.setString(9,daysOfWeek);
-            ps.setInt(10,courseId);
+            ps.setBoolean(10,updateThumbnail);
+            ps.setString(11,thumbnail);
+            ps.setString(12,paymentUrl);
+            ps.setInt(13,courseId);
             return ps.executeUpdate();
         }catch(SQLException e){
             e.printStackTrace();

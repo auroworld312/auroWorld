@@ -71,8 +71,9 @@ export default function QuizPage() {
   }, [quiz, offset, load]);
   const now = clock + offset;
   const released = quiz?.published && now >= Date.parse(quiz.release_at);
-  const canSubmit = released && now < Date.parse(quiz.late_until || quiz.due_at);
-  const status = !quiz?.published ? 'Draft' : !released ? 'Scheduled' : !canSubmit ? 'Closed' : now >= Date.parse(quiz.due_at) ? 'Late submissions' : 'Open';
+  const windowOpen = released && now < Date.parse(quiz.late_until || quiz.due_at);
+  const canSubmit = windowOpen && (quiz.attempts_remaining ?? 1) > 0;
+  const status = !quiz?.published ? 'Draft' : !released ? 'Scheduled' : !windowOpen ? 'Closed' : now >= Date.parse(quiz.due_at) ? 'Late submissions' : 'Open';
   return <div className="quiz-page">
     <Sidebar />
     <div className="quiz-page-main"><Header />
@@ -82,7 +83,7 @@ export default function QuizPage() {
         {notice && <p className="quiz-success" role="status">{notice}</p>}
         {!quiz && !error && <p>Loading quiz…</p>}
         {quiz && <>
-          <section className="quiz-card">
+          <section className="quiz-card quiz-overview">
             <div className="quiz-row quiz-between"><h1>{quiz.title}</h1><span className="quiz-tag">{status}</span></div>
             <p>{quiz.course_title} / {quiz.unit_title}</p>
             <p className="quiz-muted">Release: {displayDate(quiz.release_at)}<br />Due: {displayDate(quiz.due_at)}<br />
@@ -108,13 +109,14 @@ export default function QuizPage() {
             {!quiz.files.length && <p className="quiz-muted">No question files uploaded yet.</p>}
             {quiz.files.map(file => <Attachment key={file.id} file={file} />)}
           </section> : <section className="quiz-card"><h2>Not Open Yet</h2><p>Question files will be available at {displayDate(quiz.release_at)}.</p></section>}
+          {!quiz.can_manage && released && <p className="quiz-muted">Attempts: {quiz.attempts_used || 0} / {quiz.max_attempts || 1}. {(quiz.attempts_remaining ?? 1) === 0 ? 'You have used all allowed attempts.' : 'Drafts do not count as attempts.'}</p>}
           {!quiz.can_manage && released && <AnswerForm key={`${quiz.id}-${revision}`} quiz={quiz} disabled={!canSubmit} onSaved={message => { setNotice(message); load(); }} />}
           </>}
           {(quiz.mode !== 'online' || quiz.can_manage) &&
           <section className="quiz-card">
             <h2>{quiz.can_manage ? 'Student Submissions' : 'My Submissions'}</h2>
             {!quiz.submissions.length && <p className="quiz-muted">No submissions yet.</p>}
-            {quiz.submissions.map(submission => <div className="quiz-card" key={submission.id}>
+            {quiz.submissions.map(submission => <div className="quiz-card quiz-submission-card" key={submission.id}>
               <div className="quiz-row quiz-between"><strong>{quiz.can_manage ? submission.username : `Answer #${submission.id}`}</strong>
                 <span className="quiz-tag">{!submission.submitted_at ? 'Draft — not submitted' : submission.late ? 'Submitted late' : 'Submitted on time'}</span></div>
               {submission.submitted_at && <p className="quiz-muted">Submitted: {displayDate(submission.submitted_at)}</p>}

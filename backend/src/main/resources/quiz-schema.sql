@@ -55,3 +55,5 @@ CREATE TABLE IF NOT EXISTS unit_resources (
 );
 CREATE INDEX IF NOT EXISTS unit_resources_unit_index ON unit_resources(unit_id);
 ALTER TABLE unit_resources ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE course_quizzes ADD COLUMN IF NOT EXISTS max_attempts INTEGER NOT NULL DEFAULT 1 CHECK (max_attempts BETWEEN 1 AND 20);
