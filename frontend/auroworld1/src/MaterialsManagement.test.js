@@ -120,3 +120,24 @@ test('new lessons remain after closing and reopening their unit', async () => {
     fireEvent.click(await screen.findByRole('button', { name: /Introduction 1 lesson/ }));
     expect(screen.getByText('Lesson 1')).toBeInTheDocument();
 });
+
+test('lessons expose their own content tabs and inherit the course live link', () => {
+    const open = jest.spyOn(window, 'open').mockImplementation(() => null);
+    const unit = { unitId: 1, title: 'Unit 1', lessons: [{ lessonId: 10, lessonTitle: 'Intro', videos: [] }] };
+    render(<UnitSection embedded unit={unit} unitId={1} courseId={7} role="student" liveUrl="https://zoom.us/j/123" />);
+    expect(screen.queryByRole('button', { name: 'Video', exact: true })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Intro' }));
+    expect(screen.getByRole('button', { name: 'Video', exact: true })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Quiz', exact: true }));
+    expect(screen.getByText('Quiz content')).toBeVisible();
+    expect(screen.queryByText('No videos in this lesson yet.')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Live Links' }));
+    expect(open).toHaveBeenCalledWith('https://zoom.us/j/123', '_blank', 'noopener,noreferrer');
+    expect(screen.queryByRole('button', { name: 'Upload Video' })).not.toBeInTheDocument();
+});
+
+test('unsafe or absent live links stay disabled', () => {
+    const unit = { unitId: 1, title: 'Unit 1', lessons: [{ lessonId: 10, lessonTitle: 'Intro', videos: [] }] };
+    render(<UnitSection embedded unit={unit} unitId={1} role="student" liveUrl="javascript:alert(1)" initialLessonId={10} />);
+    expect(screen.getByRole('button', { name: 'Live Links' })).toBeDisabled();
+});

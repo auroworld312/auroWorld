@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QuizEditor } from './QuizComponents';
+import { QuizEditor, UnitQuizzes } from './QuizComponents';
 import UnitMaterials from './UnitMaterials';
 import { QuizDeadlineList } from './QuizCalendar';
 import QuizPage from './QuizPage';
@@ -58,22 +58,33 @@ test('student sees grade, feedback and marked work without edit controls', () =>
   expect(screen.queryByText('Save Grade')).not.toBeInTheDocument();
 });
 
-test('unit tabs preserve video access and hide teacher controls from students', async () => {
-  quizRequest.mockResolvedValue({ quizzes: [], can_manage: false });
-  render(<UnitMaterials unit={{ unitId: 1, title: 'Unit 1', videos: [{}] }}><div>Existing video player</div></UnitMaterials>);
+test('units show their lesson content directly without old unit tabs', () => {
+  render(<UnitMaterials unit={{ unitId: 1, title: 'Unit 1' }}><div>Lesson list</div></UnitMaterials>);
   fireEvent.click(screen.getByText('Unit 1'));
-  expect(screen.getByText('Existing video player')).toBeVisible();
-  fireEvent.click(screen.getByRole('tab', { name: 'Quizzes' }));
-  expect(await screen.findByText('No quizzes available yet.')).toBeVisible();
+  expect(screen.getByText('Lesson list')).toBeVisible();
+  expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+});
+
+test('lesson quizzes request only that lesson and creation requires lesson edit mode', async () => {
+  quizRequest.mockResolvedValue({ quizzes: [], can_manage: true });
+  const { rerender } = render(<UnitQuizzes unitId={1} lessonId={12} allowCreate={false} />);
+  await screen.findByText('No quizzes available yet.');
+  expect(quizRequest).toHaveBeenCalledWith('/units/1?lessonId=12');
   expect(screen.queryByText('Create Quiz')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: /Videos/ }));
-  expect(screen.getByText('Existing video player')).toBeVisible();
+  rerender(<UnitQuizzes unitId={1} lessonId={12} allowCreate />);
+  fireEvent.click(screen.getByText('Create Quiz'));
+  fireEvent.change(screen.getByLabelText('Quiz Title'), { target: { value: 'Lesson assessment' } });
+  quizRequest.mockResolvedValue({ quizzes: [], can_manage: true });
+  fireEvent.click(screen.getByText('Save Draft'));
+  await waitFor(() => expect(quizRequest).toHaveBeenCalledWith('/units/1', expect.objectContaining({ method: 'POST' })));
+  const call = quizRequest.mock.calls.find(([, options]) => options?.method === 'POST');
+  expect(JSON.parse(call[1].body.get('metadata')).lesson_id).toBe(12);
 });
 
 test('teacher picks schedule, enables late deadline and publishes attachments', async () => {
   quizRequest.mockResolvedValue({ id: 7 });
   const saved = jest.fn();
-  render(<QuizEditor unitId={1} onSaved={saved} onCancel={() => {}} />);
+  render(<QuizEditor unitId={1} lessonId={12} onSaved={saved} onCancel={() => {}} />);
   fireEvent.change(screen.getByLabelText('Quiz Title'), { target: { value: 'Unit assessment' } });
   expect(screen.getByLabelText('Release time').options).toHaveLength(49);
   expect(screen.queryByLabelText('Late Submission Deadline date')).not.toBeInTheDocument();

@@ -1,3 +1,4 @@
+import { UnitQuizzes } from './QuizComponents';
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { createClient } from '@supabase/supabase-js';
@@ -248,7 +249,7 @@ function CourseTab({ course, userData, navigate }) {
                     <option>Priced</option>
                 </select>
 
-                <label style={{ marginTop: 0 }}>Live Meeting Url</label>
+                <label style={{ marginTop: 0 }}>Zoom Link</label>
                 <input type="text" defaultValue={course.liveUrl} id="editLiveUrl" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
 
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -268,11 +269,17 @@ export function UnitSection({
     instructor,
     unitId,
     courseTitle,
+    liveUrl,
+    initialLessonId,
+    initialLessonTab,
     embedded = false,
     onLessonsChange
 }) {
     const [open, setOpen] = useState(false);
-    const [openLessons, setOpenLessons] = useState({});
+    const [openLessons, setOpenLessons] = useState(initialLessonId ? { [initialLessonId]: true } : {});
+    const [lessonTabs, setLessonTabs] = useState(initialLessonId ? { [initialLessonId]: initialLessonTab || 'video' } : {});
+    let lessonLiveUrl = '';
+    try { const url = new URL((liveUrl || '').trim()); if (['http:', 'https:'].includes(url.protocol)) lessonLiveUrl = url.href; } catch {}
     const [activeVideo, setActiveVideo] = useState(null);
 
     const [fileLoading, setFileLoading] = useState(false)
@@ -461,6 +468,7 @@ export function UnitSection({
 
     function editLessonButton(lesson) {
         setEditingLesson(lesson.lessonId);
+        setOpenLessons(current => ({ ...current, [lesson.lessonId]: true }));
         cancelMaterials();
         setEditLessonTitle(lesson.lessonTitle);
         setEditLessonDescription(lesson.lessonDescription);
@@ -530,7 +538,7 @@ export function UnitSection({
     async function deleteLessonButton(lId) {
         const lessonToDelete = lessonsArray.find(l => l.lessonId === lId);
         if (!lessonToDelete) return;
-        if (!window.confirm(`Delete "${lessonToDelete.lessonTitle}"?`)) return;
+        if (!window.confirm(`Delete "${lessonToDelete.lessonTitle}" and its videos, quizzes and quiz submissions?`)) return;
 
         try {
             setFileLoading(true);
@@ -731,6 +739,7 @@ export function UnitSection({
             );
 
             setOpenLessons(prev => ({ ...prev, [lessonId]: true }));
+            setLessonTabs(current => ({ ...current, [lessonId]: 'video' }));
             setActiveVideo(newVideo.videoId);
             setVideoTitles(prev => ({ ...prev, [lessonId]: "" }));
             cancelMaterials();
@@ -1045,6 +1054,7 @@ export function UnitSection({
                             {[...lessonsArray].sort((a,b)=>a.sortOrder-b.sortOrder).filter(lesson => lesson.lessonTitle.toLowerCase().includes(lessonSearch.trim().toLowerCase())).map((lesson, idx) => {
 
                                 const isLessonOpen = !!openLessons[lesson.lessonId];
+                                const lessonTab = lessonTabs[lesson.lessonId] || 'video';
 
                                 return (
                                     <div id = {`dragLesson-${lesson.lessonId}`} className="materials-lesson" draggable={canManage && !editingLesson && !lessonSearch.trim()} onDragStart={()=>handleStartDragLesson(lesson.lessonId, lesson.sortOrder)} onDrag={()=>handleDragLesson(lesson.lessonId)} onDragOver={(e)=>handleDragOverLesson(e,lesson.lessonId, lesson.sortOrder)} onDragEnd={()=>handleDragEndLesson(lesson.lessonId)} key={lesson.lessonId}>
@@ -1099,6 +1109,7 @@ export function UnitSection({
                                                 >
                                                     Upload Video
                                                 </button>
+                                                <button className="materials-icon-btn" onClick={() => { setOpenLessons(current => ({ ...current, [lesson.lessonId]: true })); setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'quiz' })); }}>Add / Manage Quiz</button>
 
                                             </div>
                                         )}
@@ -1209,7 +1220,13 @@ export function UnitSection({
 
                                         {/* VIDEOS */}
 
-                                        {isLessonOpen && (
+                                        {isLessonOpen && <div className="quiz-tabs lesson-content-tabs" aria-label={`${lesson.lessonTitle} content`}>
+                                            <button aria-pressed={lessonTab === 'video'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'video' }))}>Video</button>
+                                            <button aria-pressed={lessonTab === 'quiz'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'quiz' }))}>Quiz</button>
+                                            <button disabled={!lessonLiveUrl} title={lessonLiveUrl ? 'Open the course Zoom Link in a new tab' : 'No Zoom Link has been added to this course'} onClick={() => window.open(lessonLiveUrl, '_blank', 'noopener,noreferrer')}>Live Links</button>
+                                        </div>}
+                                        {isLessonOpen && lessonTab === 'quiz' && <UnitQuizzes unitId={unitId} lessonId={lesson.lessonId} allowCreate={canManage && editingLesson === lesson.lessonId} />}
+                                        {isLessonOpen && lessonTab === 'video' && (
                                             <div className="materials-lesson-body">
 
                                                 {(lesson.videos || []).length === 0 ? (
@@ -1522,8 +1539,8 @@ export function MaterialsTab({ course, userData }) {
         <div className="unit-library-list">
             {visibleUnits.map(unit =>
                 <div id={`dragUnit-${unit.unitId}`} key={unit.unitId} draggable={canManageUnits && !unitSearch.trim()} onDragStart={()=>handleStartDrag(unit.unitId, unit.sortOrder)} onDrag={()=>handleDrag(unit.unitId)} onDragOver={(e)=>handleDragOver(e,unit.unitId, unit.sortOrder)} onDragEnd={()=>handleDragEnd(unit.unitId)}>
-                    <UnitMaterials key={unit.unitId} unit={unit} canManage={canManageUnits && editingUnits} onDelete={() => sendDeleteUnits(unit.unitId)} onTitleChange={title => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, title } : item))} initialOpen={location.state?.unitId === unit.unitId} initialTab={location.state?.unitId === unit.unitId ? location.state?.unitTab || 'videos' : 'videos'}>
-                        <UnitSection embedded onLessonsChange={lessons => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, lessons } : item))} unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>
+                    <UnitMaterials key={unit.unitId} unit={unit} canManage={canManageUnits && editingUnits} onDelete={() => sendDeleteUnits(unit.unitId)} onTitleChange={title => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, title } : item))} initialOpen={location.state?.unitId === unit.unitId}>
+                        <UnitSection liveUrl={course.liveUrl} initialLessonId={location.state?.unitId === unit.unitId ? location.state?.lessonId : null} initialLessonTab={location.state?.unitTab === 'quizzes' ? 'quiz' : 'video'} embedded onLessonsChange={lessons => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, lessons } : item))} unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>
                     </UnitMaterials>
                 </div>
             )}

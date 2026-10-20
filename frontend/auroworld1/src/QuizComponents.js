@@ -69,8 +69,9 @@ function DateTimePicker({ label, value, onChange, id }) {
   </div>;
 }
 
-export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
+export function QuizEditor({ unitId, lessonId, quiz, onSaved, onCancel, onDeleted }) {
   const formId = useId();
+  const [selectedLesson, setSelectedLesson] = useState(lessonId ?? quiz?.lesson_id ?? '');
   const [mode, setMode] = useState(quiz?.mode || 'file');
   const [maxAttempts, setMaxAttempts] = useState(quiz?.max_attempts || 1);
   const [questions, setQuestions] = useState(quiz?.questions?.length ? quiz.questions : [emptyQuestion()]);
@@ -108,7 +109,7 @@ export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
       }
       const result = await quizRequest(quiz ? `/quizzes/${quiz.id}` : `/units/${unitId}`, {
         method: quiz ? 'PUT' : 'POST',
-        body: quizUpload({ title, instructions, published, mode, max_attempts: maxAttempts, questions: mode === 'online' ? questions : [], release_at: releaseAt, due_at: dueAt, late_until: lateUntil, keep_file_ids: existing.map(f => f.id) }, mode === 'file' ? incoming : []),
+        body: quizUpload({ lesson_id: Number(selectedLesson), title, instructions, published, mode, max_attempts: maxAttempts, questions: mode === 'online' ? questions : [], release_at: releaseAt, due_at: dueAt, late_until: lateUntil, keep_file_ids: existing.map(f => f.id) }, mode === 'file' ? incoming : []),
       });
       onSaved(result);
     } catch (e) { setError(e.message); }
@@ -117,6 +118,12 @@ export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
   return <div className="quiz-card quiz-form">
     <h3>{quiz ? 'Edit Quiz' : 'Create Quiz'}</h3>
     <fieldset disabled={busy}>
+      {quiz?.lessons?.length > 0 && <>
+        <label htmlFor={`${formId}-lesson`}>Lesson</label>
+        <select id={`${formId}-lesson`} value={selectedLesson} onChange={event => setSelectedLesson(Number(event.target.value))}>
+          {quiz.lessons.map(lesson => <option key={lesson.lesson_id} value={lesson.lesson_id}>{lesson.lesson_title}</option>)}
+        </select>
+      </>}
       <label htmlFor={`${formId}-attempts`}>Allowed attempts</label>
       <select id={`${formId}-attempts`} value={maxAttempts} onChange={event => setMaxAttempts(Number(event.target.value))}>
         {Array.from({ length: 20 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1} {index === 0 ? 'attempt' : 'attempts'}</option>)}
@@ -150,7 +157,7 @@ export function QuizEditor({ unitId, quiz, onSaved, onCancel, onDeleted }) {
   </div>;
 }
 
-export function UnitQuizzes({ unitId }) {
+export function UnitQuizzes({ unitId, lessonId, allowCreate = true }) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -159,14 +166,14 @@ export function UnitQuizzes({ unitId }) {
   useEffect(() => {
     let active = true;
     setError('');
-    quizRequest(`/units/${unitId}`).then(result => { if (active) setData(result); }).catch(e => { if (active) setError(e.message); });
+    quizRequest(`/units/${unitId}${lessonId ? `?lessonId=${lessonId}` : ''}`).then(result => { if (active) setData(result); }).catch(e => { if (active) setError(e.message); });
     return () => { active = false; };
-  }, [unitId, revision]);
+  }, [unitId, lessonId, revision]);
   return <div className="quiz-panel" style={{ padding: 16 }}>
     {error && <p className="quiz-error" role="alert">{error} <button onClick={() => setRevision(r => r + 1)}>Retry</button></p>}
     {!data && !error && <p>Loading quizzes…</p>}
-    {data?.can_manage && !creating && <button className="primary material-add-button" style={{ marginBottom: 16 }} onClick={() => setCreating(true)}><span className="material-add-icon" aria-hidden="true" />Create Quiz</button>}
-    {creating && <QuizEditor unitId={unitId} onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setRevision(r => r + 1); }} />}
+    {data?.can_manage && allowCreate && !creating && <button className="primary material-add-button" style={{ marginBottom: 16 }} onClick={() => setCreating(true)}><span className="material-add-icon" aria-hidden="true" />Create Quiz</button>}
+    {creating && allowCreate && <QuizEditor lessonId={lessonId} unitId={unitId} onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setRevision(r => r + 1); }} />}
     {data && !data.quizzes.length && <p className="quiz-muted">No quizzes available yet.</p>}
     {data?.quizzes.map(quiz => <div className="quiz-card quiz-list-card" key={quiz.id}>
       <div className="quiz-row quiz-between"><h3>{quiz.title}</h3><span className="quiz-tag">{quiz.submitted ? '✓ Submitted' : quiz.status}</span></div>

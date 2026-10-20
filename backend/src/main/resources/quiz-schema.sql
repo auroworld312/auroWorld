@@ -57,3 +57,11 @@ CREATE INDEX IF NOT EXISTS unit_resources_unit_index ON unit_resources(unit_id);
 ALTER TABLE unit_resources ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE course_quizzes ADD COLUMN IF NOT EXISTS max_attempts INTEGER NOT NULL DEFAULT 1 CHECK (max_attempts BETWEEN 1 AND 20);
+
+ALTER TABLE course_quizzes ADD COLUMN IF NOT EXISTS lesson_id INTEGER REFERENCES unit_lessons(lesson_id) ON DELETE CASCADE;
+INSERT INTO unit_lessons(unit_id,course_id,lesson_title,lesson_description,sort_order)
+SELECT u.unit_id,u.course_id,'Lesson 1','',0 FROM course_units u
+WHERE EXISTS (SELECT 1 FROM course_quizzes q WHERE q.unit_id=u.unit_id AND q.lesson_id IS NULL)
+AND NOT EXISTS (SELECT 1 FROM unit_lessons l WHERE l.unit_id=u.unit_id);
+UPDATE course_quizzes q SET lesson_id=(SELECT l.lesson_id FROM unit_lessons l WHERE l.unit_id=q.unit_id ORDER BY l.sort_order,l.lesson_id LIMIT 1) WHERE q.lesson_id IS NULL;
+CREATE INDEX IF NOT EXISTS quiz_lesson_index ON course_quizzes(lesson_id);

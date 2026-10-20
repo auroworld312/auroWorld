@@ -381,7 +381,7 @@ function Courses() {
                                     { label: 'Course Title', key: 'title', type: 'text' },
                                     // { label: 'Instructor', key: 'instructor', type: 'text' },
                                     { label: 'Start Date', key: 'start_date', type: 'date' },
-                                    { label: 'Link to Meeting', key: 'live_url', type: 'text' },
+                                    { label: 'Zoom Link', key: 'live_url', type: 'text' },
                                 ].map(f => (
                                     <div key={f.key} style={{ marginBottom: '12px' }}>
                                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>{f.label}{f.key === 'live_url' ? ' (optional)' : <span className="courses-required" aria-hidden="true"> *</span>}</label>

@@ -78,7 +78,7 @@ export default function QuizPage() {
     <Sidebar />
     <div className="quiz-page-main"><Header />
       <main className="quiz-page-content quiz-panel"><div className="quiz-page-inner">
-        <button style={{ marginBottom: 16 }} onClick={() => quiz ? navigate(`/courses/${quiz.course_id}`, { state: { activeTab: 'materials', unitId: quiz.unit_id, unitTab: 'quizzes' } }) : navigate('/courses')}>← Back to Materials</button>
+        <button style={{ marginBottom: 16 }} onClick={() => quiz ? navigate(`/courses/${quiz.course_id}`, { state: { activeTab: 'materials', unitId: quiz.unit_id, unitTab: 'quizzes', lessonId: quiz.lesson_id } }) : navigate('/courses')}>← Back to Materials</button>
         {error && <p className="quiz-error" role="alert">{error} <button onClick={load}>Retry</button></p>}
         {notice && <p className="quiz-success" role="status">{notice}</p>}
         {!quiz && !error && <p>Loading quiz…</p>}
@@ -90,7 +90,7 @@ export default function QuizPage() {
               {quiz.late_until ? `Late submissions accepted until ${displayDate(quiz.late_until)}` : 'Late submissions are not allowed.'}<br />Time zone: {localZone}</p>
             {quiz.can_manage && <button onClick={() => setEditing(!editing)}>{editing ? 'Close Editor' : 'Edit Quiz'}</button>}
           </section>
-          {editing && quiz.can_manage && <QuizEditor key={revision} quiz={quiz} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); setNotice('Quiz saved. Calendar deadlines will use the updated dates.'); load(); }} onDeleted={() => navigate(`/courses/${quiz.course_id}`, { state: { activeTab: 'materials', unitId: quiz.unit_id, unitTab: 'quizzes' } })} />}
+          {editing && quiz.can_manage && <QuizEditor key={revision} quiz={quiz} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); setNotice('Quiz saved. Calendar deadlines will use the updated dates.'); load(); }} onDeleted={() => navigate(`/courses/${quiz.course_id}`, { state: { activeTab: 'materials', unitId: quiz.unit_id, unitTab: 'quizzes', lessonId: quiz.lesson_id } })} />}
           {quiz.mode === 'online' ? <>
             {quiz.can_manage ? <section className="quiz-card">
               <h2>Online Questions ({quiz.questions.length})</h2>

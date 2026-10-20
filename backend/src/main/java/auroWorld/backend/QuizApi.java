@@ -56,7 +56,12 @@ public final class QuizApi {
             var unit = unit(conn, id(ctx, "unitId"));
             boolean manager = manage(user, unit);
             require(manager || enrolled(conn, user, unit), 403, "Enroll in this course to view quizzes.");
-            var quizzes = rows(conn, "SELECT q.* FROM course_quizzes q WHERE unit_id=? AND (published OR ?) ORDER BY id", unit.get("unit_id"), manager);
+            require(ctx.queryParam("lessonId") == null || ctx.queryParam("lessonId").matches("[1-9][0-9]{0,8}"), 400, "Invalid lesson ID.");
+            Long lessonId = ctx.queryParam("lessonId") == null ? null : Long.valueOf(ctx.queryParam("lessonId"));
+            if (lessonId != null) require(!rows(conn, "SELECT lesson_id FROM unit_lessons WHERE lesson_id=? AND unit_id=?", lessonId, unit.get("unit_id")).isEmpty(), 404, "Lesson not found in this unit.");
+            var quizzes = lessonId == null
+                ? rows(conn, "SELECT q.* FROM course_quizzes q WHERE unit_id=? AND (published OR ?) ORDER BY id", unit.get("unit_id"), manager)
+                : rows(conn, "SELECT q.* FROM course_quizzes q WHERE unit_id=? AND lesson_id=? AND (published OR ?) ORDER BY id", unit.get("unit_id"), lessonId, manager);
             for (var quiz : quizzes) {
                 quiz.remove("instructions");
                 quiz.remove("questions_json");
@@ -99,6 +104,7 @@ public final class QuizApi {
             quiz.put("mode_locked", !rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? LIMIT 1", quiz.get("id")).isEmpty());
             quiz.put("questions_locked", !rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND submitted_at IS NOT NULL LIMIT 1", quiz.get("id")).isEmpty());
             quiz.put("can_manage", manager);
+            if (manager) quiz.put("lessons", rows(conn, "SELECT lesson_id,lesson_title FROM unit_lessons WHERE unit_id=? ORDER BY sort_order,lesson_id", quiz.get("unit_id")));
             int used = attemptsUsed(conn, quiz.get("id"), user.id);
             quiz.put("attempts_used", used);
             quiz.put("attempts_remaining", Math.max(0, ((Number) quiz.get("max_attempts")).intValue() - used));
@@ -193,6 +199,9 @@ public final class QuizApi {
         var body = JSON.fromJson(ctx.formParam("metadata"), QuizForm.class);
         require(body != null && body.title != null && !body.title.isBlank() && body.title.length() <= 200, 400, "Enter a title (up to 200 characters).");
         require(body.instructions == null || body.instructions.length() <= 20000, 400, "Instructions are too long.");
+        Long lessonId = body.lesson_id != null ? body.lesson_id : !create && target.get("lesson_id") != null ? ((Number) target.get("lesson_id")).longValue() : null;
+        require(lessonId != null, 400, "Choose a lesson for this quiz.");
+        require(!rows(conn, "SELECT lesson_id FROM unit_lessons WHERE lesson_id=? AND unit_id=? FOR KEY SHARE", lessonId, target.get("unit_id")).isEmpty(), 400, "Choose a lesson in this unit.");
         int maxAttempts = body.max_attempts == null ? create ? 1 : ((Number) target.get("max_attempts")).intValue() : body.max_attempts;
         require(maxAttempts >= 1 && maxAttempts <= 20, 400, "Choose between 1 and 20 attempts.");
         String mode = body.mode == null ? create ? "file" : (String) target.get("mode") : body.mode;
@@ -218,7 +227,7 @@ public final class QuizApi {
                 body.title.trim(), body.instructions == null ? "" : body.instructions, body.published, release, due, late, quizId);
         }
         update(conn, "UPDATE course_quizzes SET mode=?,questions_json=?,question_version=question_version+? WHERE id=?", mode, questionsJson, changed ? 1 : 0, quizId);
-        update(conn, "UPDATE course_quizzes SET max_attempts=? WHERE id=?", maxAttempts, quizId);
+        update(conn, "UPDATE course_quizzes SET max_attempts=?,lesson_id=? WHERE id=?", maxAttempts, lessonId, quizId);
         if ("file".equals(mode)) {
             replaceFiles(ctx, conn, quizId, null, body.keep_file_ids);
             require(!body.published || !files(conn, quizId, null).isEmpty(), 400, "Upload at least one question file before publishing.");
@@ -434,6 +443,7 @@ public final class QuizApi {
     private static class QuizForm {
         String title, instructions, release_at, due_at, late_until, mode;
         Integer max_attempts;
+        Long lesson_id;
         List<OnlineQuiz.Question> questions;
         boolean published;
         List<Long> keep_file_ids;

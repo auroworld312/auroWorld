@@ -104,3 +104,7 @@ button.primary.material-add-button:focus-visible { outline: 2px solid #7a4b8c; o
 .quiz-form label { color: #4a2b6b; }
 .quiz-form input[type="file"]::file-selector-button { border: 1px solid #d8cbe4; border-radius: 8px; background: #eee5f3; color: #4a2b6b; padding: 8px 12px; margin-right: 12px; font: inherit; cursor: pointer; }
 @media (max-width: 700px) { .quiz-page-content { padding: 16px; } .quiz-card, .quiz-overview { padding: 18px; } .quiz-tag { white-space: normal; } }
+
+.lesson-content-tabs { flex-wrap: wrap; border-top: 0; margin: 0; padding: 18px 24px; }
+.lesson-content-tabs button[aria-pressed="true"] { background: #4a2b6b; color: #fff; border-color: #4a2b6b; }
+.lesson-content-tabs button:disabled { opacity: .55; cursor: not-allowed; }

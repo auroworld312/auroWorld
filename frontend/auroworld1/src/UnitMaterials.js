@@ -1,14 +1,11 @@
 import { useState } from 'react';
-import { UnitQuizzes } from './QuizComponents';
-import UnitResources from './UnitResources';
 import './CourseMaterials.css';
 import UnitForm from './UnitForm';
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
 
-export default function UnitMaterials({ unit, children, initialOpen = false, initialTab = 'videos', canManage = false, onTitleChange, onDelete }) {
+export default function UnitMaterials({ unit, children, initialOpen = false, canManage = false, onTitleChange, onDelete }) {
   const [open, setOpen] = useState(initialOpen);
-  const [tab, setTab] = useState(initialTab);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(unit.title);
   const [error, setError] = useState('');
@@ -65,12 +62,7 @@ export default function UnitMaterials({ unit, children, initialOpen = false, ini
     </div>
     {editing && canManage && <UnitForm heading="Edit Unit" initialTitle={title} saving={saving} error={error} onSave={saveTitle} onCancel={cancelEdit} />}
     {open && <div className="materials-unit-body" id={`unit-content-${unit.unitId}`}>
-      <div className="quiz-tabs" role="tablist" aria-label={`${title} materials`} style={{ padding: 0, borderTop: 'none', marginBottom: 14 }}>
-        {['videos', 'quizzes', 'resources'].map(value => <button key={value} id={`unit-${unit.unitId}-${value}-tab`} role="tab" aria-selected={tab === value} aria-controls={`unit-${unit.unitId}-${value}`} onClick={() => setTab(value)}>{value === 'videos' ? `Videos (${videoCount})` : value === 'quizzes' ? 'Quizzes' : 'Resources'}</button>)}
-      </div>
-      <div role="tabpanel" id={`unit-${unit.unitId}-videos`} aria-labelledby={`unit-${unit.unitId}-videos-tab`} hidden={tab !== 'videos'}>{tab === 'videos' && children}</div>
-      <div role="tabpanel" id={`unit-${unit.unitId}-quizzes`} aria-labelledby={`unit-${unit.unitId}-quizzes-tab`} hidden={tab !== 'quizzes'}>{tab === 'quizzes' && <UnitQuizzes unitId={unit.unitId} />}</div>
-      <div role="tabpanel" id={`unit-${unit.unitId}-resources`} aria-labelledby={`unit-${unit.unitId}-resources-tab`} hidden={tab !== 'resources'}>{tab === 'resources' && <UnitResources unitId={unit.unitId} />}</div>
+      {children}
     </div>}
   </section>;
 }

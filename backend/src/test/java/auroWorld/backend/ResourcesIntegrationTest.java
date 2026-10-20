@@ -25,6 +25,7 @@ public class ResourcesIntegrationTest extends TestCase {
                     sql.execute("SET search_path TO " + schema);
                     sql.execute("CREATE TABLE courses(course_id SERIAL PRIMARY KEY,title TEXT,description TEXT,instructor TEXT,times TEXT,start_date TEXT,level TEXT,price TEXT,live_url TEXT,days_of_week TEXT,thumbnail TEXT)");
                     sql.execute("CREATE TABLE course_units(unit_id SERIAL PRIMARY KEY,course_id INTEGER REFERENCES courses(course_id) ON DELETE CASCADE,title TEXT,sort_order INTEGER)");
+                    sql.execute("CREATE TABLE unit_lessons(lesson_id SERIAL PRIMARY KEY,unit_id INTEGER REFERENCES course_units(unit_id) ON DELETE CASCADE,course_id INTEGER,lesson_title TEXT,lesson_description TEXT,sort_order INTEGER)");
                     sql.execute("CREATE TABLE enrollments(course_id INTEGER,unique_id TEXT)");
                 }
                 var db = Database.getDatabase(uri + "&currentSchema=" + schema + "&prepareThreshold=0");
