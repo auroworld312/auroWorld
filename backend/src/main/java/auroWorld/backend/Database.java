@@ -373,6 +373,41 @@ public class Database{
         }
         return false;
     }
+    // public ProfilePublicData(String userId, String firstName, String lastName,
+    //                             String email, String note) {
+    //     this.userId = userId;
+    //     this.firstName = firstName;
+    //     this.lastName = lastName;
+    //     this.email = email;
+    //     this.note = note;
+    // }
+    public ProfilePublicData getProfileAtts(String uuid){
+        String sql = "SELECT firstname, lastname, email, username FROM profile_attributes WHERE uudi = ? ";
+
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+                ps.setString(1,uuid);
+
+                try (ResultSet rs = ps.executeQuery()){
+                    if (rs.next()) {
+                        ProfilePublicData prof = new ProfilePublicData(
+                            rs.getString("username"),
+                            rs.getString("firstname"),
+                            rs.getString("lastname"),
+                            rs.getString("email"),
+                            null
+                        );
+                        return prof;
+                    }
+                    else{
+                        return null;
+                    }
+                }
+        }catch(SQLException e){
+            e.printStackTrace();
+            return null;
+        }
+    }
     public int insertNewProfile(String username, String email, String uuid){
         String sql =
                 "INSERT INTO profile_attributes (uuid, email, birthday, firstname, lastname, note, username, role)" +

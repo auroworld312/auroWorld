@@ -4,19 +4,20 @@ import { useState } from "react";
 import { GoogleLogin} from "@react-oauth/google";
 //import { googleLogout } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
-import { createClient } from '@supabase/supabase-js'
+// import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
 import Card from './components/Card';
 import { useUser } from './UserContext.js';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import ReactGA from "react-ga4";
 import './spinner/spin.css'
+import {supabase} from './utils/supabaseClient.js'
 
 // import 'csb312-auroworld\backend\src\main\java\auroworld\backend\Appmain.js'
 
 //const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
-const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
+// const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
 function Login(){
     const navigate = useNavigate();
@@ -99,17 +100,20 @@ function Login(){
             return null
         }
         else if(data){
-            //console.log(data)
+            console.log(data)
+            const uuidString = data.user.id
+            console.log('uuidString = ',uuidString)
             await refreshUser();
             ReactGA.event({
                 category:'userpass login',
                 action:'logged in w/ userpass'
             })
             setLoading(false)
-            navigate("/posts")
+            navigate("/posts",{state: {currentUserId: uuidString}})
         }
     }
     async function googleLoginButton(credentialResponse) {
+        let uuidString = null
         try{
             const creds=credentialResponse.credential
             const { data, error } = await supabase.auth.signInWithIdToken({
@@ -167,7 +171,7 @@ function Login(){
                     firstname:googleAccountInfo?.given_name ?? ""
                 }
 
-                console.log("accountInfo: ",accountInfo)
+                // console.log("accountInfo: ",accountInfo)
 
                 const response = await fetch(`${API}/auth/newuser`, {
                     method: "POST",
@@ -180,21 +184,24 @@ function Login(){
 
                 if(data.mStatus!=="ok"){
                     alert("Signup failed: "+data.mMessage);
-                    console.log(data.mData)
+                    // console.log(data.mData)
                     return;
                 }
+
+                uuidString = user.id
             }
 
         } catch(error){
             console.error(error.message)
         }
+        
         await refreshUser();
         ReactGA.event({
             category:'google sign in',
             action:'signed in with google'
         })
         setLoading(false)
-        navigate("/posts");
+        navigate("/posts",{uuidString});
     }
 
     return(

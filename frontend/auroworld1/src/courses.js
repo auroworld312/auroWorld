@@ -1,11 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { createClient } from '@supabase/supabase-js';
+// import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ReactGA from "react-ga4";
+import {supabase} from './utils/supabaseClient.js'
 
-const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
+// const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
 //const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
@@ -23,7 +24,7 @@ const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
 //const PURPLE_LIGHT = '#EDE9FF';
 
 
-function Courses() {
+function Courses(uuidString) {
     const navigate = useNavigate();
     const [loadingChanges, setLoadingChanges] = useState(false)
     const [currentUserId, setCurrentUserId] = useState(null);
