@@ -26,7 +26,7 @@ public class QuizIntegrationTest extends TestCase {
                     sql.execute("CREATE SCHEMA " + schema);
                     sql.execute("SET search_path TO " + schema);
                     sql.execute("CREATE TABLE courses(course_id INTEGER PRIMARY KEY,title TEXT,instructor TEXT)");
-                    sql.execute("ALTER TABLE courses ADD COLUMN times TEXT, ADD COLUMN thumbnail TEXT, ADD COLUMN live_url TEXT, ADD COLUMN days_of_week TEXT");
+                    sql.execute("ALTER TABLE courses ADD COLUMN start_date TEXT, ADD COLUMN times TEXT, ADD COLUMN thumbnail TEXT, ADD COLUMN live_url TEXT, ADD COLUMN days_of_week TEXT");
                     sql.execute("CREATE TABLE course_units(unit_id INTEGER PRIMARY KEY,course_id INTEGER REFERENCES courses(course_id),title TEXT)");
                     sql.execute("CREATE TABLE users(unique_id TEXT,username TEXT,role TEXT)");
                     sql.execute("CREATE TABLE unit_lessons(lesson_id SERIAL PRIMARY KEY,unit_id INTEGER REFERENCES course_units(unit_id) ON DELETE CASCADE,course_id INTEGER,lesson_title TEXT,lesson_description TEXT,sort_order INTEGER)");

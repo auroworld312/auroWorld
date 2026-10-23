@@ -9,7 +9,7 @@ import { paymentLink } from "./CourseEnrollment";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { getCourseTimeValues, isCourseTime } from "./courseSchedule";
 
-const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
+const supabase = createClient(process.env.REACT_APP_SUPABASE_URL || 'https://rduempiojxizkwwbzaml.supabase.co', process.env.REACT_APP_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
 //const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
@@ -27,6 +27,14 @@ const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
 //const PURPLE_LIGHT = '#EDE9FF';
 
 
+export function courseTimeGroup(times) {
+    if (/asynchronous|self[- ]paced/i.test(times || '')) return 'Asynchronous';
+    const [start] = getCourseTimeValues(times);
+    if (!start) return '';
+    const hour = Number(start.slice(0, 2));
+    return hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening';
+}
+
 function Courses() {
     const navigate = useNavigate();
     const [loadingChanges, setLoadingChanges] = useState(false)
@@ -34,6 +42,8 @@ function Courses() {
     const [tab, setTab] = useState('all');
     const [allCourses, setAllCourses] = useState([]);
     const [enrolledIds, setEnrolledIds] = useState(new Set());
+    const [enrollmentLoading, setEnrollmentLoading] = useState(false);
+    const [enrollmentError, setEnrollmentError] = useState('');
     const [search, setSearch] = useState('');
     const [filters, setFilters] = useState({ level: [], time: [] });
     const [showAddCourse, setShowAddCourse] = useState(false);
@@ -166,11 +176,15 @@ function Courses() {
 
     const loadEnrolled = useCallback(async (uuid) => {
         if (!uuid) return;
+        setEnrollmentLoading(true);
+        setEnrollmentError('');
         try {
             const res = await fetch(`${API}/courses/enrolled/${uuid}`);
             const data = await res.json();
-            setEnrolledIds(new Set((data.mData || []).map(c => c.courseId)));
-        } catch (e) { console.error('loadEnrolled:', e); }
+            if (res.ok === false || data.mStatus !== 'ok' || !Array.isArray(data.mData)) throw new Error('Unable to load enrolled courses. Please try again.');
+            setEnrolledIds(new Set(data.mData.map(c => String(c.courseId))));
+        } catch (e) { setEnrollmentError(e.message); }
+        finally { setEnrollmentLoading(false); }
     }, []);
 
     const coursesGrabbed = useRef(false)
@@ -183,16 +197,12 @@ function Courses() {
         }
     }, [loadCourses]);
 
-    const enrolledGrabbed = useRef(false)
-    useEffect(() => { 
-        if(enrolledGrabbed.current===false){
-            if (currentUserId){ 
-                loadEnrolled(currentUserId);
-            } 
-        }
-        return ()=>{
-            enrolledGrabbed.current=true
-        }
+    useEffect(() => {
+        if (!currentUserId) return;
+        const refresh = () => loadEnrolled(currentUserId);
+        refresh();
+        window.addEventListener('focus', refresh);
+        return () => window.removeEventListener('focus', refresh);
     }, [currentUserId, loadEnrolled]);
 
     function openCourseForm(course = null) {
@@ -345,10 +355,11 @@ function Courses() {
     const visibleCourses = !userAttributes ? [] : userAttributes.role === 'instructor'
         ? allCourses.filter(course => !!userAttributes.username && course.instructor === userAttributes.username)
         : allCourses;
-    const enrolledCourses = visibleCourses.filter(c => enrolledIds.has(c.courseId));
+    const enrolledCourses = visibleCourses.filter(c => enrolledIds.has(String(c.courseId)));
     const displayList = (tab === 'enrolled' ? enrolledCourses : visibleCourses)
         .filter(c => c.title?.toLowerCase().includes(search.toLowerCase()) || c.instructor?.toLowerCase().includes(search.toLowerCase()))
         .filter(c => filters.level.length === 0 || filters.level.includes(c.level))
+        .filter(c => filters.time.length === 0 || filters.time.includes(courseTimeGroup(c.times)))
 
     return (
         <div className={`courses-page${isTeacher ? ' courses-teacher' : ''}`} style={{ opacity:loadingChanges? 0.5 : 1 }}>
@@ -493,9 +504,9 @@ function Courses() {
 
                         {/* Course list */}
                         <div className="courses-list">
-                            {displayList.length === 0 ? (userAttributes?.role === 'instructor' || userAttributes?.role === 'admin' ? null : (
+                            {tab === 'enrolled' && enrollmentError ? <div className="courses-empty" role="alert">{enrollmentError} <button onClick={() => loadEnrolled(currentUserId)}>Retry</button></div> : tab === 'enrolled' && enrollmentLoading ? <div className="courses-empty">Loading enrolled courses...</div> : displayList.length === 0 ? (userAttributes?.role === 'instructor' || userAttributes?.role === 'admin' ? null : (
                                 <div className="courses-empty">
-                                    {tab === 'enrolled' ? 'You\'re not enrolled in any courses yet.' : 'No courses found.'}
+                                    {search.trim() || filters.level.length || filters.time.length ? 'No courses match your filters.' : tab === 'enrolled' ? 'You\'re not enrolled in any courses yet.' : 'No courses found.'}
                                 </div>
                             )) : displayList.map(course => (
                                 <article key={course.courseId} className="courses-card" onClick={event => {
@@ -558,7 +569,7 @@ function Courses() {
                         {/* Tab switcher */}
                         {!isTeacher && <div className="courses-tab-switcher" role="group" aria-label="Course list">
                             {['all', 'enrolled'].map(t => (
-                                <button key={t} onClick={() => setTab(t)} aria-pressed={tab === t}>
+                                <button key={t} onClick={() => { setTab(t); if (t === 'enrolled') loadEnrolled(currentUserId); }} aria-pressed={tab === t}>
                                     {t === 'enrolled' ? 'Enrolled Courses' : 'All Courses'}
                                 </button>
                             ))}
@@ -582,13 +593,14 @@ function Courses() {
                                 ))}
                             </div>
                             <img className="courses-filter-divider" src="/assets/courses/divider.svg" alt="" />
-                            <div className="courses-filter-group" aria-label="Class Time filters (coming soon)">
+                            <div className="courses-filter-group" aria-label="Class Time filters">
                                 <h3>Class Time <img src="/assets/courses/expand.svg" alt="" /></h3>
                                 {timeOptions.map(opt => (
-                                    <div key={opt} className="courses-filter-option" aria-disabled="true" title="Class time filtering is not available yet">
+                                    <label key={opt} className="courses-filter-option">
+                                        <input type="checkbox" checked={filters.time.includes(opt)} onChange={() => toggleFilter('time', opt)} />
                                         <img src="/assets/courses/checkbox.svg" alt="" />
                                         <span>{opt}</span>
-                                    </div>
+                                    </label>
                                 ))}
                             </div>
                         </div>

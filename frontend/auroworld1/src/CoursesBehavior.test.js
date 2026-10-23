@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import Courses from './courses';
+import Courses, { courseTimeGroup } from './courses';
 
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate }), { virtual: true });
@@ -17,6 +17,46 @@ beforeEach(() => {
     global.fetch = jest.fn(async url => ({ json: async () => ({ mStatus: 'ok', mData: url.endsWith('/courses') ? [course] : url.includes('/userdata/') ? { role: 'user' } : [] }) }));
 });
 afterEach(() => { global.fetch = originalFetch; localStorage.clear(); });
+
+test('enrolled courses load after the user ID arrives and combine with filters', async () => {
+    const other = { ...course, courseId: 8, title: 'Spanish', level: 'Advanced', times: '6:00 PM - 7:00 PM' };
+    global.fetch = jest.fn(async url => ({ json: async () => ({ mStatus: 'ok', mData:
+        url.endsWith('/courses') ? [course, other] : url.includes('/userdata/') ? { role: 'user' } : url.includes('/courses/enrolled/') ? [{ courseId: '7' }] : []
+    }) }));
+    render(<Courses />);
+    await screen.findByRole('heading', { name: 'Spanish' });
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/courses/enrolled/bookmark-user')));
+    fireEvent.click(screen.getByRole('button', { name: 'Enrolled Courses' }));
+    await waitFor(() => expect(screen.queryByText('Loading enrolled courses...')).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: 'French' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Spanish' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Evening' }));
+    expect(screen.getByText('No courses match your filters.')).toBeVisible();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Evening' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Morning' }));
+    expect(screen.getByRole('heading', { name: 'French' })).toBeVisible();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Advanced' }));
+    expect(screen.getByText('No courses match your filters.')).toBeVisible();
+});
+
+test('enrollment request errors show retry rather than a false empty list', async () => {
+    const normal = global.fetch;
+    global.fetch = jest.fn(url => url.includes('/courses/enrolled/') ? Promise.reject(new Error('Network unavailable')) : normal(url));
+    render(<Courses />);
+    await screen.findByRole('heading', { name: 'French' });
+    fireEvent.click(screen.getByRole('button', { name: 'Enrolled Courses' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Network unavailable');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible();
+    expect(screen.queryByText("You're not enrolled in any courses yet.")).not.toBeInTheDocument();
+});
+
+test('class time groups use start times and explicit asynchronous schedules', () => {
+    expect(courseTimeGroup('11:30 AM - 12:30 PM')).toBe('Morning');
+    expect(courseTimeGroup('12:00 PM - 1:00 PM')).toBe('Afternoon');
+    expect(courseTimeGroup('5:00 PM - 6:00 PM')).toBe('Evening');
+    expect(courseTimeGroup('Asynchronous')).toBe('Asynchronous');
+    expect(courseTimeGroup('')).toBe('');
+});
 
 test('bookmarks persist across remounts and can be removed without enrolling', async () => {
     const first = render(<Courses />);

@@ -1,0 +1,22 @@
+.next-class { background: #f7f5fb; border: 1px solid #ded5eb; border-radius: 22px; padding: 28px 24px; color: #181525; }
+.next-class-icon { width: 48px; height: 48px; display: grid; place-items: center; background: #e3c7e6; color: #4a2b6b; border-radius: 15px; margin-bottom: 24px; }
+.next-class-icon svg { width: 25px; height: 25px; }
+.next-class h2 { margin: 10px 0; font-size: 27px; line-height: 1.25; }
+.next-class-caption, .next-class-note, .next-class-empty { color: #756984; line-height: 1.65; }
+.next-class-caption { font-size: 14px; margin-bottom: 24px; }
+.next-class-session { background: #fff; border: 1px solid #e4dced; border-radius: 16px; padding: 20px; margin-bottom: 22px; }
+.next-class-status { display: inline-block; background: #eeebf5; color: #684578; font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 20px; }
+.next-class-status.is-live { background: #fbe5e9; color: #a02943; }
+.next-class h3 { font-size: 20px; margin: 16px 0 8px; overflow-wrap: anywhere; }
+.next-class-session p { color: #756984; font-size: 14px; margin: 0 0 22px; }
+.next-class-date { border-top: 1px solid #e4dced; padding-top: 18px; margin-bottom: 8px; font-size: 14px; }
+.next-class-session strong { font-size: 15px; }
+.next-class-join { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 15px 12px; border: 0; border-radius: 12px; background: #4a2b6b; color: #fff; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+.next-class-join:hover { background: #684578; }
+.next-class-join:focus-visible { outline: 3px solid #b497ca; outline-offset: 3px; }
+.next-class-join:disabled { background: #e4dced; color: #756984; cursor: not-allowed; }
+.next-class-note { font-size: 12px; margin: 12px 0 0; }
+html[data-theme="dark"] .next-class { background: #2e2340; border-color: #675278; color: #f7f5fb; }
+html[data-theme="dark"] .next-class-session { background: #3c2c50; border-color: #675278; }
+html[data-theme="dark"] .next-class :is(.next-class-caption,.next-class-note,.next-class-empty,.next-class-session p) { color: #c6b9d4; }
+html[data-theme="dark"] .next-class-join { background: #7a4b8c; color: #fff; }

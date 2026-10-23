@@ -9,6 +9,7 @@ jest.mock('./components/Header', () => () => null);
 jest.mock('react-ga4', () => ({ event: jest.fn() }));
 jest.mock('./QuizComponents', () => ({ UnitQuizzes: () => null }));
 jest.mock('./UnitResources', () => () => null);
+jest.mock('./NextClass', () => () => <div>Your next class</div>);
 
 const originalFetch = global.fetch;
 afterEach(() => { global.fetch = originalFetch; });
@@ -26,6 +27,8 @@ test('unenrolled students stay on Course, then enrollment unlocks Materials', as
   fireEvent.click(screen.getByRole('button', { name: 'Enroll Now' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Materials', pressed: true })).toBeInTheDocument());
   expect(screen.getByRole('textbox', { name: 'Search units' })).toBeInTheDocument();
+  expect(screen.getByText('Your next class')).toBeVisible();
+  expect(screen.queryByRole('region', { name: 'Course enrollment' })).not.toBeInTheDocument();
 });
 
 test('course owner can access Materials without enrollment', async () => {
@@ -33,4 +36,6 @@ test('course owner can access Materials without enrollment', async () => {
   render(<CourseDetail />);
   expect(await screen.findByRole('button', { name: 'Materials', pressed: true })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Add Unit' })).toBeInTheDocument();
+  expect(screen.queryByText('Your next class')).not.toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Course enrollment' })).toBeVisible();
 });

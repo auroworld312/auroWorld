@@ -1,3 +1,4 @@
+import NextClass from './NextClass';
 import { UnitQuizzes } from './QuizComponents';
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
@@ -14,7 +15,7 @@ import VideoTab, { RoomChatPreview } from './LiveClassPreview';
 import { getCourseTimeValues } from './courseSchedule';
 import { uploadToB2, getB2Url, deleteFromB2, isB2, toKey, B2_PREFIX, isVideoFile, safeSegment } from './b2Storage';
 
-const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
+const supabase = createClient(process.env.REACT_APP_SUPABASE_URL || 'https://rduempiojxizkwwbzaml.supabase.co', process.env.REACT_APP_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
 async function authToken() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -1663,7 +1664,7 @@ function CourseDetail() {
                     {/* Right sidebar */}
                     <div className="course-detail-sidebar" style={{ width: '240px', minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                        {activeTab === 'video' ? <RoomChatPreview course={course} /> : <>
+                        {activeTab === 'video' ? <RoomChatPreview course={course} /> : activeTab === 'materials' && ['user', 'student'].includes(userAttributes?.role) ? <NextClass /> : <>
                         {/* Thumbnail */}
                         <CourseEnrollment course={course} enrolled={isEnrolled} enrolling={enrolling} onEnroll={handleEnroll} isOwner={userAttributes?.role === 'instructor' && userAttributes?.username === course.instructor} />
                                 {/* Course highlights */}

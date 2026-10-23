@@ -85,7 +85,7 @@ public final class QuizApi {
             return Map.of("deleted", true);
         }));
         app.get("/quiz-api/calendar-courses", ctx -> handle(ctx, (conn, user) -> rows(conn,
-            "SELECT " + ("instructor".equals(user.role) ? "true" : "false") + " AS \"calendarOwner\", c.course_id AS \"courseId\", c.title, c.instructor, c.times, c.thumbnail, c.live_url AS \"liveUrl\", c.days_of_week AS \"daysOfWeek\" FROM courses c WHERE " +
+            "SELECT " + ("instructor".equals(user.role) ? "true" : "false") + " AS \"calendarOwner\", c.course_id AS \"courseId\", c.title, c.instructor, c.times, c.start_date AS \"startDate\", c.thumbnail, c.live_url AS \"liveUrl\", c.days_of_week AS \"daysOfWeek\" FROM courses c WHERE " +
             calendarCourseScope(user) + " ORDER BY c.course_id", "instructor".equals(user.role) ? user.username : user.id)));
         app.get("/quiz-api/calendar", ctx -> handle(ctx, (conn, user) -> rows(conn,
             "SELECT q.id, q.title, q.due_at, q.late_until, q.release_at, c.course_id, c.title AS course_title, u.title AS unit_title, " +
