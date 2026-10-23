@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState, useCallback, useRef } from "react";
 // import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
@@ -39,31 +39,58 @@ function Courses() {
     const[instructorList, setInstructorList]=useState([])
     const [userAttributes, setUserAttributes] = useState(null);
 
+    const {state} = useLocation()
+    const {passedUserId} = state || {}
+
     const DAY_LABELS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     function toggleDay(idx) {
         setSelectedDays(prev => prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx]);
     }  
 
-    const userAttsGrabbed = useRef(false)
+    const uuidGrabbed = useRef(false)
     useEffect(() => {
-        if(userAttsGrabbed.current===false){
-            async function getUserAtts() {
-                try {
+        if(uuidGrabbed.current===false){
+            if(passedUserId === null || passedUserId === undefined){
+                async function fetchUser() {
                     const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) return;
-                    const res = await fetch(`${API}/userdata/${user.id}`);
-                    const data = await res.json();
-                    setUserAttributes(data.mData);
-                } catch (error) {
-                    console.log(error.message);
+                    if (!user){
+                        setCurrentUserId('noId')
+                    }
+                    else{
+                        setCurrentUserId(user.id);
+                    }
                 }
+                fetchUser();
             }
-            getUserAtts();
+            else{
+                setCurrentUserId(passedUserId)
+            }
         }
         return ()=>{
-            userAttsGrabbed.current=true
+            uuidGrabbed.current=true
         }
-    }, []);
+    }, [passedUserId, currentUserId]);
+
+    const userAttsGrabbed = useRef(false)
+    useEffect(() => {
+        if(currentUserId!==null){
+            if(userAttsGrabbed.current===false && currentUserId!=='noId'){
+                async function getUserAtts() {
+                    try {
+                        const res = await fetch(`${API}/userdata/${currentUserId}`);
+                        const data = await res.json();
+                        setUserAttributes(data.mData);
+                    } catch (error) {
+                        console.log(error.message);
+                    }
+                }
+                getUserAtts();
+            }
+            return ()=>{
+                userAttsGrabbed.current=true
+            }
+        }
+    }, [currentUserId]);
     
     const instructorsGrabbed = useRef(false)
     useEffect(()=>{
@@ -89,21 +116,6 @@ function Courses() {
         title: '', description: '', instructor: 'liamtest', startTime: '', endTime: '',
         start_date: '', level: 'Beginner', price: 'Free', live_url: '', unitCount: 1
     });
-
-    const uuidGrabbed = useRef(false)
-    useEffect(() => {
-        if(uuidGrabbed.current===false){
-            async function fetchUser() {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
-                setCurrentUserId(user.id);
-            }
-            fetchUser();
-        }
-        return ()=>{
-            uuidGrabbed.current=true
-        }
-    }, []);
 
     const loadCourses = useCallback(async () => {
         try {
@@ -135,7 +147,7 @@ function Courses() {
 
     const enrolledGrabbed = useRef(false)
     useEffect(() => { 
-        if(enrolledGrabbed.current===false){
+        if(enrolledGrabbed.current===false && currentUserId!=='noId'){
             if (currentUserId){ 
                 loadEnrolled(currentUserId);
             } 

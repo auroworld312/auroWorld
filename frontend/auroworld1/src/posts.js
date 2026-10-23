@@ -1,4 +1,4 @@
-import { useNavigate} from "react-router-dom";
+import { useNavigate, useLocation} from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 // import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
@@ -109,8 +109,10 @@ function Posts(){
     const navigate=useNavigate();
     const { displayName, email, avatarUrl } = useUser();
 
-    // const {state } = useLocation()
-    // const {passedUserId} = state
+    // console.log('problem1')
+    const {state} = useLocation()
+    // console.log('problem2')
+    const {passedUserId} = state || {}
 
     const [changeLoading, setChangeLoading] = useState(false)
 
@@ -146,7 +148,7 @@ function Posts(){
         }
     }
 
-    function mainpageButton(){ navigate("/posts",{currentUserId}) }
+    function mainpageButton(){ navigate("/posts",{state:{passedUserId: currentUserId}}) }
     function coursesButton(){ navigate("/courses",{currentUserId}) }
     function adminButton(){ navigate("/admin") }
 
@@ -546,33 +548,36 @@ function Posts(){
     const [currentUserId, setCurrentUserId] = useState(null)
     const currentUserIdGrabbed = useRef(false)
     useEffect(()=>{
-        // console.log('currentUserId = ',currentUserId)
+        // console.log('passedUserId = ',passedUserId)
         if(currentUserIdGrabbed.current===false){
-            console.log('currentUserId being retrieved')
-            async function getCurrentUserId(){
-                const { data: { user } ,error} = await supabase.auth.getUser()
-                if(error){ return }
-                else if(user){ 
-                    setCurrentUserId(user.id) 
-                    // currentUserId=user.id
+            if(passedUserId === null || passedUserId === undefined){
+                console.log('currentUserId being retrieved. passedUserId = ',passedUserId)
+                async function getCurrentUserId(){
+                    const { data: { user } ,error} = await supabase.auth.getUser()
+                    if(error){ 
+                        setCurrentUserId('noId')
+                    }
+                    else if(user){ 
+                        setCurrentUserId(user.id) 
+                    }
                 }
+                getCurrentUserId()
+                console.log('currentUserId = ',currentUserId)
             }
-            getCurrentUserId()
-            // console.log('currentUserId = ',currentUserId)
+            else{
+                setCurrentUserId(passedUserId)
+            }
         }
         return ()=>{
             currentUserIdGrabbed.current  = true
         }
-    // },[currentUserId])
-    },[])
+    },[passedUserId, currentUserId])
 
     const [posts, setPosts] = useState([])
     const postsGrabbed = useRef(false)
     useEffect(() => {
         if(postsGrabbed.current===false){
             async function gatherMyPosts(){
-                //const userId = await getCurrentUserId()
-                //console.log("userId is: "+userId)
                 fetch(`${API}/messages`)
                 .then(res => res.json())
                 .then(data => { setPosts(data.mData); })
@@ -614,123 +619,53 @@ function Posts(){
     const [likedPosts,setLikedPosts]=useState([])
     const likedPostsGrabbed = useRef(false)
     useEffect(()=>{
-        if(likedPostsGrabbed.current===false){
-            async function getLikedPosts(){
-                const { data: { user } ,error} = await supabase.auth.getUser()
-                if(error){ return }
-                else if(user){ 
-                    fetch(`${API}/likedmessages/${user.id}`)
-                        .then(res=>res.json())
-                        .then(data=>{ setLikedPosts(data.mData) })
-                        .catch(err=>console.error("fetch error for liked posts: ",err))
+        if(currentUserId!==null){
+            console.log('likedPosts: ',currentUserId)
+            if(likedPostsGrabbed.current===false && currentUserId!=='noId'){
+                async function getLikedPosts(){
+                    fetch(`${API}/likedmessages/${currentUserId}`)
+                            .then(res=>res.json())
+                            .then(data=>{ setLikedPosts(data.mData) })
+                            .catch(err=>console.error("fetch error for liked posts: ",err))
                 }
-
+                getLikedPosts()
             }
-            getLikedPosts()
+            return ()=>{
+                likedPostsGrabbed.current=true
+            }
         }
-        return ()=>{
-            likedPostsGrabbed.current=true
-        }
-    },[])
-        // if(currentUserId!==null && currentUserId!==undefined){
-        //     console.log('currentUserId = ',currentUserId)
-        //     if(likedPostsGrabbed.current===false){
-        //         async function getLikedPosts(){
-        //             fetch(`${API}/likedmessages/${currentUserId}`)
-        //                 .then(res=>res.json())
-        //                 .then(data=>{ setLikedPosts(data.mData) })
-        //                 .catch(err=>console.error("fetch error for liked posts: ",err))
-
-        //         }
-        //         getLikedPosts()
-        //     }
-        //     return ()=>{
-        //         likedPostsGrabbed.current=true
-        //     }
-        // }
-        // else if(retrievedUserId!==null){
-        //     console.log('retrievedUserId = ',retrievedUserId)
-        //     if(likedPostsGrabbed.current===false){
-        //         async function getLikedPosts(){
-        //             fetch(`${API}/likedmessages/${retrievedUserId}`)
-        //                 .then(res=>res.json())
-        //                 .then(data=>{ setLikedPosts(data.mData) })
-        //                 .catch(err=>console.error("fetch error for liked posts: ",err))
-        //         }
-        //         getLikedPosts()
-        //     }
-        //     return ()=>{
-        //         likedPostsGrabbed.current=true
-        //     }
-        // }
-    // },[currentUserId])
+    },[currentUserId])
 
     const [likedComments,setLikedComments]=useState([])
     const likedCommentsGrabbed = useRef(false)
     useEffect(()=>{
-        if(likedCommentsGrabbed.current===false){
-            async function getLikedComments(){
-                const { data: { user } ,error} = await supabase.auth.getUser()
-                if(error){ return }
-                else if(user){ 
-                    fetch(`${API}/likedcomments/${user.id}`)
+        if(currentUserId!==null){
+            console.log('likedComments: ',currentUserId)
+            if(likedCommentsGrabbed.current===false && currentUserId!=='noId'){
+                async function getLikedComments(){
+                    fetch(`${API}/likedcomments/${currentUserId}`)
                         .then(res=>res.json())
                         .then(data=>{ setLikedComments(data.mData) })
                         .catch(err=>console.error("fetch error for liked comments: ",err))
                 }
+                getLikedComments()
             }
-            getLikedComments()
+            return ()=>{
+                likedCommentsGrabbed.current=true
+            }
         }
-
-        return ()=>{
-            likedCommentsGrabbed.current=true
-        }
-    },[])
-        // if(currentUserId!==null && currentUserId!==undefined){
-        //     console.log('currentUserId = ',currentUserId)
-        //     if(likedCommentsGrabbed.current===false){
-        //         async function getLikedComments(){
-        //             fetch(`${API}/likedcomments/${currentUserId}`)
-        //                 .then(res=>res.json())
-        //                 .then(data=>{ setLikedComments(data.mData) })
-        //                 .catch(err=>console.error("fetch error for liked comments: ",err))
-        //         }
-        //         getLikedComments()
-        //     }
-
-        //     return ()=>{
-        //         likedCommentsGrabbed.current=true
-        //     }
-        // }
-        // else if(retrievedUserId!==null){
-        //     console.log('retrievedUserId = ',retrievedUserId)
-        //     if(likedCommentsGrabbed.current===false){
-        //         async function getLikedComments(){
-        //             fetch(`${API}/likedcomments/${retrievedUserId}`)
-        //                 .then(res=>res.json())
-        //                 .then(data=>{ setLikedComments(data.mData) })
-        //                 .catch(err=>console.error("fetch error for liked comments: ",err))
-        //         }
-        //         getLikedComments()
-        //     }
-
-        //     return ()=>{
-        //         likedCommentsGrabbed.current=true
-        //     }
-        // }
-    // },[currentUserId])
+    },[currentUserId])
 
     const [userAttributes,setUserAttributes]=useState(null)
     const [currentUserName, setCurrentUserName] = useState("Loading...");
     const userAttsGrabbed = useRef(false)
     useEffect(()=>{
-        if(userAttsGrabbed.current===false){
-            async function getUserAtts(){
-                try{
-                    const { data: { user } ,error} = await supabase.auth.getUser()
-                    if(error){ return }
-                    else if(user){
-                        const res= await fetch(`${API}/userdata/${user.id}`)
+        if(currentUserId!==null){
+            console.log('userAtts: ',currentUserId)
+            if(userAttsGrabbed.current===false && currentUserId!=='noId'){
+                async function getUserAtts(){
+                    try{
+                        const res= await fetch(`${API}/userdata/${currentUserId}`)
                         const data = await res.json()
                         console.log("getUserAtts mData: "+data.mData.role)
                         setUserAttributes(data.mData)
@@ -740,126 +675,41 @@ function Posts(){
                         else{
                             setCurrentUserName(`${data.mData.firstname} ${data.mData.lastname}`)
                         } 
+                    }catch(error){
+                        console.log('problem grabbing useratts = ',error.message)
                     }
-                }catch(error){
-                    console.log(error.message)
+                    return
                 }
-                return
+                getUserAtts()
             }
-            getUserAtts()
+            return ()=>{
+                userAttsGrabbed.current=true
+            }
         }
-        return ()=>{
-            userAttsGrabbed.current=true
-        }
-    },[])
-        // if(currentUserId!==null && currentUserId!==undefined){
-        //     console.log('currentUserId = ',currentUserId)
-        //     if(userAttsGrabbed.current===false){
-        //         async function getUserAtts(){
-        //             try{
-        //                 const res= await fetch(`${API}/userdata/${currentUserId}`)
-        //                 const data = await res.json()
-        //                 console.log("getUserAtts mData: "+data.mData.role)
-        //                 setUserAttributes(data.mData)
-        //                 if(data.mData.firstname===null || data.mData.lastname===null){
-        //                     setCurrentUserName(data.mData.email?.split('@')[0] || "User")
-        //                 }
-        //                 else{
-        //                     setCurrentUserName(`${data.mData.firstname} ${data.mData.lastname}`)
-        //                 } 
-        //             }catch(error){
-        //                 console.log(error.message)
-        //             }
-        //             return
-        //         }
-        //         getUserAtts()
-        //     }
-        //     return ()=>{
-        //         userAttsGrabbed.current=true
-        //     }
-        // }
-        // else if(retrievedUserId!==null){
-        //     console.log('retrievedUserId = ',retrievedUserId)
-        //     if(userAttsGrabbed.current===false){
-        //         async function getUserAtts(){
-        //             try{
-        //             const res= await fetch(`${API}/userdata/${retrievedUserId}`)
-        //             const data = await res.json()
-        //             console.log("getUserAtts mData: "+data.mData.role)
-        //             setUserAttributes(data.mData)
-        //             if(data.mData.firstname===null || data.mData.lastname===null){
-        //                 setCurrentUserName(data.mData.email?.split('@')[0] || "User")
-        //             }
-        //             else{
-        //                 setCurrentUserName(`${data.mData.firstname} ${data.mData.lastname}`)
-        //             } 
-        //             }catch(error){
-        //                 console.log(error.message)
-        //             }
-        //             return
-        //         }
-        //         getUserAtts()
-        //     }
-        //     return ()=>{
-        //         userAttsGrabbed.current=true
-        //     }
-        // }
-    // },[currentUserId])
+    },[currentUserId])
 
     const [enrolledCourses, setEnrolledCourses] = useState([]);
     const enrolledGrabbed = useRef(false)
     useEffect(() => {
-        if(enrolledGrabbed.current===false){
-            async function loadEnrolled() {
-                try {
-                    const { data: { user } ,error} = await supabase.auth.getUser()
-                    if(error){ return }
-                    else if(user){
-                        const res = await fetch(`${API}/courses/enrolled/${user.id}`);
+        if(currentUserId!==null){
+            console.log('enrolled: ',currentUserId)
+            if(enrolledGrabbed.current===false && currentUserId!=='noId'){
+                async function loadEnrolled() {
+                    try{
+                        const res = await fetch(`${API}/courses/enrolled/${currentUserId}`);
                         const data = await res.json();
                         setEnrolledCourses(data.mData || []);
+                    }catch(error){
+                        console.log('problem getting enroleld = ',error.message)
                     }
-                } catch(e) { console.error(e); }
+                }
+                loadEnrolled();
             }
-            loadEnrolled();
+            return ()=>{
+                enrolledGrabbed.current=true
+            }
         }
-        return ()=>{
-            enrolledGrabbed.current=true
-        }
-    },[])
-        // if(currentUserId!==null && currentUserId!==undefined){
-        //     console.log('currentUserId = ',currentUserId)
-            // if(enrolledGrabbed.current===false){
-            //     async function loadEnrolled() {
-            //         try {
-            //             const res = await fetch(`${API}/courses/enrolled/${currentUserId}`);
-            //             const data = await res.json();
-            //             setEnrolledCourses(data.mData || []);
-            //         } catch(e) { console.error(e); }
-            //     }
-            //     loadEnrolled();
-            // }
-            // return ()=>{
-            //     enrolledGrabbed.current=true
-            // }
-        // }
-        // else if(retrievedUserId!==null){
-        //     console.log('retrievedUserId = ',retrievedUserId)
-        //     if(enrolledGrabbed.current===false){
-        //         async function loadEnrolled() {
-        //             try {
-        //                 const res = await fetch(`${API}/courses/enrolled/${retrievedUserId}`);
-        //                 const data = await res.json();
-        //                 setEnrolledCourses(data.mData || []);
-        //             } catch(e) { console.error(e); }
-        //         }
-        //         loadEnrolled();
-        //     }
-        //     return ()=>{
-        //         enrolledGrabbed.current=true
-        //     }
-        // }
-    // }, [currentUserId]);
+    },[currentUserId])
 
     const [fileUpload,setFileUpload]=useState()
     const [previewUrl, setPreviewUrl] = useState();

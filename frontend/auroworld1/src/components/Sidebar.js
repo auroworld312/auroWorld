@@ -1,12 +1,12 @@
 import React, { useState} from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function Sidebar() {
     const navigate = useNavigate();
     const [isCollapsed, setIsCollapsed] = useState(false);
 
-    // const {state } = useLocation()
-    // const {currentUserId} = state
+    const {state } = useLocation()
+    const {passedUserId} = state || {}
 
     const sidebarWidth = isCollapsed ? '80px' : '240px';
 
@@ -72,8 +72,8 @@ function Sidebar() {
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <NavItem isCollapsed={isCollapsed} icon="🏠" label="Homepage" onClick={() => navigate('/posts')} />
-                    <NavItem isCollapsed={isCollapsed} icon="📚" label="Courses" onClick={() => navigate('/courses')} />
+                    <NavItem isCollapsed={isCollapsed} icon="🏠" label="Homepage" onClick={() => navigate('/posts',{state: {passedUserId: passedUserId}})} />
+                    <NavItem isCollapsed={isCollapsed} icon="📚" label="Courses" onClick={() => navigate('/courses',{state: {passedUserId: passedUserId}})} />
                     <NavItem isCollapsed={isCollapsed} icon="📅" label="Calendar" onClick={() => navigate('/calendar')} />
                 </div>
             </div>

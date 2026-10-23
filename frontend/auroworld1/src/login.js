@@ -109,12 +109,12 @@ function Login(){
                 action:'logged in w/ userpass'
             })
             setLoading(false)
-            // navigate("/posts",{state: {currentUserId: uuidString}})
-            navigate("/posts")
+            // navigate("/posts")
+            navigate("/posts",{state:{passedUserId:uuidString}})
         }
     }
     async function googleLoginButton(credentialResponse) {
-        // let uuidString = null
+        let uuidString = null
         try{
             const creds=credentialResponse.credential
             const { data, error } = await supabase.auth.signInWithIdToken({
@@ -189,7 +189,7 @@ function Login(){
                     return;
                 }
 
-                // uuidString = user.id
+                uuidString = user.id
             }
 
         } catch(error){
@@ -202,8 +202,8 @@ function Login(){
             action:'signed in with google'
         })
         setLoading(false)
-        // navigate("/posts",{state: {currentUserId: uuidString}});
-        navigate("/posts")
+        navigate("/posts",{state: {passedUserId: uuidString}});
+        // navigate("/posts")
     }
 
     return(
