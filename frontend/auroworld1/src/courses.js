@@ -24,7 +24,7 @@ const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
 //const PURPLE_LIGHT = '#EDE9FF';
 
 
-function Courses(uuidString) {
+function Courses() {
     const navigate = useNavigate();
     const [loadingChanges, setLoadingChanges] = useState(false)
     const [currentUserId, setCurrentUserId] = useState(null);

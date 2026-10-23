@@ -78,19 +78,23 @@ public class Database{
     }
 
     public static final class ProfilePublicData {
-        public final String userId;
-        public final String firstName;
-        public final String lastName;
+        public final String username;
+        public final String firstname;
+        public final String lastname;
         public final String email;
         public final String note;
+        public final String birthday;
+        public final String role;
 
-        public ProfilePublicData(String userId, String firstName, String lastName,
-                                 String email, String note) {
-            this.userId = userId;
-            this.firstName = firstName;
-            this.lastName = lastName;
+        public ProfilePublicData(String username, String firstname, String lastname,
+                                 String email, String note, String birthday, String role) {
+            this.username = username;
+            this.firstname = firstname;
+            this.lastname = lastname;
             this.email = email;
             this.note = note;
+            this.birthday = birthday;
+            this.role = role;
         }
     }
 
@@ -373,16 +377,9 @@ public class Database{
         }
         return false;
     }
-    // public ProfilePublicData(String userId, String firstName, String lastName,
-    //                             String email, String note) {
-    //     this.userId = userId;
-    //     this.firstName = firstName;
-    //     this.lastName = lastName;
-    //     this.email = email;
-    //     this.note = note;
-    // }
+
     public ProfilePublicData getProfileAtts(String uuid){
-        String sql = "SELECT firstname, lastname, email, username FROM profile_attributes WHERE uudi = ? ";
+        String sql = "SELECT firstname, lastname, email, username, birthday, note, role FROM profile_attributes WHERE uudi = ? ";
 
         try(Connection conn = getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)){
@@ -395,7 +392,9 @@ public class Database{
                             rs.getString("firstname"),
                             rs.getString("lastname"),
                             rs.getString("email"),
-                            null
+                            rs.getString("note"),
+                            rs.getString("birthday"),
+                            rs.getString("role")
                         );
                         return prof;
                     }
@@ -447,34 +446,6 @@ public class Database{
             return -1;
         }
     }
-// String sql=
-//             "SELECT m.msg_id, m.subject, m.message, " +
-//             "m.upvote AS message_upvote, m.downvote, m.unique_id AS your_uuid, " +
-//             "c.comment_id, c.comment, c.upvote AS comment_upvote, c.unique_id AS comment_unique_id, " +
-//             "f.filepath AS file_path, u.username AS your_username, cu.username AS comment_username " +
-//             "FROM messages m " +
-//             "LEFT JOIN comments c ON m.msg_id = c.msg_id " +
-//             "LEFT JOIN files f ON m.msg_id = f.msg_id " +
-//             "LEFT JOIN users u ON m.unique_id = u.unique_id " +
-//             "LEFT JOIN users cu ON c.unique_id = cu.unique_id " +
-//             "ORDER BY m.msg_id DESC";
-// public String grabUsernameFromUuid(String uuid){
-//         String sql =
-//             "SELECT username FROM users WHERE unique_id = ?";
-//         try (Connection conn = getConnection();
-//             PreparedStatement ps = conn.prepareStatement(sql)) {
-//             ps.setString(1, uuid);
-//             try (ResultSet rs = ps.executeQuery()) {
-//                 if (rs.next()) {
-//                     return rs.getString("username");
-//                 }
-//             }
-//         } catch (SQLException e) {
-//             e.printStackTrace();
-//             return null;
-//         }
-//         return null;
-//     }
     public String getMessageFilepath(int msgId){
         String sqlFilepath = "SELECT filepath FROM files WHERE msg_id = ? ";
         try(Connection conn = getConnection();
@@ -1223,7 +1194,9 @@ public class Database{
                     rs.getString("firstname"),
                     rs.getString("lastname"),
                     rs.getString("email"),
-                    rs.getString("note")
+                    rs.getString("note"),
+                    null,
+                    null
                 );
             }
 

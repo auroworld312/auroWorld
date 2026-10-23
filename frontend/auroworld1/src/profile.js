@@ -11,6 +11,7 @@ import {supabase} from './utils/supabaseClient.js'
 //   'https://rduempiojxizkwwbzaml.supabase.co',
 //   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo'
 // );
+const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com'
 
 function Profile() {
   const navigate = useNavigate();
@@ -51,44 +52,41 @@ function Profile() {
       const currentEmail = user.email || '';
       setEmail(currentEmail);
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('firstname, lastname, username')
-        .eq('email', currentEmail);
+      try{
+        const res = await fetch(`${API}/profile_attributes/${user.id}`)
+        const profileData = await res.json()
 
-      console.log('userData:', userData);
+        console.log('profileData:', profileData);
 
-      if (userData && userData.length > 0) {
-        const fn = userData[0].firstname || '';
-        const ln = userData[0].lastname || '';
-        const un = userData[0].username || '';
-        setFirstName(fn);
-        setLastName(ln);
-        setUsername(un);
-        setEditFirstName(fn);
-        setEditLastName(ln);
-        setEditUsername(un);
-      }
+        if (profileData.mStatus!=="ok") {
+          const fn = profileData.mData.firstname || '';
+          const ln = profileData.mData.lastname || '';
+          const un = profileData.mData.username || '';
+          setFirstName(fn);
+          setLastName(ln);
+          setUsername(un);
+          setEditFirstName(fn);
+          setEditLastName(ln);
+          setEditUsername(un);
 
-      const { data: profileData } = await supabase
-        .from('profile_attributes')
-        .select('birthday, note')
-        .eq('email', currentEmail);
-
-      console.log('profileData:', profileData);
-
-      if (profileData && profileData.length > 0) {
-        if (profileData[0].birthday) {
-          const bd = profileData[0].birthday;
-          setBirthdate(bd);
-          setEditBirthdate(bd);
+          if(profileData.mData.birthday!==null){
+            const bd = profileData.mData.birthday;
+            setBirthdate(bd);
+            setEditBirthdate(bd);
+          }
+          if(profileData.mData){
+            setAvatarUrl(profileData.mData.note);
+          }
         }
-        if (profileData[0].note) {
-          setAvatarUrl(profileData[0].note);
-        }
-      }
 
-      setLoading(false);
+        setLoading(false);
+      }catch(error){
+        console.log('couldnt get profile attributes ',error.message)
+      }
+      // const { data: userData } = await supabase
+      //   .from('users')
+      //   .select('firstname, lastname, username')
+      //   .eq('email', currentEmail);
     }
     loadProfile();
   }, [navigate, setAvatarUrl]);

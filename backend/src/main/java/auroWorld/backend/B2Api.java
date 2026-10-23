@@ -115,6 +115,7 @@ public final class B2Api {
         // ---- playback: staff, or a user enrolled in the course ----
         app.get("/b2/download-url", ctx -> handle(ctx, user -> {
             String key = ctx.queryParam("key");
+            // System.out.println("key = "+key);
             checkKey(key);
             if (!user.staff() && !isEnrolled(user.id(), courseIdOf(key))) throw new Fault(403, "Enroll in this course to view its files.");
             var get = GetObjectRequest.builder().bucket(BUCKET).key(key).build();
@@ -163,8 +164,10 @@ public final class B2Api {
 
     private Caller authenticate(Context ctx) throws Exception {
         String authorization = ctx.header("Authorization");
-        if (authorization == null || !authorization.startsWith("Bearer ") || authorization.length() > 16000)
+        // System.out.println("authorization = "+authorization);
+        if (authorization == null || !authorization.startsWith("Bearer ") || authorization.length() > 16000){
             throw new Fault(401, "Please log in again.");
+        }
         var request = HttpRequest.newBuilder(URI.create(QuizApi.AUTH_URL + "/auth/v1/user"))
             .timeout(Duration.ofSeconds(15)).header("apikey", QuizApi.AUTH_KEY)
             .header("Authorization", authorization).GET().build();

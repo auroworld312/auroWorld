@@ -13,6 +13,7 @@ import {supabase} from './utils/supabaseClient.js'
 
 async function authToken() {
     const { data: { session } } = await supabase.auth.getSession();
+    console.log('session = ',session)
     return session?.access_token;
 }
 

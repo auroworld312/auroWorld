@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate} from "react-router-dom";
 import { useState } from "react";
 import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
@@ -96,13 +96,14 @@ function Signup(){
                         }
                     }
                 );
-
+                let uuidString = null
                 const { data: { user } ,err} = await supabase.auth.getUser()
                 if(err){
                     console.log("problem grabbing uuid" +err.message)
                     return
                 }
                 else if(user){
+                    uuidString = user.id
                     // console.log("current user's unique id: "+user.id)
                     const profVals={
                         email:document.getElementById("email").value,
@@ -122,7 +123,7 @@ function Signup(){
                     console.log("inserting profile good: "+insertProfileRes.mData)
                 }
 
-                navigate('/posts');
+                navigate('/posts',{state: {currentUserId: uuidString}});
             }
 
         } catch(error){

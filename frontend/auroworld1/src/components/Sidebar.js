@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState} from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Sidebar() {
     const navigate = useNavigate();
     const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // const {state } = useLocation()
+    // const {currentUserId} = state
 
     const sidebarWidth = isCollapsed ? '80px' : '240px';
 
