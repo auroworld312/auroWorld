@@ -6,6 +6,7 @@ import { quizRequest } from './quizApi';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import { useQuizDeadlines, QuizDeadlineBlocks, QuizDeadlineList } from './QuizCalendar';
+import {supabase} from './utils/supabaseClient.js'
 
 //const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld.onrender.com';
 const COURSE_COLORS = ['#4A2B6B'];

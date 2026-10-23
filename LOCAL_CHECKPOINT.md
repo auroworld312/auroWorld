@@ -1,6 +1,6 @@
 # Local checkpoint — 2026-10-20
 
-Work is paused at the user's request until Supabase service is restored. Do not push without an explicit new request.
+Historical checkpoint. On 2026-10-23 the user authorized pushing the saved work. New Supabase configuration and teammate updates have been integrated. Local credentials remain excluded from Git.
 
 ## Saved work
 

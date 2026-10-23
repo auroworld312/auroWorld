@@ -1,6 +1,6 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate} from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
-import { createClient } from '@supabase/supabase-js'
+// import { createClient } from '@supabase/supabase-js'
 import Button from './components/Button';
 import Card from './components/Card';
 import Sidebar from './components/Sidebar';
@@ -8,8 +8,8 @@ import Header from './components/Header';
 import { useUser } from './UserContext';
 import ReactGA from "react-ga4";
 import './spinner/spin.css'
+import {supabase} from './utils/supabaseClient.js'
 
-const supabase = createClient(process.env.REACT_APP_SUPABASE_URL || 'https://rduempiojxizkwwbzaml.supabase.co', process.env.REACT_APP_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
 //const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld.onrender.com';
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com'
@@ -108,6 +108,9 @@ function Posts(){
     const navigate=useNavigate();
     const { displayName, email, avatarUrl } = useUser();
 
+    // const {state } = useLocation()
+    // const {passedUserId} = state
+
     const [changeLoading, setChangeLoading] = useState(false)
 
     function getInitials() {
@@ -125,11 +128,6 @@ function Posts(){
         return colors[Math.abs(hash) % colors.length];
     }
 
-    async function getCurrentUserId(){
-        const { data: { user } ,error} = await supabase.auth.getUser()
-        if(error){ return }
-        else if(user){ return user.id }
-    }
 
     // Resolves the current user's username without depending on the
     // userAttributes state having finished loading yet. Falls back to a
@@ -147,33 +145,8 @@ function Posts(){
         }
     }
 
-    const [userAttributes,setUserAttributes]=useState(null)
-    const userAttsGrabbed = useRef(false)
-    useEffect(()=>{
-        if(userAttsGrabbed.current===false){
-            async function getUserAtts(){
-                try{
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) { return; }
-                    const uuidString = user.id
-                    const res= await fetch(`${API}/userdata/${uuidString}`)
-                    const data = await res.json()
-                    //console.log("getUserAtts mData: "+data.mData.role)
-                    setUserAttributes(data.mData)
-                }catch(error){
-                    console.log(error.message)
-                }
-                return
-            }
-            getUserAtts()
-        }
-        return ()=>{
-            userAttsGrabbed.current=true
-        }
-    },[])
-
-    function mainpageButton(){ navigate("/posts") }
-    function coursesButton(){ navigate("/courses") }
+    function mainpageButton(){ navigate("/posts",{currentUserId}) }
+    function coursesButton(){ navigate("/courses",{currentUserId}) }
     function adminButton(){ navigate("/admin") }
 
     async function signoutButton(){
@@ -193,8 +166,8 @@ function Posts(){
             return
         }
         console.log('fileUpload name: '+fileUpload?.name+' fileUpload.type: '+fileUpload?.type)
-        if(fileUpload && (!fileUpload.type || (fileUpload.type && (fileUpload.type!=='image/jpeg' 
-        && fileUpload.type!=='image/png' && fileUpload.type!=='image/svg+xml' 
+        if(fileUpload && (!fileUpload.type || (fileUpload.type && (fileUpload.type!=='image/jpeg'
+        && fileUpload.type!=='image/png' && fileUpload.type!=='image/svg+xml'
         && fileUpload.type!=='image/webp')))){
             alert('Files must have webp, jpg, png or svg extension')
             return
@@ -206,7 +179,7 @@ function Posts(){
         //console.log("prevUrl: "+prevUrl)
         try{
             setChangeLoading(true)
-            const current_uuid = await getCurrentUserId()
+            const current_uuid = currentUserId
             if(!current_uuid){
                 alert("You must be logged in to post.")
                 return
@@ -246,20 +219,20 @@ function Posts(){
 
     async function addFileToTable(msg_id){
         try{
-            const current_uuid = await getCurrentUserId()
+            const current_uuid = currentUserId
             const fileBody={ filename:fileUpload.name, msgId:msg_id, user_uuid:current_uuid }
             const response=await fetch(`${API}/files`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(fileBody) });
             const fileData = await response.json()
             if (fileData.mStatus!=="ok"){ alert("File Post failed: "+fileData.mMessage); return }
             const {data,error} = await supabase.storage.from('community_feed_file_upload').upload('posts/'+msg_id+'/'+fileUpload.name, fileUpload)
-            if(data){ 
+            if(data){
                 console.log(data)
                 console.log("data.path: "+data.path)
-                photoDom(msg_id,data.path) 
-                //console.log(data) 
-            } 
-            else { 
-                console.log(error.message) 
+                photoDom(msg_id,data.path)
+                //console.log(data)
+            }
+            else {
+                console.log(error.message)
             }
         }catch (error){ console.error(error.message) }
     }
@@ -400,7 +373,8 @@ function Posts(){
 
     async function sendCommentButton(msg_id){
         try{
-            const current_uuid = await getCurrentUserId()
+            const current_uuid = currentUserId
+            // const current_uuid = retrie
             if(!current_uuid){
                 alert("You must be logged in to comment.")
                 return
@@ -420,21 +394,21 @@ function Posts(){
     async function upvoteButton(msg_id){
         try{
             setChangeLoading(true)
-            const current_uuid = await getCurrentUserId()
+            const current_uuid = currentUserId
             const res = await fetch(`${API}/vote_messages/${msg_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ user_uuid:current_uuid }) })
             const data=await res.json()
             if(data.mStatus!=="ok"){ setChangeLoading(false); return }
-            if(data.mData===0){ 
-                messageUpvoteDom(msg_id,-1) 
+            if(data.mData===0){
+                messageUpvoteDom(msg_id,-1)
 
                 ReactGA.event({
                     category:'message upvotes',
                     action:'message unliked',
                     label:msg_id,
                 })
-            } 
-            else { 
-                messageUpvoteDom(msg_id,1)  
+            }
+            else {
+                messageUpvoteDom(msg_id,1)
 
                 ReactGA.event({
                     category:'message upvotes',
@@ -460,21 +434,21 @@ function Posts(){
     async function upvoteCommentButton(comment_id, msg_id){
         try{
             setChangeLoading(true)
-            const current_uuid = await getCurrentUserId()
+            const current_uuid = currentUserId
             const res=await fetch(`${API}/vote_comments/comment/${comment_id}/msg/${msg_id}`,{ method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ user_uuid:current_uuid }) })
             const data = await res.json()
             if(data.mStatus!=="ok"){ setChangeLoading(false); alert("Upvoting comment failed. Try again later"); return }
-            if(data.mData===0){ 
-                commentUpvoteDom(msg_id,comment_id,-1) 
+            if(data.mData===0){
+                commentUpvoteDom(msg_id,comment_id,-1)
 
                 ReactGA.event({
                     category:'comment upvotes',
                     action:'comment unliked',
                     label:comment_id,
                 })
-            } 
-            else { 
-                commentUpvoteDom(msg_id,comment_id,1) 
+            }
+            else {
+                commentUpvoteDom(msg_id,comment_id,1)
 
                 ReactGA.event({
                     category:'comment upvotes',
@@ -568,6 +542,29 @@ function Posts(){
         setPosts(posts.filter(p=> p.msgId!==msg_id))
     }
 
+    const [currentUserId, setCurrentUserId] = useState(null)
+    const currentUserIdGrabbed = useRef(false)
+    useEffect(()=>{
+        // console.log('currentUserId = ',currentUserId)
+        if(currentUserIdGrabbed.current===false){
+            console.log('currentUserId being retrieved')
+            async function getCurrentUserId(){
+                const { data: { user } ,error} = await supabase.auth.getUser()
+                if(error){ return }
+                else if(user){
+                    setCurrentUserId(user.id)
+                    // currentUserId=user.id
+                }
+            }
+            getCurrentUserId()
+            // console.log('currentUserId = ',currentUserId)
+        }
+        return ()=>{
+            currentUserIdGrabbed.current  = true
+        }
+    // },[currentUserId])
+    },[])
+
     const [posts, setPosts] = useState([])
     const postsGrabbed = useRef(false)
     useEffect(() => {
@@ -582,49 +579,10 @@ function Posts(){
             }
             gatherMyPosts()
         }
-        return ()=>{
+        return()=>{
             postsGrabbed.current=true
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     },[]);
-
-    const [likedPosts,setLikedPosts]=useState([])
-    const likedPostsGrabbed = useRef(false)
-    useEffect(()=>{
-        if(likedPostsGrabbed.current===false){
-            async function getLikedPosts(){
-                const userId = await getCurrentUserId()
-                fetch(`${API}/likedmessages/${userId}`)
-                .then(res=>res.json())
-                .then(data=>{ setLikedPosts(data.mData) })
-                .catch(err=>console.error("fetch error for liked posts: ",err))
-            }
-            getLikedPosts()
-        }
-        return ()=>{
-            likedPostsGrabbed.current=true
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    },[])
-
-    const [likedComments,setLikedComments]=useState([])
-    const likedCommentsGrabbed = useRef(false)
-    useEffect(()=>{
-        if(likedCommentsGrabbed.current===false){
-            async function getLikedComments(){
-                const userId = await getCurrentUserId()
-                fetch(`${API}/likedcomments/${userId}`)
-                .then(res=>res.json())
-                .then(data=>{ setLikedComments(data.mData) })
-                .catch(err=>console.error("fetch error for liked comments: ",err))
-            }
-            getLikedComments()
-        }
-        return ()=>{
-            likedCommentsGrabbed.current=true
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    },[])
 
     const [imageUrls, setImageUrls] = useState({});
     const imageUrlsGrabbed = useRef(false)
@@ -633,15 +591,15 @@ function Posts(){
             async function loadImages(){
                 if(!posts) return
                 const newUrls=[]
-                for (const post of posts) {
+                posts.forEach((post)=>{
                     try{
                         const { data } = supabase.storage.from('community_feed_file_upload').getPublicUrl(post.filepath);
                         newUrls[post.msgId] = data.publicUrl;
-                    }catch(error){ 
-                        //console.log(error.message); 
-                        newUrls[post.msgId]=null 
+                    }catch(error){
+                        //console.log(error.message);
+                        newUrls[post.msgId]=null
                     }
-                }
+                })
                 //console.log("newUrls: "+newUrls)
                 setImageUrls(newUrls);
             }
@@ -650,8 +608,257 @@ function Posts(){
         return ()=>{
             imageUrlsGrabbed.current=true
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     },[posts])
+
+    const [likedPosts,setLikedPosts]=useState([])
+    const likedPostsGrabbed = useRef(false)
+    useEffect(()=>{
+        if(likedPostsGrabbed.current===false){
+            async function getLikedPosts(){
+                const { data: { user } ,error} = await supabase.auth.getUser()
+                if(error){ return }
+                else if(user){
+                    fetch(`${API}/likedmessages/${user.id}`)
+                        .then(res=>res.json())
+                        .then(data=>{ setLikedPosts(data.mData) })
+                        .catch(err=>console.error("fetch error for liked posts: ",err))
+                }
+
+            }
+            getLikedPosts()
+        }
+        return ()=>{
+            likedPostsGrabbed.current=true
+        }
+    },[])
+        // if(currentUserId!==null && currentUserId!==undefined){
+        //     console.log('currentUserId = ',currentUserId)
+        //     if(likedPostsGrabbed.current===false){
+        //         async function getLikedPosts(){
+        //             fetch(`${API}/likedmessages/${currentUserId}`)
+        //                 .then(res=>res.json())
+        //                 .then(data=>{ setLikedPosts(data.mData) })
+        //                 .catch(err=>console.error("fetch error for liked posts: ",err))
+
+        //         }
+        //         getLikedPosts()
+        //     }
+        //     return ()=>{
+        //         likedPostsGrabbed.current=true
+        //     }
+        // }
+        // else if(retrievedUserId!==null){
+        //     console.log('retrievedUserId = ',retrievedUserId)
+        //     if(likedPostsGrabbed.current===false){
+        //         async function getLikedPosts(){
+        //             fetch(`${API}/likedmessages/${retrievedUserId}`)
+        //                 .then(res=>res.json())
+        //                 .then(data=>{ setLikedPosts(data.mData) })
+        //                 .catch(err=>console.error("fetch error for liked posts: ",err))
+        //         }
+        //         getLikedPosts()
+        //     }
+        //     return ()=>{
+        //         likedPostsGrabbed.current=true
+        //     }
+        // }
+    // },[currentUserId])
+
+    const [likedComments,setLikedComments]=useState([])
+    const likedCommentsGrabbed = useRef(false)
+    useEffect(()=>{
+        if(likedCommentsGrabbed.current===false){
+            async function getLikedComments(){
+                const { data: { user } ,error} = await supabase.auth.getUser()
+                if(error){ return }
+                else if(user){
+                    fetch(`${API}/likedcomments/${user.id}`)
+                        .then(res=>res.json())
+                        .then(data=>{ setLikedComments(data.mData) })
+                        .catch(err=>console.error("fetch error for liked comments: ",err))
+                }
+            }
+            getLikedComments()
+        }
+
+        return ()=>{
+            likedCommentsGrabbed.current=true
+        }
+    },[])
+        // if(currentUserId!==null && currentUserId!==undefined){
+        //     console.log('currentUserId = ',currentUserId)
+        //     if(likedCommentsGrabbed.current===false){
+        //         async function getLikedComments(){
+        //             fetch(`${API}/likedcomments/${currentUserId}`)
+        //                 .then(res=>res.json())
+        //                 .then(data=>{ setLikedComments(data.mData) })
+        //                 .catch(err=>console.error("fetch error for liked comments: ",err))
+        //         }
+        //         getLikedComments()
+        //     }
+
+        //     return ()=>{
+        //         likedCommentsGrabbed.current=true
+        //     }
+        // }
+        // else if(retrievedUserId!==null){
+        //     console.log('retrievedUserId = ',retrievedUserId)
+        //     if(likedCommentsGrabbed.current===false){
+        //         async function getLikedComments(){
+        //             fetch(`${API}/likedcomments/${retrievedUserId}`)
+        //                 .then(res=>res.json())
+        //                 .then(data=>{ setLikedComments(data.mData) })
+        //                 .catch(err=>console.error("fetch error for liked comments: ",err))
+        //         }
+        //         getLikedComments()
+        //     }
+
+        //     return ()=>{
+        //         likedCommentsGrabbed.current=true
+        //     }
+        // }
+    // },[currentUserId])
+
+    const [userAttributes,setUserAttributes]=useState(null)
+    const [currentUserName, setCurrentUserName] = useState("Loading...");
+    const userAttsGrabbed = useRef(false)
+    useEffect(()=>{
+        if(userAttsGrabbed.current===false){
+            async function getUserAtts(){
+                try{
+                    const { data: { user } ,error} = await supabase.auth.getUser()
+                    if(error){ return }
+                    else if(user){
+                        const res= await fetch(`${API}/userdata/${user.id}`)
+                        const data = await res.json()
+                        console.log("getUserAtts mData: "+data.mData.role)
+                        setUserAttributes(data.mData)
+                        if(data.mData.firstname===null || data.mData.lastname===null){
+                            setCurrentUserName(data.mData.email?.split('@')[0] || "User")
+                        }
+                        else{
+                            setCurrentUserName(`${data.mData.firstname} ${data.mData.lastname}`)
+                        }
+                    }
+                }catch(error){
+                    console.log(error.message)
+                }
+                return
+            }
+            getUserAtts()
+        }
+        return ()=>{
+            userAttsGrabbed.current=true
+        }
+    },[])
+        // if(currentUserId!==null && currentUserId!==undefined){
+        //     console.log('currentUserId = ',currentUserId)
+        //     if(userAttsGrabbed.current===false){
+        //         async function getUserAtts(){
+        //             try{
+        //                 const res= await fetch(`${API}/userdata/${currentUserId}`)
+        //                 const data = await res.json()
+        //                 console.log("getUserAtts mData: "+data.mData.role)
+        //                 setUserAttributes(data.mData)
+        //                 if(data.mData.firstname===null || data.mData.lastname===null){
+        //                     setCurrentUserName(data.mData.email?.split('@')[0] || "User")
+        //                 }
+        //                 else{
+        //                     setCurrentUserName(`${data.mData.firstname} ${data.mData.lastname}`)
+        //                 }
+        //             }catch(error){
+        //                 console.log(error.message)
+        //             }
+        //             return
+        //         }
+        //         getUserAtts()
+        //     }
+        //     return ()=>{
+        //         userAttsGrabbed.current=true
+        //     }
+        // }
+        // else if(retrievedUserId!==null){
+        //     console.log('retrievedUserId = ',retrievedUserId)
+        //     if(userAttsGrabbed.current===false){
+        //         async function getUserAtts(){
+        //             try{
+        //             const res= await fetch(`${API}/userdata/${retrievedUserId}`)
+        //             const data = await res.json()
+        //             console.log("getUserAtts mData: "+data.mData.role)
+        //             setUserAttributes(data.mData)
+        //             if(data.mData.firstname===null || data.mData.lastname===null){
+        //                 setCurrentUserName(data.mData.email?.split('@')[0] || "User")
+        //             }
+        //             else{
+        //                 setCurrentUserName(`${data.mData.firstname} ${data.mData.lastname}`)
+        //             }
+        //             }catch(error){
+        //                 console.log(error.message)
+        //             }
+        //             return
+        //         }
+        //         getUserAtts()
+        //     }
+        //     return ()=>{
+        //         userAttsGrabbed.current=true
+        //     }
+        // }
+    // },[currentUserId])
+
+    const [enrolledCourses, setEnrolledCourses] = useState([]);
+    const enrolledGrabbed = useRef(false)
+    useEffect(() => {
+        if(enrolledGrabbed.current===false){
+            async function loadEnrolled() {
+                try {
+                    const { data: { user } ,error} = await supabase.auth.getUser()
+                    if(error){ return }
+                    else if(user){
+                        const res = await fetch(`${API}/courses/enrolled/${user.id}`);
+                        const data = await res.json();
+                        setEnrolledCourses(data.mData || []);
+                    }
+                } catch(e) { console.error(e); }
+            }
+            loadEnrolled();
+        }
+        return ()=>{
+            enrolledGrabbed.current=true
+        }
+    },[])
+        // if(currentUserId!==null && currentUserId!==undefined){
+        //     console.log('currentUserId = ',currentUserId)
+            // if(enrolledGrabbed.current===false){
+            //     async function loadEnrolled() {
+            //         try {
+            //             const res = await fetch(`${API}/courses/enrolled/${currentUserId}`);
+            //             const data = await res.json();
+            //             setEnrolledCourses(data.mData || []);
+            //         } catch(e) { console.error(e); }
+            //     }
+            //     loadEnrolled();
+            // }
+            // return ()=>{
+            //     enrolledGrabbed.current=true
+            // }
+        // }
+        // else if(retrievedUserId!==null){
+        //     console.log('retrievedUserId = ',retrievedUserId)
+        //     if(enrolledGrabbed.current===false){
+        //         async function loadEnrolled() {
+        //             try {
+        //                 const res = await fetch(`${API}/courses/enrolled/${retrievedUserId}`);
+        //                 const data = await res.json();
+        //                 setEnrolledCourses(data.mData || []);
+        //             } catch(e) { console.error(e); }
+        //         }
+        //         loadEnrolled();
+        //     }
+        //     return ()=>{
+        //         enrolledGrabbed.current=true
+        //     }
+        // }
+    // }, [currentUserId]);
 
     const [fileUpload,setFileUpload]=useState()
     const [previewUrl, setPreviewUrl] = useState();
@@ -663,31 +870,7 @@ function Posts(){
         else { setFileName("No file chosen"); }
     }
 
-    const [currentUserId, setCurrentUserId] = useState(null);
-    const [currentUserName, setCurrentUserName] = useState("Loading...");
-
-    const userInfoGrabbed = useRef(false)
-    useEffect(() => {
-        if(userInfoGrabbed.current===false){
-            async function fetchUserData() {
-                const { data: { user }, error: authError } = await supabase.auth.getUser();
-                if (user) {
-                    setCurrentUserId(user.id);
-                    try {
-                        const { data: profileData, error: profileError } = await supabase
-                            .from('users').select('firstname, lastname, username').eq('email', user.email).single();
-                        if (profileData) { setCurrentUserName(`${profileData.firstname} ${profileData.lastname}`); }
-                        else if(profileError){ setCurrentUserName(user.email?.split('@')[0] || "User"); }
-                    } catch (err) { setCurrentUserName(user.email?.split('@')[0] || "User"); }
-                } else if(authError){ setCurrentUserName("Guest"); }
-            }
-            fetchUserData();
-        }
-        return ()=>{
-            userInfoGrabbed.current=true
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    const [postUsernameQuery,setPostUsernameQuery] = useState("")
 
     const [data, setData] = useState([]);
     const [sortType, setSortType] = useState('sortByNewest');
@@ -702,29 +885,6 @@ function Posts(){
         sortArray(sortType)
     }, [sortType, posts])
 
-    const [postUsernameQuery,setPostUsernameQuery] = useState("")
-
-    const [enrolledCourses, setEnrolledCourses] = useState([]);
-    const enrolledGrabbed = useRef(false)
-    useEffect(() => {
-        if(enrolledGrabbed.current===false){
-            async function loadEnrolled() {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
-                try {
-                    const res = await fetch(`${API}/courses/enrolled/${user.id}`);
-                    const data = await res.json();
-                    setEnrolledCourses(data.mData || []);
-                } catch(e) { console.error(e); }
-            }
-            loadEnrolled();
-        }
-        return ()=>{
-            enrolledGrabbed.current=true
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
     // console.log("userAttributes.role: "+userAttributes?.role)
     // console.log("userAttributes.username: "+userAttributes?.username)
 
@@ -734,7 +894,7 @@ function Posts(){
             <Sidebar onMainpage={mainpageButton} onCourses={coursesButton} onSignout={signoutButton} onAdmin={adminButton} />
 
             <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
-                
+
                 <Header username={currentUserName} />
 
                 <div style={{ flex:1, overflow:'hidden', padding:'20px', display:'flex', gap:'20px' }}>
@@ -792,7 +952,7 @@ function Posts(){
 
                         <div id="messageList" style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
                             {data.filter((post)=>post.username?.toLowerCase().includes(postUsernameQuery))?.map((post) => (
-                            
+
                             <div key={post.msgId} style={{ backgroundColor:'var(--post-card, #fff)', borderRadius:'12px', padding:'20px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
 
                                 {/* Post header */}
@@ -945,4 +1105,4 @@ function Posts(){
         </div>
     );
 }
-export default Posts;
+export default Posts

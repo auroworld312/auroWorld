@@ -316,10 +316,21 @@ public class App
             }
         });
 
+        app.get("/profile_attributes/{uuid}",ctx->{
+            ctx.status(200);
+            ctx.contentType("application/json");
+
+            String UUID = ctx.pathParam("uuid");
+
+            Database.ProfilePublicData profile = db.getProfileAtts(UUID);
+
+            ctx.result(gson.toJson(new StructuredResponse("ok",null,profile)));
+        });
+
         app.post("/profile_attributes", ctx->{
             ctx.status(200);
             ctx.contentType("application/json");
-            System.out.println("ctx bdoy : "+ctx.body());
+            // System.out.println("ctx bdoy : "+ctx.body());
 
             CreateAccountRequest car = gson.fromJson(ctx.body(),CreateAccountRequest.class);
             if(car==null || car.email == null || car.username==null || car.user_uuid==null){
@@ -344,13 +355,13 @@ public class App
         app.get("/username/{uuid}", ctx->{
             ctx.status(200);
             ctx.contentType("application/json");
-            System.out.println("ctx body for finding username from uuid : "+ctx.body());
+            // System.out.println("ctx body for finding username from uuid : "+ctx.body());
 
             String user_uuid=ctx.pathParam("uuid");
-            System.out.println("ABout to check which username is to that uuid");
+            // System.out.println("ABout to check which username is to that uuid");
 
             String username=db.grabUsernameFromUuid(user_uuid);
-            System.out.println(username);
+            // System.out.println(username);
             if(username==null){
                 ctx.result(gson.toJson(new StructuredResponse("cant find corresponding username",null,null)));
             }
@@ -362,16 +373,16 @@ public class App
         app.get("/user_username/{username}",ctx->{
             ctx.status(200);
             ctx.contentType("application/json");
-            System.out.println("ctx body for checking username : "+ctx.body());
+            // System.out.println("ctx body for checking username : "+ctx.body());
 
             String username=ctx.pathParam("username");
 
-            System.out.println("ABout to check if username already registered");
+            // System.out.println("ABout to check if username already registered");
 
             //boolean result = db.usernameExists(cur.username);
             boolean result=db.usernameExists(username);
 
-            System.out.println(result);
+            // System.out.println(result);
 
             if(result==true){
                 ctx.result(gson.toJson(new StructuredResponse("account with "+username+" already exists",null,result)));
