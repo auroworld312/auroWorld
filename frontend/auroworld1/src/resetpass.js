@@ -8,6 +8,7 @@ import { supabase } from './utils/supabaseClient.js'
 function ResetPassword(){
     const navigate = useNavigate();
 
+
     const [passVisible, setPassVisible]=useState(false)
     const [passConfVisible, setPassConfVisible]=useState(false)
 

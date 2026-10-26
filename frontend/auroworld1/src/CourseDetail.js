@@ -1,3 +1,5 @@
+import NextClass from './NextClass';
+import { UnitQuizzes } from './QuizComponents';
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 // import { createClient } from '@supabase/supabase-js';
@@ -5,11 +7,15 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ReactGA from "react-ga4";
 import UnitMaterials from './UnitMaterials';
+import UnitForm from './UnitForm';
 import './spinner/spin.css'
+import './CourseInfo.css';
+import CourseEnrollment, { CourseOverview } from './CourseEnrollment';
+import VideoTab, { RoomChatPreview } from './LiveClassPreview';
+import { getCourseTimeValues } from './courseSchedule';
 import { uploadToB2, getB2Url, deleteFromB2, isB2, toKey, B2_PREFIX, isVideoFile, safeSegment } from './b2Storage';
 import {supabase} from './utils/supabaseClient.js'
 
-// const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
 async function authToken() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -33,7 +39,6 @@ async function removeStoredFiles(paths) {
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
 const PURPLE = '#6C63FF';
-const PURPLE_LIGHT = '#EDE9FF';
 const DAY_LABELS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
     const hour = Math.floor(index / 2);
@@ -44,19 +49,10 @@ const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
     };
 });
 
-function getCourseTimeValues(times) {
-    const matches = [...(times || '').matchAll(/\b(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b/gi)];
-    if (matches.length !== 2) return ['', ''];
-    return matches.map(([, hour, minute = '00', period]) => {
-        if (Number(hour) < 1 || Number(hour) > 12) return '';
-        const value = `${String(Number(hour) % 12 + (period.toUpperCase() === 'PM' ? 12 : 0)).padStart(2, '0')}:${minute}`;
-        return COURSE_TIME_OPTIONS.some(option => option.value === value) ? value : '';
-    });
-}
 
 function TabButton({ label, active, onClick }) {
     return (
-        <button onClick={onClick} style={{
+        <button aria-pressed={active} onClick={onClick} style={{
             padding: '10px 28px', borderRadius: '8px', border: active ? 'none' : '1.5px solid #e0e0e0',
             cursor: 'pointer', fontSize: '14px', fontWeight: '700',
             backgroundColor: active ? PURPLE : '#fff',
@@ -68,67 +64,6 @@ function TabButton({ label, active, onClick }) {
     );
 }
 
-function isCourseTime(course, now = new Date()) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(course.startDate || '')) return false;
-    const startDate = new Date(`${course.startDate}T00:00:00`);
-    if (Number.isNaN(startDate.getTime()) || now < startDate) return false;
-    const days = (course.daysOfWeek || '').split(',').filter(day => /^[0-6]$/.test(day)).map(Number);
-    if (!days.includes(now.getDay())) return false;
-    const [start, end] = getCourseTimeValues(course.times);
-    if (!start || !end || end <= start) return false;
-    const toMinutes = value => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
-    const minutes = now.getHours() * 60 + now.getMinutes();
-    return minutes >= toMinutes(start) && minutes < toMinutes(end);
-}
-
-function VideoTab({ course }) {
-    const [now, setNow] = useState(() => new Date());
-    useEffect(() => {
-        const timer = setInterval(() => setNow(new Date()), 1000);
-        return () => clearInterval(timer);
-    }, []);
-    const inClassTime = isCourseTime(course, now);
-    const canJoin = inClassTime && /^https?:\/\//i.test(course.liveUrl || '');
-    const btnStyle = {
-        display: 'inline-block', padding: '13px 36px', borderRadius: '999px',
-        backgroundColor: canJoin ? '#1a7a50' : '#bdbdbd',
-        color: '#fff', fontWeight: '700', fontSize: '15px',
-        textDecoration: 'none',
-        border: 'none',
-        cursor: canJoin ? 'pointer' : 'not-allowed',
-    };
-
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '340px', gap: '20px', textAlign: 'center' }}>
-            <div style={{ fontSize: '56px' }}>🎥</div>
-            <div>
-                <h2 style={{ margin: '0 0 8px', fontSize: '22px', fontWeight: '800' }}>{course.title}</h2>
-                <p style={{ margin: '0 0 4px', color: '#666', fontSize: '14px' }}>Instructor: {course.instructor}</p>
-                <p style={{ margin: '0 0 20px', color: '#666', fontSize: '14px' }}>Times: {course.times}</p>
-                <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '8px',
-                    fontSize: '13px', fontWeight: '600', padding: '6px 14px',
-                    borderRadius: '999px', marginBottom: '24px',
-                    backgroundColor: inClassTime ? '#d4f5e9' : '#f0f0f0',
-                    color: inClassTime ? '#1a7a50' : '#888',
-                }}>
-                    <span style={{ fontSize: '10px' }}>{inClassTime ? '●' : '○'}</span>
-                    {inClassTime ? 'Scheduled Class Time' : 'Not Currently in Session'}
-                </div>
-            </div>
-            <button disabled={!canJoin} style={btnStyle} onClick={() => {
-                if (canJoin && isCourseTime(course, new Date())) window.open(course.liveUrl, '_blank', 'noopener,noreferrer');
-            }}>
-                {canJoin ? '▶ Join Class' : 'Join Class (unavailable)'}
-            </button>
-            {!canJoin && (
-                <p style={{ margin: 0, fontSize: '13px', color: '#aaa' }}>
-                    {inClassTime ? 'A valid meeting link is required.' : 'Available on scheduled days between the start and end time, from the course start date (your local time).'}
-                </p>
-            )}
-        </div>
-    );
-}
 
 function CourseTab({ course, userData, navigate }) {
     const canManage = userData?.role==="admin" || (userData?.username===course.instructor);
@@ -240,38 +175,12 @@ function CourseTab({ course, userData, navigate }) {
         <div style={{opacity:loadingCourseTab?0.5:1}}>
             <div className = 'loader' style={{display:loadingCourseTab?'flex':'none'}}></div>
             { canManage && (
-                <button onClick={()=>editCourseTab()} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer', marginRight: '8px' }}>Edit</button>
+                <button hidden onClick={()=>editCourseTab()} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer', marginRight: '8px' }}>Edit</button>
             )}
             { canManage && (
-                <button onClick={()=>deleteCourseButton(course.courseId, navigate)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#e53935', color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Delete</button>
+                <button hidden onClick={()=>deleteCourseButton(course.courseId, navigate)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#e53935', color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Delete</button>
             )}
-            <h2 style={{ margin: '0 0 12px', fontSize: '26px', fontWeight: '800', color: '#111' }}>{course.title}</h2>
-            <p style={{ margin: '0 0 6px', fontSize: '14px', color: '#555', fontWeight: '600' }}>Instructor: {course.instructor}</p>
-            <p style={{ margin: '0 0 6px', fontSize: '14px', color: '#555', fontWeight: '600' }}>Times: {course.times}</p>
-            {course.startDate && (
-                <p style={{ margin: '0 0 20px', fontSize: '14px', color: '#555' }}>Starting {course.startDate}</p>
-            )}
-            <p style={{ margin: '0 0 28px', fontSize: '15px', color: '#333', lineHeight: 1.7 }}>{course.description}</p>
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                {course.level && (
-                    <div style={{ backgroundColor: PURPLE_LIGHT, borderRadius: '8px', padding: '10px 16px' }}>
-                        <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>Level</div>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: PURPLE }}>{course.level}</div>
-                    </div>
-                )}
-                {course.price && (
-                    <div style={{ backgroundColor: PURPLE_LIGHT, borderRadius: '8px', padding: '10px 16px' }}>
-                        <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>Price</div>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: PURPLE }}>{course.price}</div>
-                    </div>
-                )}
-                {course.times && (
-                    <div style={{ backgroundColor: PURPLE_LIGHT, borderRadius: '8px', padding: '10px 16px' }}>
-                        <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>Schedule</div>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: PURPLE }}>{course.times}</div>
-                    </div>
-                )}
-            </div>
+            <CourseOverview course={course} />
             <div id="editTab" style={{display:'none',marginTop: '15px'}}>
                 <h3 style={{ marginTop: 0 }}>Edit Course Tab</h3>
                 <label style={{ marginTop: '15px' }}>Course Title</label>
@@ -342,7 +251,7 @@ function CourseTab({ course, userData, navigate }) {
                     <option>Priced</option>
                 </select>
 
-                <label style={{ marginTop: 0 }}>Live Meeting Url</label>
+                <label style={{ marginTop: 0 }}>Zoom Link</label>
                 <input type="text" defaultValue={course.liveUrl} id="editLiveUrl" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
 
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -354,24 +263,36 @@ function CourseTab({ course, userData, navigate }) {
     );
 }
 
-function UnitSection({
+export function UnitSection({
     unit,
     courseId,
     role,
     username,
     instructor,
     unitId,
-    courseTitle
+    courseTitle,
+    liveUrl,
+    initialLessonId,
+    initialLessonTab,
+    embedded = false,
+    onLessonsChange
 }) {
     const [open, setOpen] = useState(false);
-    const [openLessons, setOpenLessons] = useState({});
+    const [openLessons, setOpenLessons] = useState(initialLessonId ? { [initialLessonId]: true } : {});
+    const [lessonTabs, setLessonTabs] = useState(initialLessonId ? { [initialLessonId]: initialLessonTab || 'video' } : {});
+    let lessonLiveUrl = '';
+    try { const url = new URL((liveUrl || '').trim()); if (['http:', 'https:'].includes(url.protocol)) lessonLiveUrl = url.href; } catch {}
     const [activeVideo, setActiveVideo] = useState(null);
 
     const [fileLoading, setFileLoading] = useState(false)
 
-    const [lessonsArray, setLessonArray] = useState([]);
+    const [lessonsArray, setLessonArray] = useState(unit?.lessons || []);
 
     const [showAddLesson, setShowAddLesson] = useState(false);
+    const [lessonSearch, setLessonSearch] = useState('');
+    const [managingLessons, setManagingLessons] = useState(false);
+    const [lessonCount, setLessonCount] = useState(1);
+    const [creatingLessons, setCreatingLessons] = useState(false);
     const [editingLesson, setEditingLesson] = useState(null);
     const [addingMaterials, setAddingMaterials] = useState(null);
     const [reorderingLesson, setReorderingLesson] = useState(null);
@@ -383,15 +304,14 @@ function UnitSection({
 
     const [fileUrl, setFileUrl] = useState({});
 
-    const [newLessonTitle, setNewLessonTitle] = useState("");
-    const [newLessonDescription, setNewLessonDescription] = useState("");
+    const [lessonTitles, setLessonTitles] = useState(['']);
 
     const [editLessonTitle, setEditLessonTitle] = useState("");
     const [editLessonDescription, setEditLessonDescription] = useState("");
 
     const [videoTitles, setVideoTitles] = useState({});
 
-    const canManage = role === "admin" || username === instructor;
+    const canManage = role === "admin" || (!!username && username === instructor);
 
     /* LOAD LESSONS */
 
@@ -412,6 +332,10 @@ function UnitSection({
 
         setLessonArray(lessonArr);
     }, [unit]);
+
+    useEffect(() => {
+        if (onLessonsChange && JSON.stringify(lessonsArray) !== JSON.stringify(unit.lessons || [])) onLessonsChange(lessonsArray);
+    }, [lessonsArray, onLessonsChange, unit.lessons]);
 
     /* LOAD VIDEO URLS (old Supabase files) */
 
@@ -489,12 +413,13 @@ function UnitSection({
 
     /* FILE SELECTION */
 
-    function uploadFileHandler(e) {
+    function uploadFileHandler(e, lessonId) {
         const file = e.target.files?.[0];
 
         if (file) {
             setFileUpload(file);
             setFileName(file.name);
+            setVideoTitles(previous => ({ ...previous, [lessonId]: previous[lessonId] || file.name.replace(/\.[^.]+$/, '') }));
         } else {
             setFileUpload(null);
             setFileName("No file chosen");
@@ -509,72 +434,51 @@ function UnitSection({
 
     function cancelLesson() {
         setShowAddLesson(false);
-        setNewLessonTitle("");
-        setNewLessonDescription("");
+        setLessonTitles(['']);
+        setLessonCount(1);
     }
 
     async function createNewLesson() {
-        if (!newLessonTitle.trim()) {
-            alert("Enter a lesson title");
-            return;
-        }
-
-        if (!newLessonDescription.trim()) {
-            alert("Enter a lesson description");
-            return;
-        }
-
+        if (!canManage || creatingLessons) return;
+        setCreatingLessons(true);
+        let completed = 0;
+        const firstOrder = Math.max(-1, ...lessonsArray.map(lesson => Number(lesson.sortOrder) || 0)) + 1;
         try {
-            console.log('lessonsArray.length = ',lessonsArray.length)
             // return
-            const lessonBody = {
-                lessonTitle: newLessonTitle.trim(),
-                lessonDescription: newLessonDescription.trim()
-            };
-
-            const response = await fetch(
-                `${API}/course/${courseId}/unit/${unitId}/addlesson/${lessonsArray.length}`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(lessonBody)
-                }
-            );
-
-            const lessonData = await response.json();
-
-            if (lessonData.mStatus !== "ok") {
-                alert("Creating lesson failed: " + (lessonData.mMessage || ""));
-                return;
+            for (let index = 0; index < lessonCount; index++) {
+                const title = lessonTitles[index]?.trim() || `Lesson ${firstOrder + index + 1}`;
+                const response = await fetch(`${API}/course/${courseId}/unit/${unitId}/addlesson/${firstOrder + index}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lessonTitle: title, lessonDescription: '' })
+                });
+                const data = await response.json();
+                if (data.mStatus !== 'ok') throw new Error(data.mMessage || 'Could not create lesson.');
+                setLessonArray(previous => [...previous, { lessonId: data.mData, unitId, lessonTitle: title, lessonDescription: '', sortOrder: firstOrder + index, videos: [] }]);
+                completed++;
             }
-
-            const newLesson = {
-                lessonId: lessonData.mData,
-                lessonTitle: newLessonTitle.trim(),
-                lessonDescription: newLessonDescription.trim(),
-                videos: [],
-
-            };
-
-            setLessonArray((prev) => [...prev, newLesson]);
-
             cancelLesson();
+            setLessonCount(1);
+            setLessonSearch('');
         } catch (error) {
-            console.error(error);
-            alert("Creating lesson failed");
-        }
+            setLessonCount(lessonCount - completed);
+            setLessonTitles(lessonTitles.slice(completed));
+            alert(`${completed} lesson(s) created. ${error.message} Please retry the remaining lessons.`);
+        } finally { setCreatingLessons(false); }
     }
 
     /* EDIT LESSON */
 
     function editLessonButton(lesson) {
         setEditingLesson(lesson.lessonId);
+        setOpenLessons(current => ({ ...current, [lesson.lessonId]: true }));
+        cancelMaterials();
         setEditLessonTitle(lesson.lessonTitle);
         setEditLessonDescription(lesson.lessonDescription);
     }
 
     function closeEditLesson() {
         setEditingLesson(null);
+        cancelMaterials();
         setEditLessonTitle("");
         setEditLessonDescription("");
     }
@@ -636,7 +540,7 @@ function UnitSection({
     async function deleteLessonButton(lId) {
         const lessonToDelete = lessonsArray.find(l => l.lessonId === lId);
         if (!lessonToDelete) return;
-        if (!window.confirm(`Delete "${lessonToDelete.lessonTitle}"?`)) return;
+        if (!window.confirm(`Delete "${lessonToDelete.lessonTitle}" and its videos, quizzes and quiz submissions?`)) return;
 
         try {
             setFileLoading(true);
@@ -774,9 +678,11 @@ function UnitSection({
     }
 
     async function uploadNewMaterials(filename, filedata, lessonId) {
-        const title = videoTitles[lessonId]?.trim();
+        const title = videoTitles[lessonId]?.trim() || filedata?.name.replace(/\.[^.]+$/, '');
 
+        if (!canManage || fileLoading) return;
         if (!filedata) { alert("Choose a file first."); return; }
+        if (!filedata.type.startsWith('video/') && !isVideoFile(filedata.name)) { alert('Please choose a video file.'); return; }
         if (!title) { alert("Enter a title first."); return; }
 
         setFileLoading(true);
@@ -835,6 +741,8 @@ function UnitSection({
             );
 
             setOpenLessons(prev => ({ ...prev, [lessonId]: true }));
+            setLessonTabs(current => ({ ...current, [lessonId]: 'video' }));
+            setActiveVideo(newVideo.videoId);
             setVideoTitles(prev => ({ ...prev, [lessonId]: "" }));
             cancelMaterials();
         } catch (error) {
@@ -1109,13 +1017,14 @@ function UnitSection({
     /* RENDER */
 
     return (
-        <div className="materials-unit" style={{opacity:fileLoading? 0.5 : 1}}>
+        <div className={embedded ? "lesson-library" : "materials-unit"} style={{opacity:fileLoading? 0.5 : 1}}>
 
             <div className = 'loader' style={{display:fileLoading?'flex':'none'}}></div>
 
             {/* UNIT HEADER */}
 
             <div
+                hidden={embedded}
                 className={`materials-unit-header ${open ? "is-open" : ""}`}
                 onClick={() => setOpen((prev) => !prev)}
             >
@@ -1133,72 +1042,47 @@ function UnitSection({
 
             {/* UNIT CONTENT */}
 
-            {open && (
-                <div className="materials-unit-body">
+            {(embedded || open) && (
+                <div className="materials-unit-body lesson-library-body">
 
-                    {canManage && !showAddLesson && (
-                        <div className="materials-add-unit-row">
-                            <button className="materials-icon-btn" onClick={addLesson}>+ Add Lesson</button>
-                        </div>
-                    )}
-
-                    {canManage && showAddLesson && (
-                        <div className="materials-add-lesson-form">
-                            <label>Lesson Title</label>
-                            <input
-                                type="text"
-                                value={newLessonTitle}
-                                onChange={(e) => setNewLessonTitle(e.target.value)}
-                                className="materials-inline-input"
-                                placeholder="Enter lesson title"
-                            />
-                            <label>Lesson Description</label>
-                            <textarea
-                                value={newLessonDescription}
-                                onChange={(e) => setNewLessonDescription(e.target.value)}
-                                className="materials-inline-input"
-                                style={{ minHeight: 70 }}
-                                placeholder="Enter lesson description"
-                            />
-                            <div style={{ display: "flex", gap: 8 }}>
-                                <button className="materials-icon-btn" onClick={createNewLesson}>Create Lesson</button>
-                                <button className="materials-icon-btn" onClick={cancelLesson}>Cancel</button>
-                            </div>
-                        </div>
-                    )}
-
+                    {lessonsArray.length > 0 && <div className="unit-library-top lesson-library-top">
+                        <label className="unit-search"><span className="unit-search-symbol" aria-hidden="true" /><input aria-label="Search lessons" placeholder="Search lessons..." value={lessonSearch} onChange={event => setLessonSearch(event.target.value)} /></label>
+                        {canManage && <button className="unit-manage-toggle" aria-label="Manage lessons" aria-pressed={managingLessons} onClick={() => { setManagingLessons(!managingLessons); closeEditLesson(); }}><span className="unit-menu-dots" aria-hidden="true"><i /><i /><i /></span></button>}
+                    </div>}
                     {lessonsArray.length === 0 ? (
-                        <div className="materials-empty">No lessons in this unit yet.</div>
+                        <>{!canManage && <div className="materials-empty">No lessons in this unit yet.</div>}</>
                     ) : (
                         <div className="materials-lesson-list">
-                            {lessonsArray.sort((a,b)=>a.sortOrder-b.sortOrder).map((lesson, idx) => {
+                            {[...lessonsArray].sort((a,b)=>a.sortOrder-b.sortOrder).filter(lesson => lesson.lessonTitle.toLowerCase().includes(lessonSearch.trim().toLowerCase())).map((lesson, idx) => {
 
                                 const isLessonOpen = !!openLessons[lesson.lessonId];
+                                const lessonTab = lessonTabs[lesson.lessonId] || 'video';
 
                                 return (
-                                    <div id = {`dragLesson-${lesson.lessonId}`} className="materials-lesson" draggable={canManage? "true": "false"} onDragStart={()=>handleStartDragLesson(lesson.lessonId, lesson.sortOrder)} onDrag={()=>handleDragLesson(lesson.lessonId)} onDragOver={(e)=>handleDragOverLesson(e,lesson.lessonId, lesson.sortOrder)} onDragEnd={()=>handleDragEndLesson(lesson.lessonId)} key={lesson.lessonId}>
+                                    <div id = {`dragLesson-${lesson.lessonId}`} className="materials-lesson" draggable={canManage && !editingLesson && !lessonSearch.trim()} onDragStart={()=>handleStartDragLesson(lesson.lessonId, lesson.sortOrder)} onDrag={()=>handleDragLesson(lesson.lessonId)} onDragOver={(e)=>handleDragOverLesson(e,lesson.lessonId, lesson.sortOrder)} onDragEnd={()=>handleDragEndLesson(lesson.lessonId)} key={lesson.lessonId}>
 
                                         {/* LESSON HEADER */}
 
-                                        <div className="materials-lesson-top">
+                                        <div className="materials-lesson-top" onClick={() => toggleLesson(lesson.lessonId)}>
                                             <div style={{ minWidth: 0 }}>
                                                 <div className="materials-lesson-heading">
-                                                    Lesson {idx + 1}: {lesson.lessonTitle}
+                                                    {lesson.lessonTitle}
                                                 </div>
-                                                <div className="materials-lesson-desc">{lesson.lessonDescription}</div>
+                                                
                                             </div>
 
-                                            {canManage && (
-                                                <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                                            {canManage && managingLessons && (
+                                                <div onClick={event => event.stopPropagation()} style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
                                                     <button className="materials-icon-btn" onClick={() => editLessonButton(lesson)}>Edit</button>
                                                     <button className="materials-icon-btn danger" onClick={() => deleteLessonButton(lesson.lessonId)}>Delete</button>
                                                 </div>
                                             )}
+                                            {!managingLessons && <button className="materials-icon-btn" aria-label={`Open ${lesson.lessonTitle}`} aria-expanded={isLessonOpen} onClick={event => { event.stopPropagation(); toggleLesson(lesson.lessonId); }}><span className={`lesson-chevron${isLessonOpen ? ' is-open' : ''}`} aria-hidden="true" /></button>}
                                         </div>
 
                                         {/* EDIT LESSON */}
 
-                                        {editingLesson === lesson.lessonId && (
+                                        {canManage && editingLesson === lesson.lessonId && (
                                             <div className="materials-add-lesson-form">
                                                 <label>Lesson Title</label>
                                                 <input
@@ -1206,13 +1090,6 @@ function UnitSection({
                                                     value={editLessonTitle}
                                                     onChange={(e) => setEditLessonTitle(e.target.value)}
                                                     className="materials-inline-input"
-                                                />
-                                                <label>Lesson Description</label>
-                                                <textarea
-                                                    value={editLessonDescription}
-                                                    onChange={(e) => setEditLessonDescription(e.target.value)}
-                                                    className="materials-inline-input"
-                                                    style={{ minHeight: 70 }}
                                                 />
                                                 <div style={{ display: "flex", gap: 8 }}>
                                                     <button className="materials-icon-btn" onClick={() => sendEditLesson(lesson.lessonId)}>Save</button>
@@ -1223,39 +1100,25 @@ function UnitSection({
 
                                         {/* LESSON TOOLBAR */}
 
-                                        {canManage && (
+                                        {canManage && editingLesson === lesson.lessonId && (
                                             <div className="materials-lesson-toolbar">
+                                                <div hidden><button onClick={() => startReorder(lesson.lessonId)}>Reorder Videos</button><button onClick={() => swapVideoId(lesson.lessonId)}>Swap Selected</button></div>
+                                                <input id={`lesson-upload-${lesson.lessonId}`} type="file" accept="video/*,.mkv,.avi,.mov,.m4v" aria-label="Choose lesson video" hidden disabled={fileLoading} onChange={event => uploadFileHandler(event, lesson.lessonId)} />
                                                 <button
                                                     className="materials-icon-btn"
-                                                    onClick={() =>
-                                                        addingMaterials === lesson.lessonId
-                                                            ? cancelMaterials()
-                                                            : addMaterials(lesson.lessonId)
-                                                    }
+                                                    disabled={fileLoading}
+                                                    onClick={() => { addMaterials(lesson.lessonId); document.getElementById(`lesson-upload-${lesson.lessonId}`).click(); }}
                                                 >
-                                                    {addingMaterials === lesson.lessonId ? "Cancel" : "+ Add File"}
+                                                    Upload Video
                                                 </button>
+                                                <button className="materials-icon-btn" onClick={() => { setOpenLessons(current => ({ ...current, [lesson.lessonId]: true })); setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'quiz' })); }}>Add / Manage Quiz</button>
 
-                                                {reorderingLesson !== lesson.lessonId ? (
-                                                    <button className="materials-icon-btn" onClick={() => startReorder(lesson.lessonId)}>
-                                                        Reorder Videos
-                                                    </button>
-                                                ) : (
-                                                    <>
-                                                        <button className="materials-icon-btn" onClick={() => swapVideoId(lesson.lessonId)}>
-                                                            Swap Selected
-                                                        </button>
-                                                        <button className="materials-icon-btn" onClick={cancelReorder}>
-                                                            Cancel Reorder
-                                                        </button>
-                                                    </>
-                                                )}
                                             </div>
                                         )}
 
                                         {/* ADD VIDEO */}
 
-                                        {addingMaterials === lesson.lessonId && (
+                                        {canManage && editingLesson === lesson.lessonId && addingMaterials === lesson.lessonId && (
                                             <div className="materials-add-lesson-form">
                                                 <label>Select File</label>
 
@@ -1263,7 +1126,8 @@ function UnitSection({
                                                     <input
                                                         type="file"
                                                         id={`hiddenAddFileInput-${lesson.lessonId}`}
-                                                        onChange={uploadFileHandler}
+                                                        onChange={event => uploadFileHandler(event, lesson.lessonId)}
+                                                        accept="video/*,.mkv,.avi,.mov,.m4v"
                                                         style={{ display: "none" }}
                                                     />
                                                     <button
@@ -1277,7 +1141,7 @@ function UnitSection({
                                                     </span>
                                                 </div>
 
-                                                <label>Video / Quiz Title</label>
+                                                <label>Video title</label>
 
                                                 <input
                                                     type="text"
@@ -1301,6 +1165,7 @@ function UnitSection({
                                                 <div style={{ display: "flex", gap: 8 }}>
                                                     <button
                                                         className="materials-icon-btn"
+                                                        disabled={fileLoading}
                                                         onClick={() => uploadNewMaterials(fileName, fileUpload, lesson.lessonId)}
                                                     >
                                                         Upload
@@ -1338,6 +1203,7 @@ function UnitSection({
                                         {/* LESSON CLICK HEADER */}
 
                                         <div
+                                            hidden
                                             className={`materials-video-row ${isLessonOpen ? "is-active" : ""}`}
                                             onClick={() => toggleLesson(lesson.lessonId)}
                                             style={{ margin: "0 16px 8px" }}
@@ -1356,7 +1222,13 @@ function UnitSection({
 
                                         {/* VIDEOS */}
 
-                                        {isLessonOpen && (
+                                        {isLessonOpen && <div className="quiz-tabs lesson-content-tabs" aria-label={`${lesson.lessonTitle} content`}>
+                                            <button aria-pressed={lessonTab === 'video'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'video' }))}>Video</button>
+                                            <button aria-pressed={lessonTab === 'quiz'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'quiz' }))}>Quiz</button>
+                                            <button disabled={!lessonLiveUrl} title={lessonLiveUrl ? 'Open the course Zoom Link in a new tab' : 'No Zoom Link has been added to this course'} onClick={() => window.open(lessonLiveUrl, '_blank', 'noopener,noreferrer')}>Live Links</button>
+                                        </div>}
+                                        {isLessonOpen && lessonTab === 'quiz' && <UnitQuizzes unitId={unitId} lessonId={lesson.lessonId} allowCreate={canManage && editingLesson === lesson.lessonId} />}
+                                        {isLessonOpen && lessonTab === 'video' && (
                                             <div className="materials-lesson-body">
 
                                                 {(lesson.videos || []).length === 0 ? (
@@ -1368,7 +1240,7 @@ function UnitSection({
                                                             const isActive = activeVideo === video.videoId;
 
                                                             return (
-                                                                <div id = {`dragVideo-${video.videoId}`}draggable={canManage? "true": "false"} onDragStart={(e)=>handleStartDragVideo(e,video.lessonId, video.videoId, video.sortOrder)} onDrag={(e)=>handleDragVideo(e,video.videoId)} onDragOver={(e)=>handleDragOverVideo(e,video.lessonId, video.videoId, video.sortOrder)} onDragEnd={(e)=>handleDragEndVideo(e,video.videoId)} key={video.videoId}>
+                                                                <div id = {`dragVideo-${video.videoId}`}draggable={canManage && !editingLesson && !lessonSearch.trim()} onDragStart={(e)=>handleStartDragVideo(e,video.lessonId, video.videoId, video.sortOrder)} onDrag={(e)=>handleDragVideo(e,video.videoId)} onDragOver={(e)=>handleDragOverVideo(e,video.lessonId, video.videoId, video.sortOrder)} onDragEnd={(e)=>handleDragEndVideo(e,video.videoId)} key={video.videoId}>
 
                                                                     {/* VIDEO ROW */}
 
@@ -1413,10 +1285,11 @@ function UnitSection({
                                                                             video.driveUrl !== "empty" ? (
                                                                                 fileUrl[video.videoId] ? (
                                                                                     isVideoFile(video.driveUrl) ? (
-                                                                                        <video
+                                                                                        <><video
                                                                                             key={fileUrl[video.videoId]}
                                                                                             src={fileUrl[video.videoId]}
                                                                                             controls
+                                                                                            onError={event => { event.currentTarget.nextElementSibling.hidden = false; }}
                                                                                             controlsList="nodownload"
                                                                                             playsInline
                                                                                             preload="metadata"
@@ -1426,7 +1299,7 @@ function UnitSection({
                                                                                                 display: "block",
                                                                                                 backgroundColor: "#000"
                                                                                             }}
-                                                                                        />
+                                                                                        /><p hidden role="status" className="video-playback-error">This video could not be played. Its format may not be supported by your browser, or the connection may have failed. Try an MP4 encoded with H.264/AAC.</p></>
                                                                                     ) : (
                                                                                         <iframe
                                                                                             src={fileUrl[video.videoId]}
@@ -1489,6 +1362,25 @@ function UnitSection({
                         </div>
                     )}
 
+                    {lessonSearch.trim() && !lessonsArray.some(lesson => lesson.lessonTitle.toLowerCase().includes(lessonSearch.trim().toLowerCase())) && <p className="unit-library-empty">No lessons match your search.</p>}
+                    {canManage && showAddLesson && (
+                        <div className="materials-add-lesson-form unit-editor">
+                            <h3>Create Lessons</h3>
+                            <label htmlFor={`lesson-count-${unitId}`}>Number of lessons</label>
+                            <select id={`lesson-count-${unitId}`} disabled={creatingLessons} value={lessonCount} onChange={event => setLessonCount(Number(event.target.value))}>{Array.from({ length: 20 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}</select>
+                            {Array.from({ length: lessonCount }, (_, index) => <div key={index}>
+                                <label htmlFor={`lesson-title-${unitId}-${index}`}>Lesson {index + 1} name</label>
+                                <input id={`lesson-title-${unitId}-${index}`} type="text" disabled={creatingLessons} value={lessonTitles[index] || ''} onChange={event => setLessonTitles(titles => { const next = [...titles]; next[index] = event.target.value; return next; })} className="materials-inline-input" placeholder={`Lesson ${index + 1}`} />
+                            </div>)}
+                            <div style={{ display: "flex", gap: 8 }}>
+                                <button className="materials-icon-btn" disabled={creatingLessons} onClick={createNewLesson}>{creatingLessons ? 'Creating...' : 'Create Lessons'}</button>
+                                <button className="materials-icon-btn" disabled={creatingLessons} onClick={cancelLesson}>Cancel</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {canManage && !showAddLesson && <button className="unit-add-card" onClick={addLesson}><span className="unit-add-plus" aria-hidden="true" />Add Lesson</button>}
+
                 </div>
             )}
         </div>
@@ -1496,44 +1388,37 @@ function UnitSection({
 }
 
 
-function MaterialsTab({ course, userData }) {
+export function MaterialsTab({ course, userData }) {
 
     const[unitArr, setUnitArr]=useState([])
     const [editingUnits, setEditingUnits] = useState(false);
-    const canManageUnits = userData?.role === "admin" || userData?.username === course.instructor;
+    const canManageUnits = userData?.role === "admin" || (!!userData?.username && userData.username === course.instructor);
+    const [unitSearch, setUnitSearch] = useState('');
+    const [addingUnit, setAddingUnit] = useState(false);
+    const [savingUnit, setSavingUnit] = useState(false);
+    const [unitError, setUnitError] = useState('');
 
     useEffect(()=>{
-        const array = course?.units.map((unit)=>{
+        const array = (course?.units || []).map((unit)=>{
             return {unitId: unit.unitId, courseId: course.courseId, title: unit.title, sortOrder: unit.sortOrder, lessons: unit?.lessons}
         })
         setUnitArr(array)
     },[course])
 
-    function addUnitDom(newId){
-        const newUnit=[{ unitId: newId, courseId: course.courseId,
-            title:document.getElementById("unitName").value, sortOrder: unitArr.length, lessons: []}]
-        setUnitArr((prevUnits)=>{ return [...prevUnits,...newUnit] })
-    }
-    function newUnitButton() {
-        if(document.getElementById("addUnit").style.display === "block"){
-            document.getElementById("addUnit").style.display = "none"
-        }
-        else{
-            document.getElementById("addUnit").style.display = "block"
-        }
-    }
-    function cancelNewUnit() {
-        document.getElementById("addUnit").style.display = "none";
-    }
-    async function submitNewUnit(courseId) {
-        if (!document.getElementById("unitName").value) { alert("Please enter a unit name"); return; }
+    async function submitNewUnit(title) {
+        if (!canManageUnits || savingUnit) return;
+        setSavingUnit(true);
+        setUnitError('');
         try {
-            const unitBody = { unitName: document.getElementById("unitName").value, sortOrder: unitArr.length };
-            const response = await fetch(`${API}/course_units/${courseId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(unitBody) });
+            const sortOrder = Math.max(-1, ...unitArr.map(unit => Number(unit.sortOrder) || 0)) + 1;
+            const response = await fetch(`${API}/course_units/${course.courseId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unitName: title, sortOrder }) });
             const data = await response.json();
-            if (data.mStatus !== "ok") { alert("Adding unit failed: " + data.mMessage); return; }
-            addUnitDom(data.mData)
-        } catch (error) { console.log(error.message); }
+            if (data.mStatus !== "ok") throw new Error(data.mMessage || 'Could not create unit.');
+            setUnitArr(units => [...units, { unitId: data.mData, courseId: course.courseId, title, sortOrder, lessons: [] }]);
+            setAddingUnit(false);
+            setUnitSearch('');
+        } catch (error) { setUnitError(error.message); }
+        finally { setSavingUnit(false); }
     }
     async function sendDeleteUnits(unitId){
         const unit = unitArr.find(item => item.unitId === unitId);
@@ -1644,63 +1529,29 @@ function MaterialsTab({ course, userData }) {
     }
 
     const location = useLocation();
-    if (!unitArr || unitArr.length === 0) {
-        return (
-            <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
-                No materials available yet.
-                <div style={{ marginTop: '20px' }}>
-                    { (userData?.role==="admin" || userData?.username===course.instructor) && (<>
-                        <button onClick={() => setEditingUnits(!editingUnits)} aria-expanded={editingUnits} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>{editingUnits ? 'Done Editing Units' : 'Edit Unit'}</button>
-                        <div hidden={!editingUnits}>
-                        <button onClick={newUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Add a New Unit</button>
-                        </div>
-                    </>)}
-                    <div hidden={!editingUnits || !canManageUnits}>
-                    <div id="addUnit" style={{ display: 'none', marginTop: '16px', textAlign: 'left' }}>
-                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>Unit name</label>
-                        <input type="text" id="unitName" style={{ padding: '8px 12px', border: '1.5px solid #e0e0e0', borderRadius: '8px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => submitNewUnit(course.courseId)} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Create</button>
-                            <button onClick={cancelNewUnit} style={{ padding: '9px 16px', borderRadius: '8px', border: '1.5px solid #e0e0e0', backgroundColor: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
-                        </div>
-                    </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-             <div style={{ textAlign: 'center', color: '#999', marginTop: '40px', fontSize: '15px' }}>
-                { (userData?.role==="admin" || userData?.username===course.instructor) && (
-                    <div>
-                        <button onClick={() => setEditingUnits(!editingUnits)} aria-expanded={editingUnits} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>{editingUnits ? 'Done Editing Units' : 'Edit Unit'}</button>
-                    <div id ="unitButtons" hidden={!editingUnits}>
-                        <button onClick={newUnitButton} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Add a New Unit</button>
-                    </div>
-                    </div>
-                )}
-                <div hidden={!editingUnits || !canManageUnits}>
-                <div id="addUnit" style={{display: 'none'}}>
-                        <label style={{ marginTop: 0 }}>Unit name</label>
-                        <input type="text" id="unitName" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }} />
-
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={()=>submitNewUnit(course.courseId)}>Create</button>
-                        <button onClick={cancelNewUnit}>Cancel</button>
-                    </div>
-                </div>
-            </div>
-            </div>
-            {unitArr.sort((a,b)=>a.sortOrder-b.sortOrder).map(unit =>
-                <div id={`dragUnit-${unit.unitId}`} key={unit.unitId} draggable={ (userData?.role==="admin" || userData?.username===course.instructor)? "true": "false"} onDragStart={()=>handleStartDrag(unit.unitId, unit.sortOrder)} onDrag={()=>handleDrag(unit.unitId)} onDragOver={(e)=>handleDragOver(e,unit.unitId, unit.sortOrder)} onDragEnd={()=>handleDragEnd(unit.unitId)}>
-                    <UnitMaterials key={unit.unitId} unit={unit} canManage={canManageUnits && editingUnits} onDelete={() => sendDeleteUnits(unit.unitId)} onTitleChange={title => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, title } : item))} initialOpen={location.state?.unitId === unit.unitId} initialTab={location.state?.unitId === unit.unitId ? location.state?.unitTab || 'videos' : 'videos'}>
-                        <UnitSection embedded unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>
+    const visibleUnits = [...unitArr].sort((a, b) => a.sortOrder - b.sortOrder).filter(unit => unit.title.toLocaleLowerCase().includes(unitSearch.trim().toLocaleLowerCase()));
+    return <div className="unit-library">
+        <div className="unit-library-top">
+            <label className="unit-search">
+                <span className="unit-search-symbol" aria-hidden="true" />
+                <input aria-label="Search units" placeholder="Search units..." value={unitSearch} onChange={event => setUnitSearch(event.target.value)} />
+            </label>
+            {canManageUnits && <button className="unit-manage-toggle" aria-label="Manage units" title={editingUnits ? 'Finish managing units' : 'Manage units'} aria-pressed={editingUnits} onClick={() => setEditingUnits(!editingUnits)}>•••</button>}
+        </div>
+        <div className="unit-library-list">
+            {visibleUnits.map(unit =>
+                <div id={`dragUnit-${unit.unitId}`} key={unit.unitId} draggable={canManageUnits && !unitSearch.trim()} onDragStart={()=>handleStartDrag(unit.unitId, unit.sortOrder)} onDrag={()=>handleDrag(unit.unitId)} onDragOver={(e)=>handleDragOver(e,unit.unitId, unit.sortOrder)} onDragEnd={()=>handleDragEnd(unit.unitId)}>
+                    <UnitMaterials key={unit.unitId} unit={unit} canManage={canManageUnits && editingUnits} onDelete={() => sendDeleteUnits(unit.unitId)} onTitleChange={title => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, title } : item))} initialOpen={location.state?.unitId === unit.unitId}>
+                        <UnitSection liveUrl={course.liveUrl} initialLessonId={location.state?.unitId === unit.unitId ? location.state?.lessonId : null} initialLessonTab={location.state?.unitTab === 'quizzes' ? 'quiz' : 'video'} embedded onLessonsChange={lessons => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, lessons } : item))} unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>
                     </UnitMaterials>
                 </div>
             )}
+            {visibleUnits.length === 0 && <p className="unit-library-empty">{unitSearch.trim() ? 'No units match your search.' : 'No units yet.'}</p>}
         </div>
-    );
+        {canManageUnits && (addingUnit ?
+            <UnitForm heading="Create Unit" saving={savingUnit} error={unitError} onSave={submitNewUnit} onCancel={() => setAddingUnit(false)} /> :
+            <button className="unit-add-card" onClick={() => { setUnitError(''); setAddingUnit(true); }}><span className="unit-add-plus" aria-hidden="true" />Add Unit</button>)}
+    </div>;
 }
 
 function CourseDetail() {
@@ -1712,9 +1563,11 @@ function CourseDetail() {
     const [userAttributes,setUserAttributes]=useState(null)
     const [course, setCourse] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState(['video', 'materials'].includes(location.state?.activeTab) ? location.state.activeTab : 'course');
+    const [requestedTab, setActiveTab] = useState(['video', 'materials'].includes(location.state?.activeTab) ? location.state.activeTab : 'course');
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
+    const canAccessContent = isEnrolled || userAttributes?.role === 'admin' || (userAttributes?.role === 'instructor' && !!userAttributes.username && userAttributes.username === course?.instructor);
+    const activeTab = canAccessContent ? requestedTab : 'course';
 
     const initGrabbed = useRef(false)
     useEffect(() => {
@@ -1747,7 +1600,7 @@ function CourseDetail() {
     }, [courseId, navigate]);
 
     async function handleEnroll() {
-        if (!currentUserId) return;
+        if (!currentUserId || course?.price !== 'Free') return;
         setEnrolling(true);
         try {
             const res = await fetch(`${API}/courses/${courseId}/enroll`, {
@@ -1779,30 +1632,30 @@ function CourseDetail() {
     }
 
     return (
-        <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', backgroundColor: '#f0f2f5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+        <div className={`course-detail-page ${activeTab === 'course' ? 'is-course-info' : activeTab === 'video' ? 'is-course-info is-live-preview' : 'is-course-info is-materials-info'}`} style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', backgroundColor: '#f0f2f5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
             <Sidebar />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <Header />
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: '30px', display: 'flex', gap: '24px' }}>
+                <div className="course-detail-layout" style={{ flex: 1, overflowY: 'auto', padding: '30px', display: 'flex', gap: '24px' }}>
 
                     {/* Main content */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="course-detail-main" style={{ flex: 1, minWidth: 0 }}>
 
                         {/* Back + Tabs */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-                            <button onClick={() => navigate('/courses')} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: '1.5px solid #e0e0e0', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '700', color: '#555', padding: '8px 16px' }}>
-                                ← Back
+                        <div className="course-detail-navigation" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+                            <button className="course-detail-back" onClick={() => navigate('/courses')} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: '1.5px solid #e0e0e0', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '700', color: '#555', padding: '8px 16px' }}>
+                                {activeTab === 'video' ? <><img src="/assets/live/back.svg" alt="" />Back</> : '\u2190 Back'}
                             </button>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                                <TabButton label="Video" active={activeTab === 'video'} onClick={() => setActiveTab('video')} />
+                            <div className="course-detail-tabs" style={{ display: 'flex', gap: '8px' }}>
+                                <TabButton label="Video" active={activeTab === 'video'} onClick={() => { if (canAccessContent) setActiveTab('video'); }} />
                                 <TabButton label="Course" active={activeTab === 'course'} onClick={() => setActiveTab('course')} />
-                                <TabButton label="Materials" active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} />
+                                <TabButton label="Materials" active={activeTab === 'materials'} onClick={() => { if (canAccessContent) setActiveTab('materials'); }} />
                             </div>
                         </div>
 
                         {/* Tab content */}
-                        <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', minHeight: '400px' }}>
+                        <div className="course-detail-panel" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', minHeight: '400px' }}>
                             {activeTab === 'video' && <VideoTab course={course} />}
                             {activeTab === 'course' && <CourseTab course={course} userData={userAttributes} navigate={navigate} />}
                             {activeTab === 'materials' && <MaterialsTab course={course} userData={userAttributes} />}
@@ -1810,55 +1663,14 @@ function CourseDetail() {
                     </div>
 
                     {/* Right sidebar */}
-                    <div style={{ width: '240px', minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="course-detail-sidebar" style={{ width: '240px', minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
+                        {activeTab === 'video' ? <RoomChatPreview course={course} /> : activeTab === 'materials' && ['user', 'student'].includes(userAttributes?.role) ? <NextClass /> : <>
                         {/* Thumbnail */}
-                        <div style={{ backgroundColor: '#fff', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                            {course.thumbnail ? (
-                                <img src={course.thumbnail} alt={course.title} style={{ width: '100%', height: '160px', objectFit: 'cover' }} />
-                            ) : (
-                                <div style={{ height: '160px', backgroundColor: PURPLE_LIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '48px' }}>📚</div>
-                            )}
-
-                            <div style={{ padding: '16px' }}>
-                                {course.price && course.price !== 'Free' && (
-                                    <div style={{ fontSize: '22px', fontWeight: '800', color: '#111', marginBottom: '12px' }}>{course.price}</div>
-                                )}
-                                {course.price === 'Free' && (
-                                    <div style={{ fontSize: '22px', fontWeight: '800', color: '#111', marginBottom: '12px' }}>Free</div>
-                                )}
-
-                                {isEnrolled ? (
-                                    <button disabled style={{ width: '100%', padding: '11px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE_LIGHT, color: PURPLE, fontWeight: '700', fontSize: '14px', cursor: 'not-allowed' }}>
-                                        ✓ Already Enrolled
-                                    </button>
-                                ) : (
-                                    <button onClick={handleEnroll} disabled={enrolling} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '700', fontSize: '14px', cursor: enrolling ? 'not-allowed' : 'pointer', opacity: enrolling ? 0.7 : 1 }}>
-                                        {enrolling ? 'Enrolling...' : 'Enroll Now'}
-                                    </button>
-                                )}
-
+                        <CourseEnrollment course={course} enrolled={isEnrolled} enrolling={enrolling} onEnroll={handleEnroll} isOwner={userAttributes?.role === 'instructor' && userAttributes?.username === course.instructor} />
                                 {/* Course highlights */}
-                                <div style={{ marginTop: '16px' }}>
-                                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#111', marginBottom: '10px' }}>Course Highlights:</div>
-                                    <div style={{ fontSize: '13px', color: '#555', lineHeight: 1.7 }}>
-                                        <div>• Instructor: {course.instructor}</div>
-                                        {course.level && <div>• Level: {course.level}</div>}
-                                        {course.times && <div>• Schedule: {course.times}</div>}
-                                        {course.startDate && <div>• Starts: {course.startDate}</div>}
-                                        {course.units && course.units.length > 0 && <div>• {course.units.length} unit{course.units.length !== 1 ? 's' : ''}</div>}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Live status */}
-                        <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '16px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: '14px', fontWeight: '600', color: course.inSession ? '#e53935' : '#aaa' }}>
-                                {course.inSession ? 'Live Now' : 'Not Live'}
-                            </span>
-                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: course.inSession ? '#e53935' : '#ccc' }}></div>
-                        </div>
+                        </>}
                     </div>
                 </div>
             </div>

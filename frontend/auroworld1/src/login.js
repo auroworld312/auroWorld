@@ -17,7 +17,7 @@ import {supabase} from './utils/supabaseClient.js'
 
 //const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
-// const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
+
 
 function Login(){
     const navigate = useNavigate();
@@ -86,42 +86,44 @@ function Login(){
             alert("Email and Password fields must not be empty.")
             return null
         }
-        setLoading(true)
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: pass,
-        });
-        if(error){
-            console.log(error.message)
-            if (error.message==="Invalid login credentials"){
-                alert("Wrong email/password. Try again")
-            }
-            setLoading(false)
-            return null
-        }
-        else if(data){
-            console.log(data)
-            const uuidString = data.user.id
-            console.log('uuidString = ',uuidString)
+        setLoading(true);
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pass });
+            if (error) throw error;
             await refreshUser();
             ReactGA.event({
                 category:'userpass login',
                 action:'logged in w/ userpass'
             })
+            console.log('data = ',data)
             setLoading(false)
             // navigate("/posts")
-            navigate("/posts",{state:{passedUserId:uuidString}})
+            navigate("/posts",{state:{passedUserId:data.user.id}})
+        }catch(error){
+            console.log('signinwithpass failed: ',error.message)
         }
     }
+
+    function showLoginError(error) {
+        const message = error?.message || 'Unable to connect. Please try again.';
+        if (error?.status === 402 || /exceed_cached_egress_quota|project is restricted/i.test(message)) {
+            alert('Sign-in is temporarily unavailable because the hosting service has restricted this project. Please contact the project administrator. This is not a password error.');
+        } else if (message === 'Invalid login credentials') {
+            alert('Wrong email/password. Try again');
+        } else {
+            alert('Sign-in failed: ' + message);
+        }
+    }
+
     async function googleLoginButton(credentialResponse) {
         let uuidString = null
         try{
             const creds=credentialResponse.credential
-            const { data, error } = await supabase.auth.signInWithIdToken({
+            const { error } = await supabase.auth.signInWithIdToken({
                     provider: 'google',
                     token: creds,
             })
-            console.log(error, data)
+            if (error) { showLoginError(error); setLoading(false); return; }
 
             setLoading(true)
             const googleAccountInfo = jwtDecode(creds)
@@ -193,9 +195,11 @@ function Login(){
             }
 
         } catch(error){
-            console.error(error.message)
+            showLoginError(error);
+            setLoading(false);
+            return;
         }
-        
+
         await refreshUser();
         ReactGA.event({
             category:'google sign in',
@@ -215,7 +219,7 @@ function Login(){
                     console.log(jwtDecode(credentialResponse.credential))
                     googleLoginButton(credentialResponse)
                 }} onError={()=>console.log("Login Failed")}></GoogleLogin>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '15px' }}>
                     <label>Email</label>
                     <input type="text" id="email" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}/>

@@ -63,6 +63,8 @@ export function OnlineResult({ result }) {
 export default function OnlineQuiz({ quiz, canSubmit, onSaved }) {
   const completed = quiz.submissions.find(s => s.submitted_at && s.result);
   const draft = quiz.submissions.find(s => !s.submitted_at);
+  const [retrying, setRetrying] = useState(!!draft);
+  const remaining = quiz.attempts_remaining ?? Math.max(0, (quiz.max_attempts || 1) - quiz.submissions.filter(s => s.submitted_at).length);
   const validDraft = draft && draft.question_version === quiz.question_version;
   const [answers, setAnswers] = useState(() => validDraft ? draft.answers : quiz.questions.map(() => null));
   const [busy, setBusy] = useState(false);
@@ -75,6 +77,7 @@ export default function OnlineQuiz({ quiz, canSubmit, onSaved }) {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
   async function save(submit) {
+    if (!canSubmit || remaining <= 0 || busy) return;
     const missing = answers.filter(a => a == null).length;
     if (submit && !window.confirm(`${missing ? `${missing} question(s) are unanswered and will count as incorrect. ` : ''}Submit your quiz? You cannot change answers after submitting.`)) return;
     setBusy(true); setError(''); setNotice('');
@@ -85,9 +88,9 @@ export default function OnlineQuiz({ quiz, canSubmit, onSaved }) {
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
-  if (completed) return <OnlineResult result={completed.result} />;
+  if (completed && !retrying) return <><OnlineResult result={completed.result} /><p className="quiz-muted">{remaining} attempt(s) remaining</p>{canSubmit && remaining > 0 && <button className="primary" onClick={() => { setAnswers(quiz.questions.map(() => null)); setRetrying(true); }}>Try Again</button>}</>;
   return <section>
-    <p className="quiz-muted">One submission · All questions have equal weight · Save your draft before leaving this page.</p>
+    <p className="quiz-muted">{remaining} attempt(s) remaining · All questions have equal weight · Save your draft before leaving this page.</p>
     {quiz.instructions && <p style={{ whiteSpace: 'pre-wrap' }}>{quiz.instructions}</p>}
     {draft && !validDraft && <p className="quiz-error">Your teacher updated the questions. Please answer the current version; the previous draft no longer applies.</p>}
     <QuestionArea questions={quiz.questions} answers={answers} setAnswers={value => { setAnswers(value); setDirty(true); }} disabled={busy || !canSubmit} />

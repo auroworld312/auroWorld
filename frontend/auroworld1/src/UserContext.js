@@ -19,15 +19,17 @@ export function UserProvider({ children }) {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [currentUserId, setCurrentUserId] = useState(null)
 
   const refreshUser = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setDisplayName(''); setEmail(''); setAvatarUrl(''); return; }
     setEmail(user.email || '');
 
-    const res = await fetch(`${API}/user_attributes/${user.id}`)
+    const res = await fetch(`${API}/userdata/${user.id}`)
     // const res = await fetch(`${API}/user_attributes/${passedUserId}`)
-    const userAttsData = res.json()
+    const userAttsData = await res.json()
+    // console.log('userAttsData = ',userAttsData)
 
     if(userAttsData){
         const name = userAttsData.mData.firstname
@@ -37,41 +39,41 @@ export function UserProvider({ children }) {
         setEmail(userAttsData.mData.email)
     }
     else {
-      // setDisplayName(user.email || '');
       setDisplayName(userAttsData.mData.email || '');
     }
 
-    // const { data: userData } = await supabase
-    //   .from('users')
-    //   .select('firstname, lastname, username')
-    //   .eq('email', user.email);
-    // if (userData && userData.length > 0) {
-    //   const row = userData[0];
-    //   const name = row.firstname
-    //     ? row.firstname + (row.lastname ? ' ' + row.lastname : '')
-    //     : row.username || '';
-    //   setDisplayName(name || user.email || '');
-    // } else {
-    //   setDisplayName(user.email || '');
-    // }
-
-    // const { data: profileData } = await supabase
-    //   .from('profile_attributes')
-    //   .select('note')
-    //   .eq('email', user.email);
     const res2 = await fetch(`${API}/profile_attributes/${user.id}`)
     // const res2 = await fetch(`${API}/profile_attributes/${passedUserId}`)
-    const profileAtts = res2.json()
+    const profileAtts = await res2.json()
 
     if(profileAtts){
       setAvatarUrl(profileAtts.mData.note)
     }
-  // }, []);
-  },[passedUserId])
+  }, []);
+  // },[passedUserId])
 
   useEffect(() => {
     refreshUser();
-  }, [refreshUser]);
+    const { data } = supabase.auth.onAuthStateChange((event,session) => {
+      // console.log('event = ',event)
+      // console.log('session = ',session)
+      
+      if(event==='SIGNED_IN'){
+        // console.log('data = ',data)
+        if(currentUserId!==session.user.id){
+          console.log('sign in refresh called')
+          setCurrentUserId(session.user.id)
+          setDisplayName(''); setEmail(''); setAvatarUrl('');
+          setTimeout(refreshUser, 0);
+        }
+      }
+      else{
+        setDisplayName(''); setEmail(''); setAvatarUrl('');
+        setTimeout(refreshUser, 0);
+      }
+    });
+    return () => data.subscription.unsubscribe();
+  }, [refreshUser, currentUserId]);
 
   return (
     <UserContext.Provider value={{ displayName, setDisplayName, email, setEmail, avatarUrl, setAvatarUrl, refreshUser }}>

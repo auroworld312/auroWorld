@@ -1,22 +1,16 @@
+import { supabase } from './utils/supabaseClient.js';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import { useAccessibility } from './AccessibilityContext.js';
+import './AccountSettings.css';
 import { useUser } from './UserContext.js';
-import {supabase} from './utils/supabaseClient.js'
 
-// const supabase = createClient(
-//   'https://rduempiojxizkwwbzaml.supabase.co',
-//   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo'
-// );
-const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com'
 
 function Profile() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('profile');
+  const [role, setRole] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,7 +34,6 @@ function Profile() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
-  const { contrast, setContrast, textSize, setTextSize, boldText, setBoldText } = useAccessibility();
   const { setDisplayName, avatarUrl, setAvatarUrl } = useUser();
 
   useEffect(() => {
@@ -52,41 +45,45 @@ function Profile() {
       const currentEmail = user.email || '';
       setEmail(currentEmail);
 
-      try{
-        const res = await fetch(`${API}/profile_attributes/${user.id}`)
-        const profileData = await res.json()
+      const { data: userData } = await supabase
+        .from('users')
+        .select('firstname, lastname, username, role')
+        .eq('email', currentEmail);
 
-        console.log('profileData:', profileData);
+      console.log('userData:', userData);
 
-        if (profileData.mStatus!=="ok") {
-          const fn = profileData.mData.firstname || '';
-          const ln = profileData.mData.lastname || '';
-          const un = profileData.mData.username || '';
-          setFirstName(fn);
-          setLastName(ln);
-          setUsername(un);
-          setEditFirstName(fn);
-          setEditLastName(ln);
-          setEditUsername(un);
-
-          if(profileData.mData.birthday!==null){
-            const bd = profileData.mData.birthday;
-            setBirthdate(bd);
-            setEditBirthdate(bd);
-          }
-          if(profileData.mData){
-            setAvatarUrl(profileData.mData.note);
-          }
-        }
-
-        setLoading(false);
-      }catch(error){
-        console.log('couldnt get profile attributes ',error.message)
+      if (userData && userData.length > 0) {
+        const fn = userData[0].firstname || '';
+        const ln = userData[0].lastname || '';
+        const un = userData[0].username || '';
+        setRole(userData[0].role || 'user');
+        setFirstName(fn);
+        setLastName(ln);
+        setUsername(un);
+        setEditFirstName(fn);
+        setEditLastName(ln);
+        setEditUsername(un);
       }
-      // const { data: userData } = await supabase
-      //   .from('users')
-      //   .select('firstname, lastname, username')
-      //   .eq('email', currentEmail);
+
+      const { data: profileData } = await supabase
+        .from('profile_attributes')
+        .select('birthday, note')
+        .eq('email', currentEmail);
+
+      console.log('profileData:', profileData);
+
+      if (profileData && profileData.length > 0) {
+        if (profileData[0].birthday) {
+          const bd = profileData[0].birthday.slice(0, 10);
+          setBirthdate(bd);
+          setEditBirthdate(bd);
+        }
+        if (profileData[0].note) {
+          setAvatarUrl(profileData[0].note);
+        }
+      }
+
+      setLoading(false);
     }
     loadProfile();
   }, [navigate, setAvatarUrl]);
@@ -192,32 +189,22 @@ function Profile() {
       .select('email')
       .eq('email', user.email);
 
-    if (existingProfile && existingProfile.length > 0) {
-      const { error } = await supabase
-        .from('profile_attributes')
-        .update({ birthday: editBirthdate })
-        .eq('email', user.email);
-      if (error) {
-        console.error('update profile error:', error);
-        alert('Failed to save birthday: ' + error.message);
-        setSaving(false);
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from('profile_attributes')
-        .insert({ uuid: user.id, email: user.email, username: editUsername || user.email.split('@')[0], birthday: editBirthdate });
-      if (error) {
-        console.error('insert profile error:', error);
-        alert('Failed to save birthday: ' + error.message);
-        setSaving(false);
-        return;
-      }
+    const birthday = editBirthdate || null;
+    const birthdayWrite = existingProfile && existingProfile.length > 0
+      ? supabase.from('profile_attributes').update({ birthday }).eq('email', user.email)
+      : supabase.from('profile_attributes').insert({ uuid: user.id, email: user.email, username: editUsername || user.email.split('@')[0], birthday });
+    const { data: savedProfile, error: birthdayError } = await birthdayWrite.select('birthday');
+    if (birthdayError || savedProfile?.length !== 1) {
+      alert('Failed to save birthday: ' + (birthdayError?.message || 'No profile was updated. Please try again.'));
+      setSaving(false);
+      return;
     }
+    const savedBirthday = savedProfile[0].birthday?.slice(0, 10) || '';
+    setEditBirthdate(savedBirthday);
 
     setFirstName(editFirstName);
     setLastName(editLastName);
-    setBirthdate(editBirthdate);
+    setBirthdate(savedBirthday);
     setUsername(editUsername);
 
     const newName = editFirstName
@@ -257,20 +244,14 @@ function Profile() {
     }
   }
 
-  const fieldStyle = { borderBottom: '1px solid #f0f0f0', paddingBottom: '20px', marginBottom: '20px' };
+  const fieldStyle = { borderBottom: '1px solid #d8d3e8', paddingBottom: '20px', marginBottom: '20px' };
   const labelStyle = { fontSize: '12px', color: '#999', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' };
   const valueStyle = { fontSize: '16px', fontWeight: '500', color: '#111' };
   const inputStyle = { fontSize: '15px', padding: '10px 12px', border: '1.5px solid #e0e0e0', borderRadius: '8px', width: '100%', boxSizing: 'border-box', outline: 'none', transition: 'border-color 0.2s', fontFamily: 'inherit' };
 
-  const contrastOptions = [
-    { key: 'readable', label: 'Aa', sub: 'Readable' },
-    { key: 'good', label: 'Aa Aa', sub: 'Good Contrast' },
-    { key: 'high', label: 'Aa Aa Aa', sub: 'High Contrast' },
-  ];
-
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f0f2f5' }}>
+      <div style={{ display: 'flex', height: '100vh', backgroundColor: '#eeebf5' }}>
         <Sidebar />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Header />
@@ -286,8 +267,8 @@ function Profile() {
   }
 
   return (
-    <div style={{
-      display: 'flex', height: '100vh', backgroundColor: '#f0f2f5',
+    <div className="account-page" style={{
+      display: 'flex', height: '100vh', backgroundColor: '#eeebf5',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
       color: '#111',
     }}>
@@ -296,29 +277,14 @@ function Profile() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Header />
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '40px 60px' }}>
+        <div className="account-content" style={{ flex: 1, overflowY: 'auto', padding: '40px 60px' }}>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
-            <h1 style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>Settings</h1>
-            <div style={{ display: 'flex', backgroundColor: '#e4e4e4', borderRadius: '10px', padding: '4px' }}>
-              {['profile', 'accessibility'].map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  style={{
-                    padding: '8px 22px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                    fontWeight: '600', fontSize: '14px', transition: 'all 0.2s',
-                    backgroundColor: activeTab === tab ? '#222' : 'transparent',
-                    color: activeTab === tab ? '#fff' : '#666',
-                  }}
-                >
-                  {tab === 'profile' ? 'My Profile' : 'Accessibility'}
-                </button>
-              ))}
-            </div>
+            <h1 style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>Account</h1>
+
           </div>
 
-          {activeTab === 'profile' && (
+          {(
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
               {saveSuccess && (
@@ -332,7 +298,7 @@ function Profile() {
                 </div>
               )}
 
-              <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '40px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+              <div className="account-profile-card" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '40px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '36px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -377,6 +343,7 @@ function Profile() {
                         {firstName && lastName
                           ? `${firstName} ${lastName}`
                           : firstName || username || email.split('@')[0]}
+                        {role && <span className="account-role">{role === 'instructor' ? 'Teacher' : role === 'admin' ? 'Admin' : 'Student'}</span>}
                       </div>
                       {username && (
                         <div style={{ fontSize: '14px', color: '#888', marginTop: '2px' }}>@{username}</div>
@@ -404,7 +371,7 @@ function Profile() {
                         disabled={saving}
                         style={{
                           padding: '10px 22px', borderRadius: '10px', border: 'none',
-                          backgroundColor: saving ? '#999' : '#222', color: '#fff',
+                          backgroundColor: saving ? '#999' : '#4a2b6b', color: '#fff',
                           cursor: saving ? 'not-allowed' : 'pointer',
                           fontWeight: '600', fontSize: '14px',
                         }}
@@ -450,9 +417,9 @@ function Profile() {
                 <div style={fieldStyle}>
                   <div style={labelStyle}>Date of Birth</div>
                   {isEditing
-                    ? <input type="date" style={{ ...inputStyle, maxWidth: '220px' }} value={editBirthdate} onChange={e => setEditBirthdate(e.target.value)} />
+                    ? <input aria-label="Date of Birth" type="date" style={{ ...inputStyle, maxWidth: '220px' }} value={editBirthdate} onChange={e => setEditBirthdate(e.target.value)} />
                     : <div style={valueStyle}>{birthdate
-                        ? new Date(birthdate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                        ? new Date(`${birthdate}T00:00:00`).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                         : <span style={{ color: '#bbb' }}>Not set</span>}
                       </div>}
                 </div>
@@ -497,7 +464,7 @@ function Profile() {
                       {passwordSuccess && <div style={{ color: '#2e7d62', fontSize: '13px', fontWeight: '600' }}>{passwordSuccess}</div>}
                       <button
                         onClick={handleChangePassword}
-                        style={{ padding: '10px 22px', borderRadius: '10px', border: 'none', backgroundColor: '#222', color: '#fff', cursor: 'pointer', fontWeight: '600', fontSize: '14px', alignSelf: 'flex-start' }}
+                        style={{ padding: '10px 22px', borderRadius: '10px', border: 'none', backgroundColor: '#4a2b6b', color: '#fff', cursor: 'pointer', fontWeight: '600', fontSize: '14px', alignSelf: 'flex-start' }}
                       >
                         Update Password
                       </button>
@@ -509,66 +476,6 @@ function Profile() {
             </div>
           )}
 
-          {activeTab === 'accessibility' && (
-            <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '40px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-
-              <div style={{ paddingBottom: '36px', borderBottom: '1px solid #f0f0f0', marginBottom: '36px', textAlign: 'center' }}>
-                <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '20px', color: '#111' }}>Contrast</div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                  {contrastOptions.map(opt => (
-                    <div
-                      key={opt.key}
-                      onClick={() => setContrast(opt.key)}
-                      style={{
-                        padding: '20px 32px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center',
-                        border: contrast === opt.key ? '2px solid #222' : '2px solid transparent',
-                        backgroundColor: contrast === opt.key ? '#222' : '#f4f4f4',
-                        color: contrast === opt.key ? '#fff' : '#333',
-                        minWidth: '120px', transition: 'all 0.2s',
-                      }}
-                    >
-                      <div style={{ fontSize: '20px', fontWeight: '700' }}>{opt.label}</div>
-                      <div style={{ fontSize: '12px', marginTop: '6px', opacity: 0.75 }}>{opt.sub}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ paddingBottom: '36px', borderBottom: '1px solid #f0f0f0', marginBottom: '36px', textAlign: 'center' }}>
-                <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '20px', color: '#111' }}>Text Size</div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-                  <span style={{ fontSize: '13px', color: '#999' }}>Small</span>
-                  <input
-                    type="range" min="1" max="5" value={textSize}
-                    onChange={e => setTextSize(Number(e.target.value))}
-                    style={{ width: '300px', cursor: 'pointer', accentColor: '#222' }}
-                  />
-                  <span style={{ fontSize: '20px', fontWeight: '700', color: '#333' }}>Big</span>
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#111' }}>Bold Text</div>
-                <div style={{ display: 'inline-flex', backgroundColor: '#f0f0f0', borderRadius: '10px', padding: '4px' }}>
-                  {[true, false].map(val => (
-                    <button
-                      key={String(val)}
-                      onClick={() => setBoldText(val)}
-                      style={{
-                        padding: '8px 30px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                        fontWeight: '600', fontSize: '14px', transition: 'all 0.2s',
-                        backgroundColor: boldText === val ? '#222' : 'transparent',
-                        color: boldText === val ? '#fff' : '#666',
-                      }}
-                    >
-                      {val ? 'On' : 'Off'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-          )}
 
         </div>
       </div>

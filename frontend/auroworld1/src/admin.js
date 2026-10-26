@@ -12,6 +12,7 @@ function Admin(){
 
     const navigate=useNavigate();
 
+
     
     async function getCurrentUserId(){
         const { data: { user } ,error} = await supabase.auth.getUser()

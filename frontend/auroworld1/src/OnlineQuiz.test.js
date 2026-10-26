@@ -17,6 +17,25 @@ const result = { correct: 1, total: 2, score: 50, questions: [{ ...questions[0],
 beforeEach(() => { jest.clearAllMocks(); });
 afterEach(() => { jest.restoreAllMocks(); });
 
+test('remaining attempts allow a fresh quiz while exhausted attempts do not', () => {
+  const completed = { submitted_at: '2026-10-01', result };
+  const { unmount } = render(<OnlineQuiz quiz={{ ...quiz, max_attempts: 2, attempts_remaining: 1, submissions: [completed] }} canSubmit onSaved={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+  expect(screen.getByText('Question 1 of 2')).toBeVisible();
+  screen.getAllByRole('radio').forEach(radio => expect(radio).not.toBeChecked());
+  unmount();
+  render(<OnlineQuiz quiz={{ ...quiz, max_attempts: 2, attempts_remaining: 0, submissions: [completed] }} canSubmit={false} onSaved={jest.fn()} />);
+  expect(screen.queryByRole('button', { name: 'Try Again' })).not.toBeInTheDocument();
+  expect(screen.getByText('0 attempt(s) remaining')).toBeVisible();
+});
+
+test('quiz editor prefills the allowed attempts setting', () => {
+  render(<QuizEditor unitId={1} quiz={{ ...quiz, max_attempts: 4 }} onSaved={jest.fn()} onCancel={jest.fn()} />);
+  expect(screen.getByLabelText('Allowed attempts')).toHaveValue('4');
+  fireEvent.change(screen.getByLabelText('Allowed attempts'), { target: { value: '2' } });
+  expect(screen.getByLabelText('Allowed attempts')).toHaveValue('2');
+});
+
 test('student navigation retains choices and saves an answer-only draft', async () => {
   quizRequest.mockResolvedValue({ submitted: false });
   render(<OnlineQuiz quiz={quiz} canSubmit onSaved={jest.fn()} />);

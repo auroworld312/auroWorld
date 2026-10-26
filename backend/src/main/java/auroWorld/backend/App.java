@@ -145,6 +145,8 @@ public class App
     private static final class CreateCourseRequest{
         public Integer unitCount;
         public String title;
+        public String thumbnail;
+        public String paymentUrl;
         public String description;
         public String instructor;
         public String times;
@@ -156,6 +158,9 @@ public class App
     }
     private static final class ChangeCourseRequest{
         public String title;
+        public String thumbnail;
+        public String paymentUrl;
+        public boolean updateThumbnail;
         public String description;
         public String instructor;
         public String times;
@@ -1299,8 +1304,17 @@ public class App
             return;
         }
 
+        if (!CoursePayment.isValidUrl(ccr.paymentUrl)) {
+            ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Payment link must be a valid HTTP or HTTPS URL", null)));
+            return;
+        }
+        if (ccr.paymentUrl != null) ccr.paymentUrl = ccr.paymentUrl.trim();
+        if (ccr.updateThumbnail && ccr.thumbnail != null && (ccr.thumbnail.length() > 400000 || !(ccr.thumbnail.matches("data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}") || ccr.thumbnail.startsWith("https://") || ccr.thumbnail.startsWith("http://")))) {
+            ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Invalid course image", null)));
+            return;
+        }
         int id = db.editCourseInfo(courseId, ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
-            ccr.level, ccr.price, ccr.liveUrl, ccr.daysOfWeek);
+            ccr.level, ccr.price, ccr.liveUrl, ccr.daysOfWeek, ccr.updateThumbnail, ccr.thumbnail, ccr.paymentUrl);
 
         if(id<=0){
             ctx.result(gson.toJson(new StructuredResponse("error",null,id)));
@@ -1345,7 +1359,7 @@ public class App
 
         if (ccr == null || ccr.title ==null || ccr.description == null 
         || ccr.instructor==null || ccr.times==null || ccr.startDate ==null || ccr.level==null
-        || ccr.price==null || ccr.live_url==null) {
+        || ccr.price==null) {
             System.out.println(ccr);
             System.out.println(ccr.title);
             System.out.println(ccr.description);
@@ -1360,13 +1374,22 @@ public class App
             return;
         }
 
+        if (!CoursePayment.isValidUrl(ccr.paymentUrl)) {
+            ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Payment link must be a valid HTTP or HTTPS URL", null)));
+            return;
+        }
+        if (ccr.paymentUrl != null) ccr.paymentUrl = ccr.paymentUrl.trim();
+        if (ccr.thumbnail != null && (ccr.thumbnail.length() > 400000 || !ccr.thumbnail.matches("data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}"))) {
+            ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Invalid course image", null)));
+            return;
+        }
         int unitCount = ccr.unitCount == null ? 0 : ccr.unitCount;
         if (unitCount < 0 || unitCount > 50) {
             ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Choose between 0 and 50 initial units.", null)));
             return;
         }
        int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
-        ccr.level, ccr.price, ccr.live_url, ccr.daysOfWeek, unitCount);
+        ccr.level, ccr.price, ccr.live_url == null ? "" : ccr.live_url, ccr.daysOfWeek, unitCount, ccr.thumbnail, ccr.paymentUrl);
         if (id < 0) {
             ctx.status(500).result(gson.toJson(new StructuredResponse("error", "Course creation failed. Please try again.", null)));
             return;
@@ -1414,6 +1437,15 @@ public class App
             return;
         }
     
+        Database.CourseData enrollmentCourse = db.selectCourse(courseId);
+        if (enrollmentCourse == null) {
+            ctx.status(404).result(gson.toJson(new StructuredResponse("error", "Course not found", null)));
+            return;
+        }
+        if (!"Free".equals(enrollmentCourse.price)) {
+            ctx.status(403).result(gson.toJson(new StructuredResponse("error", "Paid courses require payment confirmation", null)));
+            return;
+        }
         int result = db.enrollUser(courseId, req.user_uuid);
         if (result < 0) {
             ctx.status(500);

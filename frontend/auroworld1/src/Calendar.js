@@ -1,19 +1,15 @@
+import { createPortal } from 'react-dom';
+import './Calendar.css';
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-// import { createClient } from '@supabase/supabase-js';
+import { quizRequest } from './quizApi';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import { useQuizDeadlines, QuizDeadlineBlocks, QuizDeadlineList } from './QuizCalendar';
-import {supabase} from './utils/supabaseClient.js'
-
-// const supabase = createClient(
-//   'https://rduempiojxizkwwbzaml.supabase.co',
-//   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo'
-// );
+// import {supabase} from './utils/supabaseClient.js'
 
 //const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld.onrender.com';
-const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
-const COURSE_COLORS = ['#6C63FF', '#8B5CF6', '#7C3AED', '#9333EA', '#A855F7', '#6D28D9', '#5B21B6'];
+const COURSE_COLORS = ['#4A2B6B'];
 
 function parseCourseSchedule(timesStr, daysOfWeekStr) {
   if (!timesStr) return null;
@@ -66,6 +62,9 @@ function Calendar() {
   const [panelDate, setPanelDate] = useState(passedDate);
   const [viewMode, setViewMode] = useState('day');
   const [courseEvents, setCourseEvents] = useState([]);
+  const [courseError, setCourseError] = useState('');
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [reloadCourses, setReloadCourses] = useState(0);
   const [hoveredEvent, setHoveredEvent] = useState(null);
   const scrollRef = useRef(null);
   const quizDeadlines = useQuizDeadlines();
@@ -78,43 +77,46 @@ function Calendar() {
     }
   }, []);
 
-  const enrolledCoursesGrabbed = useRef(false)
   useEffect(() => {
-    if(enrolledCoursesGrabbed.current===false){
+    let active = true;
+    {
       async function loadEnrolledCourses() {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
         try {
-          const res = await fetch(`${API}/courses/enrolled/${user.id}`);
-          const data = await res.json();
-          const courses = data.mData || [];
+          const courses = await quizRequest('/calendar-courses');
+          if (!active) return;
           const events = [];
           courses.forEach((course, index) => {
             const schedule = parseCourseSchedule(course.times, course.daysOfWeek);
-            if (!schedule) return;
+
             events.push({
               courseId: course.courseId,
               title: course.title,
+              thumbnail: course.thumbnail || '',
               color: COURSE_COLORS[index % COURSE_COLORS.length],
               liveUrl: course.liveUrl || null,
               instructor: course.instructor || '',
               times: course.times || '',
-              days: schedule.days,
-              startHour: schedule.startHour,
-              startMinute: schedule.startMinute,
-              endHour: schedule.endHour,
-              endMinute: schedule.endMinute,
+              calendarOwner: course.calendarOwner === true,
+              days: schedule?.days || [],
+              startHour: schedule?.startHour,
+              startMinute: schedule?.startMinute,
+              endHour: schedule?.endHour,
+              endMinute: schedule?.endMinute,
             });
           });
           setCourseEvents(events);
-        } catch (e) { console.error('loadEnrolledCourses:', e); }
+          setCourseError('');
+        } catch (e) { if (active) setCourseError(e.message); }
+        finally { if (active) setCoursesLoading(false); }
       }
+      setCoursesLoading(true);
       loadEnrolledCourses();
+      const refresh = () => loadEnrolledCourses();
+      window.addEventListener('focus', refresh);
+      const timer = setInterval(refresh, 60000);
+      return () => { active = false; window.removeEventListener('focus', refresh); clearInterval(timer); };
     }
-    return ()=>{
-        enrolledCoursesGrabbed.current=true
-    }
-  }, []);
+  }, [reloadCourses]);
 
   const daysInMonth = new Date(panelDate.getFullYear(), panelDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(panelDate.getFullYear(), panelDate.getMonth(), 1).getDay();
@@ -131,7 +133,7 @@ function Calendar() {
         {years.map(y => (
           <div key={y} onClick={() => handleYearClick(y)} className="calendar-day-hover"
             style={{ padding: '15px 0', textAlign: 'center', borderRadius: '8px', cursor: 'pointer',
-              backgroundColor: y === selectedDate.getFullYear() ? '#6C63FF' : 'transparent',
+              backgroundColor: y === selectedDate.getFullYear() ? '#7A4B8C' : 'transparent',
               color: y === selectedDate.getFullYear() ? '#fff' : '#333',
               fontWeight: y === selectedDate.getFullYear() ? 'bold' : 'normal' }}>
             {y}
@@ -148,7 +150,7 @@ function Calendar() {
         {months.map((m, index) => (
           <div key={m} onClick={() => handleMonthClick(index)} className="calendar-day-hover"
             style={{ padding: '15px 0', textAlign: 'center', borderRadius: '8px', cursor: 'pointer',
-              backgroundColor: index === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear() ? '#6C63FF' : 'transparent',
+              backgroundColor: index === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear() ? '#7A4B8C' : 'transparent',
               color: index === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear() ? '#fff' : '#333',
               fontWeight: index === selectedDate.getMonth() && panelDate.getFullYear() === selectedDate.getFullYear() ? 'bold' : 'normal' }}>
             {m}
@@ -165,7 +167,7 @@ function Calendar() {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px', textAlign: 'center', marginTop: '10px' }}>
         {weekDays.map((d, i) => (
-          <div key={'header-' + i} style={{ fontWeight: 'bold', fontSize: '12px', paddingBottom: '10px', color: '#6C63FF' }}>{d}</div>
+          <div key={'header-' + i} style={{ fontWeight: 'bold', fontSize: '12px', paddingBottom: '10px', color: '#7A4B8C' }}>{d}</div>
         ))}
         {blanks.map(b => <div key={'blank-' + b} />)}
         {days.map(d => {
@@ -173,7 +175,7 @@ function Calendar() {
           return (
             <div key={d} onClick={() => handleDayClick(d)} className="calendar-day-hover"
               style={{ width: '30px', height: '30px', lineHeight: '30px', margin: '0 auto', borderRadius: '50%', cursor: 'pointer', fontSize: '14px',
-                backgroundColor: isSelected ? '#6C63FF' : 'transparent',
+                backgroundColor: isSelected ? '#7A4B8C' : 'transparent',
                 color: isSelected ? '#fff' : '#333',
                 fontWeight: isSelected ? 'bold' : 'normal' }}>
               {d}
@@ -216,6 +218,12 @@ function Calendar() {
 
   const eventBlocks = getEventBlocks();
 
+  const showEventDetails = (e, event, idx) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const left = rect.right + 12 + 260 <= window.innerWidth - 12 ? rect.right + 12 : rect.left - 272;
+    setHoveredEvent({ ...event, idx, left: Math.max(12, left), top: Math.max(12, Math.min(rect.top, window.innerHeight - 250)) });
+  };
+
   const formatTime = (hour, minute) => {
     const h = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
     const m = minute.toString().padStart(2, '0');
@@ -223,11 +231,12 @@ function Calendar() {
     return `${h}:${m} ${ap}`;
   };
 
-  const selectedDayEvents = courseEvents.filter(e => e.days.includes(selectedDate.getDay()));
+  const isTeacherCalendar = courseEvents.some(e => e.calendarOwner);
+  const selectedDayEvents = isTeacherCalendar ? courseEvents : courseEvents.filter(e => e.days.includes(selectedDate.getDay()));
   const monthName = panelDate.toLocaleString('en-US', { month: 'long' });
 
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#E3C7E6',
+    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#EEEBF5',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
       fontSize: '16px', color: '#111' }}>
       <Sidebar />
@@ -236,25 +245,25 @@ function Calendar() {
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden', padding: '20px', gap: '20px' }}>
 
           {/* Weekly grid */}
-          <div style={{ flex: 1, backgroundColor: '#fff', borderRadius: '15px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 2px 10px rgba(108,99,255,0.10)' }}>
-            <div style={{ display: 'flex', borderBottom: '1px solid #EDE9FF', padding: '10px 0' }}>
+          <div style={{ flex: 1, backgroundColor: '#fff', borderRadius: '15px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 2px 10px rgba(74,43,107,0.08)' }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid #7B748F', backgroundColor: '#EEEBF5', padding: '10px 0' }}>
               <div style={{ width: '60px' }}></div>
               {weekDates.map((date, i) => (
                 <div key={i} style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{ fontSize: '12px', color: '#6C63FF', fontWeight: 'bold' }}>{['S', 'M', 'T', 'W', 'T', 'F', 'S'][i]}</div>
+                  <div style={{ fontSize: '12px', color: '#7A4B8C', fontWeight: 'bold' }}>{['S', 'M', 'T', 'W', 'T', 'F', 'S'][i]}</div>
                   <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '5px', color: '#333' }}>{date.getDate()}</div>
                 </div>
               ))}
             </div>
 
-            <div ref={scrollRef} className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+            <div ref={scrollRef} className="hide-scrollbar calendar-time-grid" onScroll={() => setHoveredEvent(null)} style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
               {hours.map((time, i) => (
-                <div key={i} style={{ display: 'flex', borderBottom: '1px solid #F3F0FF', height: '60px' }}>
-                  <div style={{ width: '60px', textAlign: 'center', fontSize: '11px', color: '#9CA3AF', paddingTop: '5px', borderRight: '1px solid #EDE9FF' }}>
+                <div key={i} style={{ display: 'flex', borderBottom: '1px solid #7B748F', height: '60px' }}>
+                  <div style={{ width: '60px', textAlign: 'center', fontSize: '11px', color: '#7B748F', paddingTop: '5px', borderRight: '1px solid #7B748F' }}>
                     {time}
                   </div>
                   {weekDates.map((_, dayIndex) => (
-                    <div key={dayIndex} style={{ flex: 1, borderRight: '1px solid #F3F0FF' }}></div>
+                    <div key={dayIndex} style={{ flex: 1, borderRight: '1px solid #7B748F' }}></div>
                   ))}
                 </div>
               ))}
@@ -263,8 +272,13 @@ function Calendar() {
               {eventBlocks.map((event, idx) => (
                 <div
                   key={`${event.courseId}-${event.dayIndex}-${idx}`}
-                  onClick={() => navigate(`/courses/${event.courseId}`, { state: { activeTab: 'video' } })}
-                  onMouseEnter={() => setHoveredEvent({ ...event, idx })}
+                  onClick={() => navigate(`/courses/${event.courseId}`, { state: { activeTab: 'course' } })}
+                  onMouseEnter={(e) => showEventDetails(e, event, idx)}
+                  onFocus={(e) => showEventDetails(e, event, idx)}
+                  onBlur={() => setHoveredEvent(null)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/courses/${event.courseId}`, { state: { activeTab: 'course' } }); } if (e.key === 'Escape') setHoveredEvent(null); }}
                   onMouseLeave={() => setHoveredEvent(null)}
                   style={{
                     position: 'absolute',
@@ -294,18 +308,18 @@ function Calendar() {
                     {formatTime(event.startHour, event.startMinute)} – {formatTime(event.endHour, event.endMinute)}
                   </div>
 
-                  {hoveredEvent?.courseId === event.courseId && hoveredEvent?.dayIndex === event.dayIndex && (
-                    <div style={{
-                      position: 'absolute', top: '0px', left: 'calc(100% + 8px)', width: '220px',
+                  {hoveredEvent?.courseId === event.courseId && hoveredEvent?.dayIndex === event.dayIndex && createPortal(
+                    <div role="tooltip" style={{
+                      position: 'fixed', top: hoveredEvent.top, left: hoveredEvent.left, width: '260px', boxSizing: 'border-box', maxHeight: 'calc(100vh - 24px)', overflowY: 'auto',
                       backgroundColor: event.color, borderRadius: '12px', padding: '14px',
-                      boxShadow: '0 8px 24px rgba(108,99,255,0.25)', zIndex: 100, color: '#fff', pointerEvents: 'none',
+                      boxShadow: '0 8px 24px rgba(74,43,107,0.25)', zIndex: 1000, color: '#fff', pointerEvents: 'none',
                     }}>
-                      <div style={{ fontSize: '14px', fontWeight: '800', marginBottom: '8px', lineHeight: 1.3 }}>{event.title}</div>
+                      <div className="calendar-course-heading">{event.thumbnail && <img src={event.thumbnail} alt="" />}<strong>{event.title}</strong></div>
                       <div style={{ fontSize: '12px', opacity: 0.85, marginBottom: '4px' }}>Instructor: {event.instructor || '—'}</div>
                       <div style={{ fontSize: '12px', opacity: 0.85, marginBottom: '4px' }}>Times: {event.times || '—'}</div>
                       <div style={{ fontSize: '12px', opacity: 0.85 }}>{formatTime(event.startHour, event.startMinute)} – {formatTime(event.endHour, event.endMinute)}</div>
                       <div style={{ marginTop: '10px', fontSize: '12px', fontWeight: '700', opacity: 0.9 }}>View class</div>
-                    </div>
+                    </div>, document.body
                   )}
                 </div>
               ))}
@@ -315,20 +329,20 @@ function Calendar() {
           {/* Right panel */}
           <div style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-            <div style={{ display: 'flex', backgroundColor: '#D4C5F9', borderRadius: '20px', padding: '4px' }}>
+            <div style={{ display: 'flex', backgroundColor: '#EEEBF5', borderRadius: '20px', padding: '4px' }}>
               {['Year', 'Month', 'Day'].map(mode => (
                 <div key={mode} onClick={() => setViewMode(mode.toLowerCase())}
                   style={{ flex: 1, textAlign: 'center', padding: '8px 0', borderRadius: '16px', fontSize: '14px', cursor: 'pointer', fontWeight: '600',
-                    backgroundColor: viewMode === mode.toLowerCase() ? '#6C63FF' : 'transparent',
-                    color: viewMode === mode.toLowerCase() ? 'white' : '#5B21B6',
+                    backgroundColor: viewMode === mode.toLowerCase() ? '#7A4B8C' : 'transparent',
+                    color: viewMode === mode.toLowerCase() ? 'white' : '#4A2B6B',
                     transition: 'all 0.2s' }}>
                   {mode}
                 </div>
               ))}
             </div>
 
-            <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(108,99,255,0.10)' }}>
-              <div style={{ fontSize: '16px', fontWeight: '800', marginBottom: '15px', textAlign: 'center', color: '#6C63FF' }}>
+            <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(74,43,107,0.08)' }}>
+              <div style={{ fontSize: '16px', fontWeight: '800', marginBottom: '15px', textAlign: 'center', color: '#7A4B8C' }}>
                 {viewMode === 'day' && monthName + ' ' + panelDate.getFullYear()}
                 {viewMode === 'month' && panelDate.getFullYear()}
                 {viewMode === 'year' && 'Select Year'}
@@ -338,31 +352,38 @@ function Calendar() {
               {viewMode === 'day' && renderDayView()}
             </div>
 
-            <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(108,99,255,0.10)', flex: 1, overflowY: 'auto' }}>
-              <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', fontWeight: '800', color: '#6C63FF' }}>My Schedule</h3>
+            <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(74,43,107,0.08)', flex: 1, overflowY: 'auto' }}>
+              <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', fontWeight: '800', color: '#7A4B8C' }}>{isTeacherCalendar ? 'My Courses' : 'My Schedule'}</h3>
+              {coursesLoading && <p role="status">Loading courses...</p>}
+              {courseError && <div role="alert">Courses could not load: {courseError}<button onClick={() => setReloadCourses(value => value + 1)}>Retry</button></div>}
               {viewMode === 'day' && <QuizDeadlineList quizzes={quizDeadlines.quizzes} error={quizDeadlines.error} selectedDate={selectedDate} />}
 
-              {viewMode !== 'day' && (
-                <div style={{ color: '#9CA3AF', fontSize: '14px', textAlign: 'center', marginTop: '30px' }}>
+              {!isTeacherCalendar && viewMode !== 'day' && (
+                <div style={{ color: '#7B748F', fontSize: '14px', textAlign: 'center', marginTop: '30px' }}>
                   Please select a day to view your schedule.
                 </div>
               )}
 
-              {viewMode === 'day' && selectedDayEvents.length === 0 && (
-                <div style={{ backgroundColor: '#F3F0FF', padding: '15px', borderRadius: '10px', fontSize: '14px', color: '#7C3AED' }}>
+              {!coursesLoading && !courseError && viewMode === 'day' && selectedDayEvents.length === 0 && (
+                <div style={{ backgroundColor: '#D8D3E8', padding: '15px', borderRadius: '10px', fontSize: '14px', color: '#4A2B6B' }}>
                   No classes on this day.
                 </div>
               )}
 
-              {viewMode === 'day' && selectedDayEvents.map(event => (
+              {(isTeacherCalendar || viewMode === 'day') && selectedDayEvents.map(event => (
                 <div key={event.courseId}
-                  onClick={() => navigate(`/courses/${event.courseId}`, { state: { activeTab: 'video' } })}
-                  style={{ backgroundColor: event.color + '18', border: `1.5px solid ${event.color}`,
+                  onClick={() => navigate(`/courses/${event.courseId}`, { state: { activeTab: 'course' } })}
+                  className="calendar-schedule-card"
+                  role="button" tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/courses/${event.courseId}`, { state: { activeTab: 'course' } }); } }}
+                  style={{ backgroundColor: '#fff', border: '1px solid #D8D3E8',
                     padding: '12px 15px', borderRadius: '10px', fontSize: '14px',
                     cursor: 'pointer', marginBottom: '10px' }}>
-                  <div style={{ fontWeight: 'bold', color: event.color }}>{event.title}</div>
+                  <div className="calendar-course-heading">{event.thumbnail && <img src={event.thumbnail} alt="" />}<strong>{event.title}</strong></div>
+                  {event.instructor && <div className="calendar-course-instructor">Instructor: {event.instructor}</div>}
+                  {isTeacherCalendar && <div className="calendar-course-instructor">{event.days.length ? event.days.map(day => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]).join(', ') : 'Schedule not set'}</div>}
                   <div style={{ fontSize: '12px', marginTop: '4px', color: '#555' }}>
-                    {formatTime(event.startHour, event.startMinute)} – {formatTime(event.endHour, event.endMinute)}
+                    {event.times || 'Time not set'}
                   </div>
                   <div style={{ fontSize: '12px', color: event.color, marginTop: '2px' }}>View class</div>
                 </div>

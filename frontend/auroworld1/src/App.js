@@ -1,3 +1,4 @@
+import Settings from './Settings';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Posts from './posts.js'
 import Courses from './courses.js'
@@ -40,6 +41,7 @@ function App() {
                 <Route path="/posts" element={<Posts />} />
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="/signup" element={<Signup />}/>
                 <Route path ="/resetpass" element={<ResetPassword />} />
                 <Route path="/calendar" element={<Calendar />} />

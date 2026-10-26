@@ -1,18 +1,20 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation} from "react-router-dom";
 import { useEffect, useState, useCallback, useRef } from "react";
 // import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import ReactGA from "react-ga4";
+import { deleteFromB2, isB2, toKey } from './b2Storage';
+import "./CoursesPage.css";
+import { paymentLink } from "./CourseEnrollment";
+import "@fortawesome/fontawesome-free/css/all.min.css";
+import { getCourseTimeValues, isCourseTime } from "./courseSchedule";
 import {supabase} from './utils/supabaseClient.js'
-
-// const supabase = createClient('https://rduempiojxizkwwbzaml.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkdWVtcGlvanhpemt3d2J6YW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjA5NjIsImV4cCI6MjA4NTYzNjk2Mn0.owcc0cRZ1EhLvY7nIpqHN5tPWG81LgMLaH9dOyc6Ymo')
 
 //const API = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://auroworld.onrender.com";
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com';
 
 
-const PURPLE = '#6C63FF';
+const PURPLE = '#4A2B6B';
 const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
     const hour = Math.floor(index / 2);
     const minute = index % 2 === 0 ? '00' : '30';
@@ -24,6 +26,14 @@ const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
 //const PURPLE_LIGHT = '#EDE9FF';
 
 
+export function courseTimeGroup(times) {
+    if (/asynchronous|self[- ]paced/i.test(times || '')) return 'Asynchronous';
+    const [start] = getCourseTimeValues(times);
+    if (!start) return '';
+    const hour = Number(start.slice(0, 2));
+    return hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening';
+}
+
 function Courses() {
     const navigate = useNavigate();
     const [loadingChanges, setLoadingChanges] = useState(false)
@@ -31,16 +41,64 @@ function Courses() {
     const [tab, setTab] = useState('all');
     const [allCourses, setAllCourses] = useState([]);
     const [enrolledIds, setEnrolledIds] = useState(new Set());
-    const [enrolling, setEnrolling] = useState({});
+    const [enrollmentLoading, setEnrollmentLoading] = useState(false);
+    const [enrollmentError, setEnrollmentError] = useState('');
     const [search, setSearch] = useState('');
     const [filters, setFilters] = useState({ level: [], time: [] });
     const [showAddCourse, setShowAddCourse] = useState(false);
+    const [editingCourse, setEditingCourse] = useState(null);
+    const [courseMenu, setCourseMenu] = useState(null);
     const [selectedDays, setSelectedDays] = useState([]);
     const[instructorList, setInstructorList]=useState([])
     const [userAttributes, setUserAttributes] = useState(null);
 
     const {state} = useLocation()
     const {passedUserId} = state || {}
+    const isTeacher = userAttributes?.role === 'instructor';
+    const [thumbnail, setThumbnail] = useState('');
+    const [imageLoading, setImageLoading] = useState(false);
+
+    const [now, setNow] = useState(() => new Date());
+    const [bookmarks, setBookmarks] = useState(new Set());
+    const [bookmarkOwner, setBookmarkOwner] = useState(null);
+
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        setBookmarks(new Set());
+        setBookmarkOwner(null);
+        if (!currentUserId) return;
+        try {
+            const saved = JSON.parse(localStorage.getItem(`auroworld:bookmarks:${currentUserId}`) || '[]');
+            setBookmarks(new Set(Array.isArray(saved) ? saved.map(String) : []));
+            setBookmarkOwner(currentUserId);
+        } catch {
+            setBookmarkOwner(currentUserId);
+        }
+    }, [currentUserId]);
+
+    function toggleBookmark(courseId) {
+        if (!currentUserId || bookmarkOwner !== currentUserId) return;
+        const next = new Set(bookmarks);
+        const id = String(courseId);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        try {
+            localStorage.setItem(`auroworld:bookmarks:${currentUserId}`, JSON.stringify([...next]));
+            setBookmarks(next);
+        } catch {
+            alert('Unable to save this bookmark. Please allow browser storage and try again.');
+        }
+    }
+
+    function displayCourseTimes(times) {
+        const values = getCourseTimeValues(times);
+        return values.every(Boolean)
+            ? values.map(value => COURSE_TIME_OPTIONS.find(option => option.value === value).label).join(' - ')
+            : times || 'Not specified';
+    }
 
     const DAY_LABELS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     function toggleDay(idx) {
@@ -114,7 +172,7 @@ function Courses() {
 
     const [newCourse, setNewCourse] = useState({
         title: '', description: '', instructor: 'liamtest', startTime: '', endTime: '',
-        start_date: '', level: 'Beginner', price: 'Free', live_url: '', unitCount: 1
+        start_date: '', level: 'Beginner', price: 'Free', live_url: '', paymentUrl: '', unitCount: 1
     });
 
     const loadCourses = useCallback(async () => {
@@ -128,11 +186,15 @@ function Courses() {
 
     const loadEnrolled = useCallback(async (uuid) => {
         if (!uuid) return;
+        setEnrollmentLoading(true);
+        setEnrollmentError('');
         try {
             const res = await fetch(`${API}/courses/enrolled/${uuid}`);
             const data = await res.json();
-            setEnrolledIds(new Set((data.mData || []).map(c => c.courseId)));
-        } catch (e) { console.error('loadEnrolled:', e); }
+            if (res.ok === false || data.mStatus !== 'ok' || !Array.isArray(data.mData)) throw new Error('Unable to load enrolled courses. Please try again.');
+            setEnrolledIds(new Set(data.mData.map(c => String(c.courseId))));
+        } catch (e) { setEnrollmentError(e.message); }
+        finally { setEnrollmentLoading(false); }
     }, []);
 
     const coursesGrabbed = useRef(false)
@@ -145,72 +207,98 @@ function Courses() {
         }
     }, [loadCourses]);
 
-    const enrolledGrabbed = useRef(false)
-    useEffect(() => { 
-        if(enrolledGrabbed.current===false && currentUserId!=='noId'){
-            if (currentUserId){ 
-                loadEnrolled(currentUserId);
-            } 
-        }
-        return ()=>{
-            enrolledGrabbed.current=true
-        }
+    useEffect(() => {
+        if (!currentUserId) return;
+        const refresh = () => loadEnrolled(currentUserId);
+        refresh();
+        window.addEventListener('focus', refresh);
+        return () => window.removeEventListener('focus', refresh);
     }, [currentUserId, loadEnrolled]);
 
-    async function handleEnroll(courseId, courseTitle) {
-        if (!currentUserId) { alert('Please log in to enroll.'); return; }
-        setEnrolling(prev => ({ ...prev, [courseId]: true }));
-        try {
-            setLoadingChanges(true)
-            const res = await fetch(`${API}/courses/${courseId}/enroll`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_uuid: currentUserId }),
-            });
-            const data = await res.json();
-            if (data.mStatus === 'ok'){
-                setEnrolledIds(prev => new Set([...prev, courseId]));
-            }
-            else{
-                alert('Enroll failed: ' + data.mMessage);
-            }
-        } catch (e) { console.error(e); }
-        finally { setLoadingChanges(false); setEnrolling(prev => ({ ...prev, [courseId]: false })); }
-
-        ReactGA.event({
-            category:'enrolls',
-            action:'enrolled '+courseTitle,
-            label:courseId,
-        })
+    function openCourseForm(course = null) {
+        setEditingCourse(course);
+        setCourseMenu(null);
+        const times = getCourseTimeValues(course?.times);
+        setNewCourse({ title: course?.title || '', description: course?.description || '', instructor: course?.instructor || userAttributes?.username || '', startTime: times[0] || '', endTime: times[1] || '', start_date: course?.startDate || '', level: course?.level || 'Beginner', price: course?.price || 'Free', live_url: course?.liveUrl || '', paymentUrl: course?.paymentUrl || '', unitCount: 1 });
+        setSelectedDays((course?.daysOfWeek || '').split(',').filter(day => /^[0-6]$/.test(day)).map(Number));
+        setThumbnail(course?.thumbnail || '');
+        setShowAddCourse(true);
+        requestAnimationFrame(() => document.getElementById('create-course-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }));
     }
 
-    async function handleUnenroll(courseId, courseTitle) {
-        if (!window.confirm('Unenroll from this course?')) return;
-        setEnrolling(prev => ({ ...prev, [courseId]: true }));
+    async function deleteCourse(course) {
+        if (loadingChanges || !window.confirm(`Delete "${course.title}" and its contents? This cannot be undone.`)) return;
+        setLoadingChanges(true);
+        setCourseMenu(null);
         try {
-            setLoadingChanges(true)
-            const res = await fetch(`${API}/courses/${courseId}/enroll`, {
-                method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_uuid: currentUserId }),
+            const pathsResponse = await fetch(`${API}/filepaths/course/${course.courseId}`);
+            const pathsData = await pathsResponse.json();
+            if (pathsData.mStatus !== 'ok') throw new Error(pathsData.mMessage || 'Could not load course files.');
+            const paths = (pathsData.mData || []).filter(path => path && path !== 'empty' && !/^https?:\/\//i.test(path));
+            await deleteFromB2(paths.filter(isB2).map(toKey), async () => {
+                const { data: { session } } = await supabase.auth.getSession();
+                return session?.access_token;
             });
-            const data = await res.json();
-            if (data.mStatus === 'ok') {
-                setEnrolledIds(prev => { const n = new Set(prev); n.delete(courseId); return n; });
-            } else {
-                alert('Unenroll failed: ' + data.mMessage);
+            const legacyPaths = paths.filter(path => !isB2(path));
+            if (legacyPaths.length) {
+                const { error } = await supabase.storage.from('course_videos').remove(legacyPaths);
+                if (error) throw error;
             }
-        } catch (e) { console.error(e); }
-        finally { setLoadingChanges(false); setEnrolling(prev => ({ ...prev, [courseId]: false })); }
-        ReactGA.event({
-            category:'unenrolls',
-            action:'unenrolled '+courseTitle,
-            label:courseId,
-        })
+            const response = await fetch(`${API}/courses/${course.courseId}`, { method: 'DELETE' });
+            const data = await response.json();
+            if (data.mStatus !== 'ok') throw new Error(data.mMessage || 'Could not delete course.');
+            setAllCourses(previous => previous.filter(item => item.courseId !== course.courseId));
+            if (editingCourse?.courseId === course.courseId) { setShowAddCourse(false); setEditingCourse(null); }
+        } catch (error) { alert(error.message); }
+        finally { setLoadingChanges(false); }
+    }
+
+    async function chooseThumbnail(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        event.target.value = '';
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+            alert('Choose a JPG, PNG or WebP image up to 10 MB.'); return;
+        }
+        setImageLoading(true);
+        const url = URL.createObjectURL(file);
+        try {
+            const image = new Image();
+            image.src = url;
+            await image.decode();
+            const scale = Math.min(1, 800 / Math.max(image.width, image.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            const result = canvas.toDataURL('image/jpeg', 0.75);
+            if (result.length > 400000) throw new Error('Please choose a smaller image.');
+            setThumbnail(result);
+        } catch (error) { alert(error.message || 'Could not read this image.'); }
+        finally { URL.revokeObjectURL(url); setImageLoading(false); }
+    }
+
+    function compactDays(value) {
+        const days = [...new Set((value || '').split(',').filter(day => /^[0-6]$/.test(day)))].sort();
+        const key = days.join(',');
+        if (key === '0,1,2,3,4,5,6') return 'Every day';
+        if (key === '1,2,3,4,5') return 'Weekdays';
+        if (key === '0,6') return 'Weekend';
+        return days.map(day => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][Number(day)]).join(', ') || 'Not specified';
     }
 
     async function submitNewCourse() {
-        const { title, description, instructor, startTime, endTime,
-            start_date,  level, price, live_url 
+        if (loadingChanges || imageLoading) return;
+        const { title, description, startTime, endTime,
+            start_date,  level, price, live_url, paymentUrl
         } = newCourse;
+        if (paymentUrl.trim() && (!paymentLink(paymentUrl.trim()) || paymentUrl.length > 2048)) {
+            alert('Please enter a valid HTTP or HTTPS payment link.');
+            return;
+        }
         const startOption = COURSE_TIME_OPTIONS.find(option => option.value === startTime);
         const endOption = COURSE_TIME_OPTIONS.find(option => option.value === endTime);
         if (!startOption || !endOption || endTime <= startTime) {
@@ -224,29 +312,43 @@ function Courses() {
         const times = `${startOption.label} - ${endOption.label}`;
         // console.log("title: "+title)
         // console.log("description: "+description)
+        const instructor = userAttributes?.role === 'instructor' ? userAttributes.username : newCourse.instructor;
         // console.log("instructor: "+instructor)
         // console.log("times: "+times)
         // console.log("start_date: "+start_date)
         // console.log("level: "+level)
         // console.log("price: "+price)
         // console.log("newCourse: "+newCourse)
-        if (!title || !description || !instructor || !times || !start_date || !level || !price || !live_url) {
+        if (!title || !description || !instructor || !times || !start_date || !level || !price) {
             alert('Please fill out all fields'); return;
         }
         try {
             setLoadingChanges(true)
-            const response = await fetch(`${API}/courses`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title:title, description: description, instructor:instructor, times:times, startDate: start_date, level:level, price:price, live_url:live_url, unitCount: newCourse.unitCount, daysOfWeek: [...selectedDays].sort((a, b) => a - b).join(',') })
+            const response = await fetch(editingCourse ? `${API}/courses/edit/${editingCourse.courseId}` : `${API}/courses`, {
+                method: editingCourse ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title:title, description: description, instructor:instructor, times:times, startDate: start_date, level:level, price:price, paymentUrl:paymentUrl.trim(), live_url:live_url.trim(), thumbnail: thumbnail || null, updateThumbnail: !!editingCourse, liveUrl: live_url.trim(), unitCount: newCourse.unitCount, daysOfWeek: [...selectedDays].sort((a, b) => a - b).join(',') })
             });
             const data = await response.json();
-            if (data.mStatus !== 'ok') { setLoadingChanges(false); alert('Adding course failed: ' + data.mMessage); return; }
+            if (data.mStatus !== 'ok') { setLoadingChanges(false); alert('Saving course failed: ' + data.mMessage); return; }
+            const savedId = editingCourse?.courseId || data.mData;
+            if (editingCourse || thumbnail || paymentUrl.trim()) {
+                const savedResponse = await fetch(`${API}/courses/${savedId}`);
+                const savedData = await savedResponse.json();
+                if (savedData.mStatus !== 'ok' || (savedData.mData?.thumbnail || '') !== thumbnail) {
+                    throw new Error('The course image was not saved. Your selection is still here. Restart the updated backend and try again.');
+                }
+                if ((savedData.mData?.paymentUrl || '') !== paymentUrl.trim()) {
+                    throw new Error('The payment link was not saved. Restart the updated backend and try again.');
+                }
+            }
             setLoadingChanges(false)
             setShowAddCourse(false)
-            setNewCourse({ title: '', description: '', instructor: '', startTime: '', endTime: '', start_date: '', level: 'Beginner', price: 'Free', live_url: '', unitCount: 1 });
+            setEditingCourse(null)
+            setNewCourse({ title: '', description: '', instructor: '', startTime: '', endTime: '', start_date: '', level: 'Beginner', price: 'Free', live_url: '', paymentUrl: '', unitCount: 1 });
             setSelectedDays([]);
+            setThumbnail('');
             loadCourses();
-        } catch (error) { setLoadingChanges(false); console.log(error.message); }
+        } catch (error) { setLoadingChanges(false); alert('Could not save course: ' + error.message); }
     }
 
     function toggleFilter(type, value) {
@@ -257,58 +359,54 @@ function Courses() {
     }
 
 
-    const levelOptions = ['Beginner', 'Intermediate', 'Advanced'];
+    const levelOptions = ['Beginner', 'Elementary', 'Pre-Intermediate', 'Intermediate', 'Advanced', 'Proficient'];
     const timeOptions = ['Morning', 'Afternoon', 'Evening', 'Asynchronous'];
 
-    const enrolledCourses = allCourses.filter(c => enrolledIds.has(c.courseId));
-    const displayList = (tab === 'enrolled' ? enrolledCourses : allCourses)
+    const visibleCourses = !userAttributes ? [] : userAttributes.role === 'instructor'
+        ? allCourses.filter(course => !!userAttributes.username && course.instructor === userAttributes.username)
+        : allCourses;
+    const enrolledCourses = visibleCourses.filter(c => enrolledIds.has(String(c.courseId)));
+    const displayList = (tab === 'enrolled' ? enrolledCourses : visibleCourses)
         .filter(c => c.title?.toLowerCase().includes(search.toLowerCase()) || c.instructor?.toLowerCase().includes(search.toLowerCase()))
         .filter(c => filters.level.length === 0 || filters.level.includes(c.level))
+        .filter(c => filters.time.length === 0 || filters.time.includes(courseTimeGroup(c.times)))
 
     return (
-        <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', backgroundColor: '#f0f2f5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', opacity:loadingChanges? 0.5 : 1 }}>
+        <div className={`courses-page${isTeacher ? ' courses-teacher' : ''}`} style={{ opacity:loadingChanges? 0.5 : 1 }}>
             <div className = 'loader' style={{display:loadingChanges?'flex':'none'}}></div>
             <Sidebar />
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <div className="courses-workspace">
                 <Header />
-                <div style={{ flex: 1, overflowY: 'auto', padding: '30px', display: 'flex', gap: '24px' }}>
+                <div className="courses-layout">
 
                     {/* Main content */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <main className="courses-main">
 
                         {/* Header row */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-                            <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '800', color: '#111' }}>Courses</h1>
-                            {(userAttributes?.role === 'admin' || userAttributes?.role === 'instructor') && (
-                                <button
-                                    onClick={() => setShowAddCourse(v => !v)}
-                                    style={{ padding: '9px 20px', borderRadius: '8px', border: '1.5px solid #ccc', backgroundColor: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
-                                >
-                                    {showAddCourse ? 'Cancel' : 'Create Course'}
-                                </button>
-                            )}
+                        <div className="courses-heading">
+                            <h1>Courses</h1>
                         </div>
 
                         {/* Add Course Form */}
                         {showAddCourse && (userAttributes?.role === 'admin' || userAttributes?.role === 'instructor') && (
-                            <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '24px', marginBottom: '20px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                                <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Add a New Course</h3>
-                                <div style={{ marginBottom: '12px' }}>
-                                    <label htmlFor="course-unit-count" style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Initial Number of Units</label>
+                            <div id="create-course-form" style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '24px', marginBottom: '20px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+                                <h3 style={{ marginTop: 0, marginBottom: '16px' }}>{editingCourse ? 'Edit Course' : 'Add a New Course'}</h3>
+                                {!editingCourse && <div style={{ marginBottom: '12px' }}>
+                                    <label htmlFor="course-unit-count" style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Initial Number of Units <span className="courses-required" aria-hidden="true">*</span></label>
                                     <select id="course-unit-count" value={newCourse.unitCount} onChange={e => setNewCourse(p => ({ ...p, unitCount: Number(e.target.value) }))} style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', backgroundColor: '#fff' }}>
                                         {Array.from({ length: 51 }, (_, i) => <option key={i} value={i}>{i === 0 ? '0 — Add units later' : `${i} unit${i === 1 ? '' : 's'}`}</option>)}
                                     </select>
                                     <p style={{ color: '#666', fontSize: '13px' }}>Units will be named Unit 1, Unit 2, and so on. You can rename or add units later.</p>
-                                </div>
+                                </div>}
                                 {[
                                     { label: 'Course Title', key: 'title', type: 'text' },
                                     // { label: 'Instructor', key: 'instructor', type: 'text' },
                                     { label: 'Start Date', key: 'start_date', type: 'date' },
-                                    { label: 'Link to Meeting', key: 'live_url', type: 'text' },
+                                    { label: 'Zoom Link', key: 'live_url', type: 'text' },
                                 ].map(f => (
                                     <div key={f.key} style={{ marginBottom: '12px' }}>
-                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>{f.label}</label>
-                                        <input type={f.type} value={newCourse[f.key]} onChange={e => setNewCourse(p => ({ ...p, [f.key]: e.target.value }))}
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>{f.label}{f.key === 'live_url' ? ' (optional)' : <span className="courses-required" aria-hidden="true"> *</span>}</label>
+                                        <input aria-required={f.key !== 'live_url'} type={f.type} value={newCourse[f.key]} onChange={e => setNewCourse(p => ({ ...p, [f.key]: e.target.value }))}
                                             onClick={f.type === 'date' ? e => e.currentTarget.showPicker?.() : undefined}
                                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', boxSizing: 'border-box' }} />
                                     </div>
@@ -319,7 +417,7 @@ function Courses() {
                                         { label: 'End Time', key: 'endTime' },
                                     ].map(field => (
                                         <div key={field.key} style={{ flex: '1 1 180px' }}>
-                                            <label htmlFor={`course-${field.key}`} style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>{field.label}</label>
+                                            <label htmlFor={`course-${field.key}`} style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>{field.label}<span className="courses-required" aria-hidden="true"> *</span></label>
                                             <select
                                                 id={`course-${field.key}`}
                                                 value={newCourse[field.key]}
@@ -344,20 +442,20 @@ function Courses() {
                                     ))}
                                 </div>
                                 <div style={{ marginBottom: '12px' }}>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Instructor</label>
-                                    <select id="instructor" value={newCourse.instructor} onChange={e => setNewCourse(p => ({ ...p, instructor: e.target.value }))} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
-                                        {instructorList.map(instructor => (
-                                            <option key={instructor.unique_id} value={instructor.username}>{instructor.username}</option>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Instructor<span className="courses-required" aria-hidden="true"> *</span></label>
+                                    <select id="instructor" disabled={userAttributes?.role === 'instructor'} value={userAttributes?.role === 'instructor' ? userAttributes.username : newCourse.instructor} onChange={e => setNewCourse(p => ({ ...p, instructor: e.target.value }))} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
+                                        {(userAttributes?.role === 'instructor' ? [userAttributes] : instructorList).map(instructor => (
+                                            <option key={instructor.unique_id || instructor.username || 'current-instructor'} value={instructor.username}>{instructor.username}</option>
                                         ))}
                                     </select>
                                 </div>
                                 <div style={{ marginBottom: '12px' }}>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Course Description</label>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Course Description<span className="courses-required" aria-hidden="true"> *</span></label>
                                     <textarea value={newCourse.description} onChange={e => setNewCourse(p => ({ ...p, description: e.target.value }))}
                                         style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', minHeight: '80px', boxSizing: 'border-box', resize: 'vertical' }} />
                                 </div>
                                 <div style={{ marginBottom: '16px' }}>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Days of the Week</label>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Days of the Week<span className="courses-required" aria-hidden="true"> *</span></label>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                                         {DAY_LABELS.map((day, idx) => (
                                             <label key={day} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
@@ -369,160 +467,154 @@ function Courses() {
                                 </div>
                                 <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Level</label>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Level<span className="courses-required" aria-hidden="true"> *</span></label>
                                         <select value={newCourse.level} onChange={e => setNewCourse(p => ({ ...p, level: e.target.value }))}
                                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px' }}>
                                             <option>Beginner</option><option>Intermediate</option><option>Advanced</option>
                                         </select>
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Price</label>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Price<span className="courses-required" aria-hidden="true"> *</span></label>
                                         <select value={newCourse.price} onChange={e => setNewCourse(p => ({ ...p, price: e.target.value }))}
                                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px' }}>
                                             <option>Free</option><option>Priced</option>
                                         </select>
                                     </div>
                                 </div>
+                                {newCourse.price !== 'Free' && <div className="courses-payment-field">
+                                    <label htmlFor="course-payment-url">Payment link (optional)</label>
+                                    <input id="course-payment-url" type="url" maxLength={2048} placeholder="https://" value={newCourse.paymentUrl} onChange={e => setNewCourse(p => ({ ...p, paymentUrl: e.target.value }))} />
+                                    <small>Students will open this page to pay. Automatic payment confirmation is not available yet.</small>
+                                </div>}
+                                <div className="courses-image-upload">
+                                    <label htmlFor="course-cover">Course image (optional)</label>
+                                    <input id="course-cover" type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseThumbnail} disabled={imageLoading || loadingChanges} />
+                                    <small>JPG, PNG or WebP, up to 10 MB.</small>
+                                    {imageLoading && <span role="status">Preparing image...</span>}
+                                    {thumbnail && <div><img src={thumbnail} alt="Course cover preview" /><button onClick={() => setThumbnail('')}>Remove image</button></div>}
+                                </div>
                                 <div style={{ display: 'flex', gap: '10px' }}>
-                                    <button onClick={submitNewCourse} style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}>Create</button>
+                                    <button disabled={imageLoading || loadingChanges} onClick={submitNewCourse} style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', backgroundColor: PURPLE, color: '#fff', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}>{editingCourse ? 'Save Changes' : 'Create'}</button>
                                     <button onClick={() => setShowAddCourse(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1.5px solid #e0e0e0', backgroundColor: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
                                 </div>
                             </div>
                         )}
 
                         {/* Search bar */}
-                        <div style={{ position: 'relative', marginBottom: '20px' }}>
-                            <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#aaa' }}>🔍</span>
+                        <div className="courses-search">
                             <input
-                                type="text"
+                                type="search"
+                                aria-label="Search courses"
                                 placeholder="Search for a course..."
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                style={{ width: '100%', padding: '12px 12px 12px 42px', borderRadius: '10px', border: '1.5px solid #e0e0e0', fontSize: '15px', backgroundColor: '#fff', boxSizing: 'border-box', outline: 'none' }}
                             />
+                            <img src="/assets/courses/search.svg" alt="" />
                         </div>
 
                         {/* Course list */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {displayList.length === 0 ? (
-                                <div style={{ textAlign: 'center', color: '#aaa', marginTop: '60px', fontSize: '15px' }}>
-                                    {tab === 'enrolled' ? 'You\'re not enrolled in any courses yet.' : 'No courses found.'}
+                        <div className="courses-list">
+                            {tab === 'enrolled' && enrollmentError ? <div className="courses-empty" role="alert">{enrollmentError} <button onClick={() => loadEnrolled(currentUserId)}>Retry</button></div> : tab === 'enrolled' && enrollmentLoading ? <div className="courses-empty">Loading enrolled courses...</div> : displayList.length === 0 ? (userAttributes?.role === 'instructor' || userAttributes?.role === 'admin' ? null : (
+                                <div className="courses-empty">
+                                    {search.trim() || filters.level.length || filters.time.length ? 'No courses match your filters.' : tab === 'enrolled' ? 'You\'re not enrolled in any courses yet.' : 'No courses found.'}
                                 </div>
-                            ) : displayList.map(course => (
-                                <div key={course.courseId} style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', gap: '18px', alignItems: 'flex-start' }}>
+                            )) : displayList.map(course => (
+                                <article key={course.courseId} className="courses-card" onClick={event => {
+                                    if (!event.target.closest('button, a, input, [data-course-menu]')) navigate(`/courses/${course.courseId}`);
+                                }}>
 
                                     {/* Thumbnail */}
-                                    <div style={{ width: '120px', height: '90px', borderRadius: '10px', flexShrink: 0, backgroundColor: '#e8e8e8', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <div className="courses-thumbnail">
                                         {course.thumbnail
-                                            ? <img src={course.thumbnail} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                            : <span style={{ fontSize: '32px' }}>📚</span>}
+                                            ? <img src={course.thumbnail} alt={course.title} />
+                                            : <span aria-label="No course image"><i className="fa-regular fa-image" aria-hidden="true" /></span>}
                                     </div>
 
                                     {/* Info */}
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                                            <span style={{ fontSize: '17px', fontWeight: '700', color: '#111' }}>{course.title}</span>
-                                            <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '999px', backgroundColor: course.inSession ? '#d4f5e9' : '#f0f0f0', color: course.inSession ? '#1a7a50' : '#888' }}>
-                                                {course.inSession ? '● In Session' : '○ Not in Session'}
-                                            </span>
-                                        </div>
-                                        <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#666', lineHeight: 1.5 }}>{course.description}</p>
-                                        <div style={{ fontSize: '13px', color: '#777' }}>
-                                            <span style={{ marginRight: '16px' }}>👤 {course.instructor}</span>
-                                            <span style={{ fontWeight: '700', color: '#333', marginRight: '16px' }}>Times: {course.times}</span>
-                                            {course.level && <span style={{ marginRight: '16px' }}>📊 {course.level}</span>}
-                                            {course.price && <span>💰 {course.price}</span>}
-                                        </div>
+                                    <div className="courses-card-info">
+                                        <h2>{<button className="courses-title-link" onClick={() => navigate(`/courses/${course.courseId}`)}>{course.title}</button>}</h2>
+                                        <p>{course.description}</p>
+                                    </div>
+                                    {isTeacher && <div className="courses-menu" data-course-menu onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setCourseMenu(null); }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setCourseMenu(null); }}>
+                                        <button className="courses-menu-trigger" aria-label={`Course options for ${course.title}`} aria-expanded={courseMenu === course.courseId} onClick={() => setCourseMenu(courseMenu === course.courseId ? null : course.courseId)}>&#8943;</button>
+                                        {courseMenu === course.courseId && <div className="courses-menu-options">
+                                            <button onClick={() => openCourseForm(course)}>Edit Course</button>
+                                            <button className="courses-delete" disabled={loadingChanges} onClick={() => deleteCourse(course)}>Delete Course</button>
+                                        </div>}
+                                    </div>}
+                                    <button className="courses-bookmark" aria-label={`${bookmarks.has(String(course.courseId)) ? 'Remove bookmark for' : 'Bookmark'} ${course.title}`} aria-pressed={bookmarks.has(String(course.courseId))} disabled={!currentUserId || bookmarkOwner !== currentUserId} onClick={() => toggleBookmark(course.courseId)}>
+                                        <i className={`${bookmarks.has(String(course.courseId)) ? 'fa-solid' : 'fa-regular'} fa-bookmark`} aria-hidden="true" />
+                                    </button>
+                                    <div className="courses-card-details">
+                                        <p>Instructor: {course.instructor}</p>
+                                        <p>Days: <strong>{compactDays(course.daysOfWeek) || 'Not specified'}</strong></p>
+                                        <p>Times: <strong>{displayCourseTimes(course.times)}</strong></p>
+                                        <p>Start Date: {course.startDate || 'Not specified'}</p>
+                                        <p className="courses-extra-details">Level: {course.level || 'Not specified'} &middot; Price: {course.price || 'Not specified'}</p>
                                     </div>
 
                                     {/* Actions */}
-                                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button
-                                                onClick={() => navigate(`/courses/${course.courseId}`)}
-                                                style={{ padding: '8px 16px', borderRadius: '8px', border: `1.5px solid ${PURPLE}`, backgroundColor: '#fff', color: PURPLE, fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
-                                            >
-                                                More Info
-                                            </button>
-                                            <button
-                                                onClick={() => enrolledIds.has(course.courseId) ? handleUnenroll(course.courseId, course.title) : handleEnroll(course.courseId, course.title)}
-                                                disabled={!!enrolling[course.courseId]}
-                                                style={{
-                                                    padding: '8px 16px', borderRadius: '8px', border: 'none',
-                                                    backgroundColor: enrolledIds.has(course.courseId) ? '#f0f0f0' : PURPLE,
-                                                    color: enrolledIds.has(course.courseId) ? '#888' : '#fff',
-                                                    fontWeight: '600', fontSize: '13px', cursor: 'pointer',
-                                                    opacity: enrolling[course.courseId] ? 0.6 : 1
-                                                }}
-                                            >
-                                                {enrolling[course.courseId] ? '...' : enrolledIds.has(course.courseId) ? 'Enrolled ✓' : 'Enroll'}
-                                            </button>
-                                        </div>
-                                        {course.inSession && (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '600', color: '#e53935' }}>
-                                                Live <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#e53935' }}></div>
-                                            </div>
-                                        )}
+                                    <div className="courses-card-footer">
+                                        <span className="courses-live-status" role="status">
+                                            {isCourseTime(course, now) ? 'Live' : 'Not Live'}
+                                            <img src={`/assets/courses/${isCourseTime(course, now) ? 'live' : 'not-live'}.svg`} alt="" />
+                                        </span>
                                     </div>
-                                </div>
+                                </article>
                             ))}
+                            {!showAddCourse && (userAttributes?.role === 'instructor' || userAttributes?.role === 'admin') && (
+                                <button className="courses-create-card" onClick={() => {
+                                    openCourseForm();
+                                }}>
+                                    <span className="courses-create-plus" aria-hidden="true">+</span>
+                                    <span>Create Course</span>
+                                </button>
+                            )}
                         </div>
-                    </div>
+                    </main>
 
                     {/* Right sidebar */}
-                    <div style={{ width: '260px', minWidth: '260px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <aside className="courses-right-sidebar" aria-label="Course browsing">
 
                         {/* Tab switcher */}
-                        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '6px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', gap: '4px' }}>
+                        {!isTeacher && <div className="courses-tab-switcher" role="group" aria-label="Course list">
                             {['all', 'enrolled'].map(t => (
-                                <button key={t} onClick={() => setTab(t)} style={{
-                                    flex: 1, padding: '9px 0', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                                    fontWeight: '700', fontSize: '13px',
-                                    backgroundColor: tab === t ? PURPLE : 'transparent',
-                                    color: tab === t ? '#fff' : '#666',
-                                    transition: 'all 0.18s',
-                                }}>
-                                    {t === 'enrolled' ? `Enrolled Courses` : 'All Courses'}
+                                <button key={t} onClick={() => { setTab(t); if (t === 'enrolled') loadEnrolled(currentUserId); }} aria-pressed={tab === t}>
+                                    {t === 'enrolled' ? 'Enrolled Courses' : 'All Courses'}
                                 </button>
                             ))}
-                        </div>
+                        </div>}
 
                         {/* Filters */}
-                        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                <span style={{ fontWeight: '700', fontSize: '16px', color: '#111' }}>Filters</span>
-                                <span style={{ fontSize: '18px', color: '#888' }}>≡</span>
+                        <div className="courses-filters">
+                            <div className="courses-filters-title">
+                                <h2>Filters</h2>
+                                <img src="/assets/courses/filter.svg" alt="" />
                             </div>
-
-                            <div style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: '16px', marginBottom: '16px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                    <span style={{ fontWeight: '600', fontSize: '14px', color: '#333' }}>Level</span>
-                                    <span style={{ fontSize: '12px', color: '#888' }}>∧</span>
-                                </div>
+                            <img className="courses-filter-divider" src="/assets/courses/divider.svg" alt="" />
+                            <div className="courses-filter-group">
+                                <h3>Level <img src="/assets/courses/expand.svg" alt="" /></h3>
                                 {levelOptions.map(opt => (
-                                    <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', cursor: 'pointer', fontSize: '14px', color: '#444' }}>
-                                        <input type="checkbox" checked={filters.level.includes(opt)} onChange={() => toggleFilter('level', opt)}
-                                            style={{ accentColor: PURPLE, width: '15px', height: '15px' }} />
-                                        {opt}
+                                    <label key={opt} className="courses-filter-option">
+                                        <input type="checkbox" checked={filters.level.includes(opt)} onChange={() => toggleFilter('level', opt)} />
+                                        <img src="/assets/courses/checkbox.svg" alt="" />
+                                        <span>{opt}</span>
                                     </label>
                                 ))}
                             </div>
-
-                            <div>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                    <span style={{ fontWeight: '600', fontSize: '14px', color: '#333' }}>Class Time</span>
-                                    <span style={{ fontSize: '12px', color: '#888' }}>∧</span>
-                                </div>
+                            <img className="courses-filter-divider" src="/assets/courses/divider.svg" alt="" />
+                            <div className="courses-filter-group" aria-label="Class Time filters">
+                                <h3>Class Time <img src="/assets/courses/expand.svg" alt="" /></h3>
                                 {timeOptions.map(opt => (
-                                    <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', cursor: 'pointer', fontSize: '14px', color: '#444' }}>
-                                        <input type="checkbox" checked={filters.time.includes(opt)} onChange={() => toggleFilter('time', opt)}
-                                            style={{ accentColor: PURPLE, width: '15px', height: '15px' }} />
-                                        {opt}
+                                    <label key={opt} className="courses-filter-option">
+                                        <input type="checkbox" checked={filters.time.includes(opt)} onChange={() => toggleFilter('time', opt)} />
+                                        <img src="/assets/courses/checkbox.svg" alt="" />
+                                        <span>{opt}</span>
                                     </label>
                                 ))}
                             </div>
                         </div>
-                    </div>
+                    </aside>
 
                 </div>
             </div>

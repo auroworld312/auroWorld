@@ -1,54 +1,50 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import './Accessibility.css';
 const AccessibilityContext = createContext();
 
+function savedPreferences() {
+  try { return JSON.parse(localStorage.getItem('auroworld:accessibility')) || {}; } catch { return {}; }
+}
+
 export function AccessibilityProvider({ children }) {
-  const [contrast, setContrast] = useState('good');
-  const [textSize, setTextSize] = useState(3);
-  const [boldText, setBoldText] = useState(false);
- 
+  const [theme, setTheme] = useState(() => savedPreferences().theme === 'dark' ? 'dark' : 'light');
+  const [textSize, setTextSize] = useState(() => [1, 2, 3, 4, 5].includes(savedPreferences().textSize) ? savedPreferences().textSize : 3);
+  const [boldText, setBoldText] = useState(() => savedPreferences().boldText === true);
+
   useEffect(() => {
-     const textSizeMap = { 1: 0.8, 2: 0.9, 3: 1, 4: 1.15, 5: 1.3 };
-    document.body.style.zoom = textSizeMap[textSize];
+    document.body.style.zoom = '';
+    document.getElementById('bold-text-style')?.remove();
+    document.getElementById('contrast-style')?.remove();
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.boldText = String(boldText);
+    try { localStorage.setItem('auroworld:accessibility', JSON.stringify({ theme, textSize, boldText })); } catch {}
+  }, [theme, textSize, boldText]);
+
+  useEffect(() => {
+    const root = document.getElementById('root') || document.body;
+    const reset = () => root.querySelectorAll('[data-scaled-text]').forEach(el => {
+      el.removeAttribute('data-scaled-text');
+      el.style.removeProperty('--accessible-font-size');
+    });
+    reset();
+    const factor = [0.85, 0.93, 1, 1.15, 1.3][textSize - 1];
+    if (factor === 1) return;
+    const scale = () => {
+      reset();
+      const targets = [...root.querySelectorAll('*')].filter(el => !el.hasAttribute('data-scaled-text') && !el.closest('svg, .theme-sample, .text-size-samples, .bold-preview') && !el.matches('script, style, i, img, video, canvas') && ([...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) || el.matches('input, textarea, select')));
+      const sizes = targets.map(el => parseFloat(getComputedStyle(el).fontSize));
+      targets.forEach((el, i) => {
+        if (!Number.isFinite(sizes[i])) return;
+        el.style.setProperty('--accessible-font-size', `${sizes[i] * factor}px`);
+        el.setAttribute('data-scaled-text', 'true');
+      });
+    };
+    scale();
+    const observer = new MutationObserver(scale);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => { observer.disconnect(); reset(); };
   }, [textSize]);
-  useEffect(() => {
-    let styleEl = document.getElementById('bold-text-style');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'bold-text-style';
-      document.head.appendChild(styleEl);
-    }
-    styleEl.textContent = boldText
-      ? '* { font-weight: 700 !important; }'
-      : '* { font-weight: unset; }';
-  }, [boldText]);
-  useEffect(() => {
-    let styleEl = document.getElementById('contrast-style');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'contrast-style';
-      document.head.appendChild(styleEl);
-    }
-    if (contrast === 'high') {
-      styleEl.textContent = `
-        body, body * { background-color: #000 !important; color: #fff !important; border-color: #555 !important; }
-        input, textarea, select { background-color: #111 !important; color: #fff !important; }
-        a { color: #adf !important; }
-      `;
-    } else if (contrast === 'readable') {
-      styleEl.textContent = `
-        body { background-color: #fafafa !important; }
-        body * { color: #444 !important; }
-      `;
-    } else {
-      styleEl.textContent = '';
-    }
-  }, [contrast]);
-  return (
-    <AccessibilityContext.Provider value={{ contrast, setContrast, textSize, setTextSize, boldText, setBoldText }}>
-      {children}
-    </AccessibilityContext.Provider>
-  );
+
+  return <AccessibilityContext.Provider value={{ theme, setTheme, textSize, setTextSize, boldText, setBoldText }}>{children}</AccessibilityContext.Provider>;
 }
-export function useAccessibility() {
-  return useContext(AccessibilityContext);
-}
+export function useAccessibility() { return useContext(AccessibilityContext); }
