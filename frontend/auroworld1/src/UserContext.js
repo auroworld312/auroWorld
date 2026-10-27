@@ -1,3 +1,4 @@
+import { quizRequest } from './quizApi';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 // import { createClient } from '@supabase/supabase-js';
 // import { useLocation} from "react-router-dom";
@@ -26,28 +27,42 @@ export function UserProvider({ children }) {
     if (!user) { setDisplayName(''); setEmail(''); setAvatarUrl(''); return; }
     setEmail(user.email || '');
 
-    const res = await fetch(`${API}/userdata/${user.id}`)
-    // const res = await fetch(`${API}/user_attributes/${passedUserId}`)
-    const userAttsData = await res.json()
-    // console.log('userAttsData = ',userAttsData)
+    try {
+      const row = await quizRequest('/account');
+      const name = [row.firstname, row.lastname].filter(Boolean).join(' ');
 
-    if(userAttsData){
-        const name = userAttsData.mData.firstname
-        ? userAttsData.mData.firstname + (userAttsData.mData.lastname ? ' ' + userAttsData.mData.lastname : '')
-        : userAttsData.mData.username || '';
-        setDisplayName(name || userAttsData.mData.email || '');
-        setEmail(userAttsData.mData.email)
-    }
-    else {
-      setDisplayName(userAttsData.mData.email || '');
-    }
+      setDisplayName(name || row.username || user.email || '');
+      setEmail(row.email || user.email || '');
+      setAvatarUrl(row.note || '');
 
-    const res2 = await fetch(`${API}/profile_attributes/${user.id}`)
-    // const res2 = await fetch(`${API}/profile_attributes/${passedUserId}`)
-    const profileAtts = await res2.json()
+    } catch (error) {
+      try {
+        const res = await fetch(`${API}/userdata/${user.id}`);
+        if (!res.ok) throw new Error('Failed to fetch user data');
 
-    if(profileAtts){
-      setAvatarUrl(profileAtts.mData.note)
+        const userAttsData = await res.json();
+        const userData = userAttsData?.mData || {};
+
+        const name = [userData.firstname, userData.lastname]
+          .filter(Boolean).join(' ');
+
+        setDisplayName(name || userData.username || user.email || '');
+        setEmail(userData.email || user.email || '');
+
+        const res2 = await fetch(`${API}/profile_attributes/${user.id}`);
+
+        if (res2.ok) {
+          const profileAtts = await res2.json();
+          setAvatarUrl(profileAtts?.mData?.note || '');
+        } else {
+          setAvatarUrl('');
+        }
+
+      } catch (fallbackError) {
+        setDisplayName(user.email || '');
+        setEmail(user.email || '');
+        setAvatarUrl('');
+      }
     }
   }, []);
   // },[passedUserId])

@@ -1,3 +1,4 @@
+import { quizRequest } from './quizApi';
 import { supabase } from './utils/supabaseClient.js';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +11,7 @@ import { useUser } from './UserContext.js';
 function Profile() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const [loadError, setLoadError] = useState('');
   const [role, setRole] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -45,42 +47,20 @@ function Profile() {
       const currentEmail = user.email || '';
       setEmail(currentEmail);
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('firstname, lastname, username, role')
-        .eq('email', currentEmail);
-
-      console.log('userData:', userData);
-
-      if (userData && userData.length > 0) {
-        const fn = userData[0].firstname || '';
-        const ln = userData[0].lastname || '';
-        const un = userData[0].username || '';
-        setRole(userData[0].role || 'user');
-        setFirstName(fn);
-        setLastName(ln);
-        setUsername(un);
-        setEditFirstName(fn);
-        setEditLastName(ln);
-        setEditUsername(un);
-      }
-
-      const { data: profileData } = await supabase
-        .from('profile_attributes')
-        .select('birthday, note')
-        .eq('email', currentEmail);
-
-      console.log('profileData:', profileData);
-
-      if (profileData && profileData.length > 0) {
-        if (profileData[0].birthday) {
-          const bd = profileData[0].birthday.slice(0, 10);
-          setBirthdate(bd);
-          setEditBirthdate(bd);
-        }
-        if (profileData[0].note) {
-          setAvatarUrl(profileData[0].note);
-        }
+      try {
+        const row = await quizRequest('/account');
+        const fn = row.firstname || '';
+        const ln = row.lastname || '';
+        const un = row.username || '';
+        const bd = row.birthday?.slice(0, 10) || '';
+        setRole(row.role || 'user');
+        setFirstName(fn); setEditFirstName(fn);
+        setLastName(ln); setEditLastName(ln);
+        setUsername(un); setEditUsername(un);
+        setBirthdate(bd); setEditBirthdate(bd);
+        setAvatarUrl(row.note || '');
+      } catch (error) {
+        setLoadError(error.message || 'Unable to load your profile. Please refresh to try again.');
       }
 
       setLoading(false);
@@ -284,6 +264,7 @@ function Profile() {
 
           </div>
 
+          {loadError && <p role="alert">{loadError}</p>}
           {(
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 

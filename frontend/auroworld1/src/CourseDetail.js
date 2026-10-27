@@ -1,3 +1,4 @@
+import LessonLiveLinks from './LessonLiveLinks';
 import NextClass from './NextClass';
 import { UnitQuizzes } from './QuizComponents';
 import { useNavigate, useParams, useLocation } from "react-router-dom";
@@ -19,7 +20,6 @@ import {supabase} from './utils/supabaseClient.js'
 
 async function authToken() {
     const { data: { session } } = await supabase.auth.getSession();
-    console.log('session = ',session)
     return session?.access_token;
 }
 
@@ -275,7 +275,8 @@ export function UnitSection({
     initialLessonId,
     initialLessonTab,
     embedded = false,
-    onLessonsChange
+    onLessonsChange,
+    requestLessonEditor
 }) {
     const [open, setOpen] = useState(false);
     const [openLessons, setOpenLessons] = useState(initialLessonId ? { [initialLessonId]: true } : {});
@@ -290,7 +291,9 @@ export function UnitSection({
 
     const [showAddLesson, setShowAddLesson] = useState(false);
     const [lessonSearch, setLessonSearch] = useState('');
-    const [managingLessons, setManagingLessons] = useState(false);
+    const [lessonMenu, setLessonMenu] = useState(null);
+    const [quizDraftOpen, setQuizDraftOpen] = useState(false);
+    const [liveDraftOpen, setLiveDraftOpen] = useState(false);
     const [lessonCount, setLessonCount] = useState(1);
     const [creatingLessons, setCreatingLessons] = useState(false);
     const [editingLesson, setEditingLesson] = useState(null);
@@ -300,7 +303,7 @@ export function UnitSection({
     const [selectedVideos, setSelectedVideos] = useState({});
 
     const [fileUpload, setFileUpload] = useState(null);
-    const [fileName, setFileName] = useState("No file chosen");
+    const [fileName, setFileName] = useState("No video selected");
 
     const [fileUrl, setFileUrl] = useState({});
 
@@ -405,6 +408,7 @@ export function UnitSection({
     /* LESSON OPEN/CLOSE */
 
     function toggleLesson(lessonId) {
+        if (openLessons[lessonId] && editingLesson === lessonId && !closeEditLesson()) return;
         setOpenLessons((prev) => ({
             ...prev,
             [lessonId]: !prev[lessonId]
@@ -417,12 +421,17 @@ export function UnitSection({
         const file = e.target.files?.[0];
 
         if (file) {
+            if (!file.type.startsWith('video/') && !isVideoFile(file.name)) {
+                alert('Please select a video file, such as MP4, MOV or WebM.');
+                e.target.value = '';
+                return;
+            }
             setFileUpload(file);
             setFileName(file.name);
             setVideoTitles(previous => ({ ...previous, [lessonId]: previous[lessonId] || file.name.replace(/\.[^.]+$/, '') }));
         } else {
             setFileUpload(null);
-            setFileName("No file chosen");
+            setFileName("No video selected");
         }
     }
 
@@ -468,19 +477,38 @@ export function UnitSection({
 
     /* EDIT LESSON */
 
+    function canLeaveLessonEditor() {
+        if (fileLoading) return false;
+        const current = lessonsArray.find(item => item.lessonId === editingLesson);
+        const dirty = current && (editLessonTitle !== current.lessonTitle || addingMaterials === editingLesson || quizDraftOpen || liveDraftOpen);
+        return !dirty || window.confirm('Discard unsaved lesson changes? Saved videos and quizzes will be kept.');
+    }
+
+    const editorExitRef = useRef(null);
+    editorExitRef.current = () => closeEditLesson();
+
     function editLessonButton(lesson) {
+        if (!canLeaveLessonEditor()) return;
+        if (requestLessonEditor && !requestLessonEditor(`${unitId}:${lesson.lessonId}`, () => editorExitRef.current())) return;
+        setLessonMenu(null);
+        setQuizDraftOpen(false);
+        setLiveDraftOpen(false);
         setEditingLesson(lesson.lessonId);
         setOpenLessons(current => ({ ...current, [lesson.lessonId]: true }));
         cancelMaterials();
         setEditLessonTitle(lesson.lessonTitle);
-        setEditLessonDescription(lesson.lessonDescription);
+        setEditLessonDescription(lesson.lessonDescription || "");
     }
 
-    function closeEditLesson() {
+    function closeEditLesson(force = false) {
+        if (force !== true && !canLeaveLessonEditor()) return false;
+        setQuizDraftOpen(false);
+        setLiveDraftOpen(false);
         setEditingLesson(null);
         cancelMaterials();
         setEditLessonTitle("");
         setEditLessonDescription("");
+        return true;
     }
 
     async function sendEditLesson(lId) {
@@ -489,10 +517,6 @@ export function UnitSection({
             return;
         }
 
-        if (!editLessonDescription.trim()) {
-            alert("Description cannot be empty");
-            return;
-        }
 
         try {
             const lessonBody = {
@@ -528,7 +552,7 @@ export function UnitSection({
                 )
             );
 
-            closeEditLesson();
+            // Keep content editing open after saving the lesson name.
         } catch (error) {
             console.error(error);
             alert("Editing lesson failed");
@@ -674,14 +698,14 @@ export function UnitSection({
     function cancelMaterials() {
         setAddingMaterials(null);
         setFileUpload(null);
-        setFileName("No file chosen");
+        setFileName("No video selected");
     }
 
     async function uploadNewMaterials(filename, filedata, lessonId) {
         const title = videoTitles[lessonId]?.trim() || filedata?.name.replace(/\.[^.]+$/, '');
 
         if (!canManage || fileLoading) return;
-        if (!filedata) { alert("Choose a file first."); return; }
+        if (!filedata) { alert("Choose a video first."); return; }
         if (!filedata.type.startsWith('video/') && !isVideoFile(filedata.name)) { alert('Please choose a video file.'); return; }
         if (!title) { alert("Enter a title first."); return; }
 
@@ -702,7 +726,7 @@ export function UnitSection({
                 await uploadToB2(filedata, key, authToken, pct => setFileName(`Uploading… ${pct}%`));
             } catch (err) {
                 console.error(err);
-                alert('Upload failed: ' + err.message + '. Please try again.');
+                alert('Upload failed: ' + err.message);
                 setFileName(filedata.name);
                 return;
             }
@@ -974,7 +998,7 @@ export function UnitSection({
         event.stopPropagation()
         const drag = document.getElementById(`dragVideo-${videoId}`)
         drag.style.opacity=1
-        if(vidId1===-1 || vidId2===-1 || vidId1===vidId2 
+        if(vidId1===-1 || vidId2===-1 || vidId1===vidId2
             || vidLessonId1==='-1' || vidLessonId2==='-1' || vidLessonId1!==vidLessonId2
         ){
             vidLessonId1=-1
@@ -992,10 +1016,10 @@ export function UnitSection({
             const newVideoOrder = lessonsArray.map((lesson)=>{
                 if(lesson.lessonId===vidLessonId1 && lesson.lessonId === vidLessonId2){
                     const editedVideos=lesson.videos.map((video)=>{
-                        if(video.videoId===vidId1){ 
+                        if(video.videoId===vidId1){
                             return{
-                                 ...video, sortOrder:vidSort2 
-                            } 
+                                 ...video, sortOrder:vidSort2
+                            }
                         }
                         else if(video.videoId===vidId2){
                             return{
@@ -1047,7 +1071,6 @@ export function UnitSection({
 
                     {lessonsArray.length > 0 && <div className="unit-library-top lesson-library-top">
                         <label className="unit-search"><span className="unit-search-symbol" aria-hidden="true" /><input aria-label="Search lessons" placeholder="Search lessons..." value={lessonSearch} onChange={event => setLessonSearch(event.target.value)} /></label>
-                        {canManage && <button className="unit-manage-toggle" aria-label="Manage lessons" aria-pressed={managingLessons} onClick={() => { setManagingLessons(!managingLessons); closeEditLesson(); }}><span className="unit-menu-dots" aria-hidden="true"><i /><i /><i /></span></button>}
                     </div>}
                     {lessonsArray.length === 0 ? (
                         <>{!canManage && <div className="materials-empty">No lessons in this unit yet.</div>}</>
@@ -1059,7 +1082,7 @@ export function UnitSection({
                                 const lessonTab = lessonTabs[lesson.lessonId] || 'video';
 
                                 return (
-                                    <div id = {`dragLesson-${lesson.lessonId}`} className="materials-lesson" draggable={canManage && !editingLesson && !lessonSearch.trim()} onDragStart={()=>handleStartDragLesson(lesson.lessonId, lesson.sortOrder)} onDrag={()=>handleDragLesson(lesson.lessonId)} onDragOver={(e)=>handleDragOverLesson(e,lesson.lessonId, lesson.sortOrder)} onDragEnd={()=>handleDragEndLesson(lesson.lessonId)} key={lesson.lessonId}>
+                                    <div id = {`dragLesson-${lesson.lessonId}`} className={`materials-lesson${lessonMenu === lesson.lessonId ? " lesson-menu-open" : ""}`} draggable={canManage && !editingLesson && !lessonSearch.trim()} onDragStart={()=>handleStartDragLesson(lesson.lessonId, lesson.sortOrder)} onDrag={()=>handleDragLesson(lesson.lessonId)} onDragOver={(e)=>handleDragOverLesson(e,lesson.lessonId, lesson.sortOrder)} onDragEnd={()=>handleDragEndLesson(lesson.lessonId)} key={lesson.lessonId}>
 
                                         {/* LESSON HEADER */}
 
@@ -1068,16 +1091,20 @@ export function UnitSection({
                                                 <div className="materials-lesson-heading">
                                                     {lesson.lessonTitle}
                                                 </div>
-                                                
+
                                             </div>
 
-                                            {canManage && managingLessons && (
-                                                <div onClick={event => event.stopPropagation()} style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                                                    <button className="materials-icon-btn" onClick={() => editLessonButton(lesson)}>Edit</button>
-                                                    <button className="materials-icon-btn danger" onClick={() => deleteLessonButton(lesson.lessonId)}>Delete</button>
-                                                </div>
-                                            )}
-                                            {!managingLessons && <button className="materials-icon-btn" aria-label={`Open ${lesson.lessonTitle}`} aria-expanded={isLessonOpen} onClick={event => { event.stopPropagation(); toggleLesson(lesson.lessonId); }}><span className={`lesson-chevron${isLessonOpen ? ' is-open' : ''}`} aria-hidden="true" /></button>}
+                                            <div className="lesson-header-actions" onClick={event => event.stopPropagation()}>
+                                                {canManage && <>
+                                                    {editingLesson === lesson.lessonId && <span className="lesson-editing-label">Editing</span>}
+                                                    <button className="materials-icon-btn" disabled={fileLoading} onClick={() => editingLesson === lesson.lessonId ? closeEditLesson() : editLessonButton(lesson)}>{editingLesson === lesson.lessonId ? 'Done' : 'Edit'}</button>
+                                                    <div className="lesson-menu-anchor" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setLessonMenu(null); }}>
+                                                        <button className="materials-icon-btn" aria-label={`Options for ${lesson.lessonTitle}`} aria-expanded={lessonMenu === lesson.lessonId} onClick={() => setLessonMenu(lessonMenu === lesson.lessonId ? null : lesson.lessonId)} onKeyDown={event => { if (event.key === 'Escape') setLessonMenu(null); }}><span aria-hidden="true">&#8226;&#8226;&#8226;</span></button>
+                                                        {lessonMenu === lesson.lessonId && <div className="lesson-options" onKeyDown={event => { if (event.key === 'Escape') setLessonMenu(null); }}><button className="materials-icon-btn danger" onClick={() => { setLessonMenu(null); deleteLessonButton(lesson.lessonId); }}>Delete Lesson</button></div>}
+                                                    </div>
+                                                </>}
+                                                <button className="materials-icon-btn" aria-label={`Open ${lesson.lessonTitle}`} aria-expanded={isLessonOpen} onClick={() => toggleLesson(lesson.lessonId)}><span className={`lesson-chevron${isLessonOpen ? ' is-open' : ''}`} aria-hidden="true" /></button>
+                                            </div>
                                         </div>
 
                                         {/* EDIT LESSON */}
@@ -1093,87 +1120,12 @@ export function UnitSection({
                                                 />
                                                 <div style={{ display: "flex", gap: 8 }}>
                                                     <button className="materials-icon-btn" onClick={() => sendEditLesson(lesson.lessonId)}>Save</button>
-                                                    <button className="materials-icon-btn" onClick={closeEditLesson}>Cancel</button>
+                                                    <button className="materials-icon-btn" onClick={() => closeEditLesson()}>Cancel</button>
                                                 </div>
                                             </div>
                                         )}
 
                                         {/* LESSON TOOLBAR */}
-
-                                        {canManage && editingLesson === lesson.lessonId && (
-                                            <div className="materials-lesson-toolbar">
-                                                <div hidden><button onClick={() => startReorder(lesson.lessonId)}>Reorder Videos</button><button onClick={() => swapVideoId(lesson.lessonId)}>Swap Selected</button></div>
-                                                <input id={`lesson-upload-${lesson.lessonId}`} type="file" accept="video/*,.mkv,.avi,.mov,.m4v" aria-label="Choose lesson video" hidden disabled={fileLoading} onChange={event => uploadFileHandler(event, lesson.lessonId)} />
-                                                <button
-                                                    className="materials-icon-btn"
-                                                    disabled={fileLoading}
-                                                    onClick={() => { addMaterials(lesson.lessonId); document.getElementById(`lesson-upload-${lesson.lessonId}`).click(); }}
-                                                >
-                                                    Upload Video
-                                                </button>
-                                                <button className="materials-icon-btn" onClick={() => { setOpenLessons(current => ({ ...current, [lesson.lessonId]: true })); setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'quiz' })); }}>Add / Manage Quiz</button>
-
-                                            </div>
-                                        )}
-
-                                        {/* ADD VIDEO */}
-
-                                        {canManage && editingLesson === lesson.lessonId && addingMaterials === lesson.lessonId && (
-                                            <div className="materials-add-lesson-form">
-                                                <label>Select File</label>
-
-                                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                    <input
-                                                        type="file"
-                                                        id={`hiddenAddFileInput-${lesson.lessonId}`}
-                                                        onChange={event => uploadFileHandler(event, lesson.lessonId)}
-                                                        accept="video/*,.mkv,.avi,.mov,.m4v"
-                                                        style={{ display: "none" }}
-                                                    />
-                                                    <button
-                                                        className="materials-icon-btn"
-                                                        onClick={() => document.getElementById(`hiddenAddFileInput-${lesson.lessonId}`).click()}
-                                                    >
-                                                        Choose File
-                                                    </button>
-                                                    <span style={{ fontSize: 13, color: "#6d6877", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                        {fileName}
-                                                    </span>
-                                                </div>
-
-                                                <label>Video title</label>
-
-                                                <input
-                                                    type="text"
-                                                    value={videoTitles[lesson.lessonId] || ""}
-                                                    onChange={(e) =>
-                                                        setVideoTitles((prev) => ({
-                                                            ...prev,
-                                                            [lesson.lessonId]: e.target.value
-                                                        }))
-                                                    }
-                                                    className="materials-inline-input"
-                                                    placeholder="Enter title"
-                                                />
-
-                                                {fileUpload && (
-                                                    <div style={{ fontSize: 12, color: "#6d6877" }}>
-                                                        Selected: {fileUpload.name}
-                                                    </div>
-                                                )}
-
-                                                <div style={{ display: "flex", gap: 8 }}>
-                                                    <button
-                                                        className="materials-icon-btn"
-                                                        disabled={fileLoading}
-                                                        onClick={() => uploadNewMaterials(fileName, fileUpload, lesson.lessonId)}
-                                                    >
-                                                        Upload
-                                                    </button>
-                                                    <button className="materials-icon-btn" onClick={cancelMaterials}>Cancel</button>
-                                                </div>
-                                            </div>
-                                        )}
 
                                         {/* REORDER LIST */}
 
@@ -1225,11 +1177,87 @@ export function UnitSection({
                                         {isLessonOpen && <div className="quiz-tabs lesson-content-tabs" aria-label={`${lesson.lessonTitle} content`}>
                                             <button aria-pressed={lessonTab === 'video'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'video' }))}>Video</button>
                                             <button aria-pressed={lessonTab === 'quiz'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'quiz' }))}>Quiz</button>
-                                            <button disabled={!lessonLiveUrl} title={lessonLiveUrl ? 'Open the course Zoom Link in a new tab' : 'No Zoom Link has been added to this course'} onClick={() => window.open(lessonLiveUrl, '_blank', 'noopener,noreferrer')}>Live Links</button>
+                                            <button aria-pressed={lessonTab === 'live'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'live' }))}>Live Links</button>
                                         </div>}
-                                        {isLessonOpen && lessonTab === 'quiz' && <UnitQuizzes unitId={unitId} lessonId={lesson.lessonId} allowCreate={canManage && editingLesson === lesson.lessonId} />}
+                                        {isLessonOpen && <div hidden={lessonTab !== 'live'}><LessonLiveLinks unitId={unitId} lessonId={lesson.lessonId} inheritedUrl={lessonLiveUrl} editing={canManage && editingLesson === lesson.lessonId} onDraftChange={editingLesson === lesson.lessonId ? setLiveDraftOpen : undefined} /></div>}
+                                        {isLessonOpen && <div hidden={lessonTab !== 'quiz'}><UnitQuizzes unitId={unitId} lessonId={lesson.lessonId} allowCreate={canManage && editingLesson === lesson.lessonId} onDraftChange={editingLesson === lesson.lessonId ? setQuizDraftOpen : undefined} /></div>}
                                         {isLessonOpen && lessonTab === 'video' && (
                                             <div className="materials-lesson-body">
+                                        {canManage && editingLesson === lesson.lessonId && (
+                                            <div className="materials-lesson-toolbar">
+                                                <div hidden><button onClick={() => startReorder(lesson.lessonId)}>Reorder Videos</button><button onClick={() => swapVideoId(lesson.lessonId)}>Swap Selected</button></div>
+                                                <input id={`lesson-upload-${lesson.lessonId}`} type="file" aria-label="Choose lesson video" hidden disabled={fileLoading} onChange={event => uploadFileHandler(event, lesson.lessonId)} />
+                                                <button
+                                                    className="primary material-add-button"
+                                                    disabled={fileLoading}
+                                                    onClick={() => { addMaterials(lesson.lessonId); document.getElementById(`lesson-upload-${lesson.lessonId}`).click(); }}
+                                                >
+                                                    <span className="material-add-icon" aria-hidden="true" />Add Video
+                                                </button>
+
+                                            </div>
+                                        )}
+
+                                        {/* ADD VIDEO */}
+
+                                        {canManage && editingLesson === lesson.lessonId && addingMaterials === lesson.lessonId && (
+                                            <div className="materials-add-lesson-form">
+                                                <label>Select Video</label>
+
+                                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                    <input
+                                                        type="file"
+                                                        id={`hiddenAddFileInput-${lesson.lessonId}`}
+                                                        onChange={event => uploadFileHandler(event, lesson.lessonId)}
+
+                                                        style={{ display: "none" }}
+                                                    />
+                                                    <button
+                                                        className="materials-icon-btn"
+                                                        onClick={() => document.getElementById(`hiddenAddFileInput-${lesson.lessonId}`).click()}
+                                                    >
+                                                        Choose Video
+                                                    </button>
+                                                    <span style={{ fontSize: 13, color: "#6d6877", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                        {fileName}
+                                                    </span>
+                                                </div>
+
+                                                <label>Video title</label>
+
+                                                <input
+                                                    type="text"
+                                                    value={videoTitles[lesson.lessonId] || ""}
+                                                    onChange={(e) =>
+                                                        setVideoTitles((prev) => ({
+                                                            ...prev,
+                                                            [lesson.lessonId]: e.target.value
+                                                        }))
+                                                    }
+                                                    className="materials-inline-input"
+                                                    placeholder="Enter title"
+                                                />
+
+                                                {fileUpload && (
+                                                    <div style={{ fontSize: 12, color: "#6d6877" }}>
+                                                        Selected: {fileUpload.name}
+                                                    </div>
+                                                )}
+
+                                                <div style={{ display: "flex", gap: 8 }}>
+                                                    <button
+                                                        className="materials-icon-btn"
+                                                        disabled={fileLoading}
+                                                        onClick={() => uploadNewMaterials(fileName, fileUpload, lesson.lessonId)}
+                                                    >
+                                                        Upload Video
+                                                    </button>
+                                                    <button className="materials-icon-btn" onClick={cancelMaterials}>Cancel</button>
+                                                </div>
+                                            </div>
+                                        )}
+
+
 
                                                 {(lesson.videos || []).length === 0 ? (
                                                     <div className="materials-empty">No videos in this lesson yet.</div>
@@ -1240,7 +1268,7 @@ export function UnitSection({
                                                             const isActive = activeVideo === video.videoId;
 
                                                             return (
-                                                                <div id = {`dragVideo-${video.videoId}`}draggable={canManage && !editingLesson && !lessonSearch.trim()} onDragStart={(e)=>handleStartDragVideo(e,video.lessonId, video.videoId, video.sortOrder)} onDrag={(e)=>handleDragVideo(e,video.videoId)} onDragOver={(e)=>handleDragOverVideo(e,video.lessonId, video.videoId, video.sortOrder)} onDragEnd={(e)=>handleDragEndVideo(e,video.videoId)} key={video.videoId}>
+                                                                <div id = {`dragVideo-${video.videoId}`}draggable={canManage && editingLesson === lesson.lessonId && !lessonSearch.trim()} onDragStart={(e)=>handleStartDragVideo(e,video.lessonId, video.videoId, video.sortOrder)} onDrag={(e)=>handleDragVideo(e,video.videoId)} onDragOver={(e)=>handleDragOverVideo(e,video.lessonId, video.videoId, video.sortOrder)} onDragEnd={(e)=>handleDragEndVideo(e,video.videoId)} key={video.videoId}>
 
                                                                     {/* VIDEO ROW */}
 
@@ -1260,7 +1288,7 @@ export function UnitSection({
                                                                             )}
                                                                         </div>
 
-                                                                        {canManage && (
+                                                                        {canManage && editingLesson === lesson.lessonId && (
                                                                             <button
                                                                                 className="materials-icon-btn danger"
                                                                                 onClick={(e) => {
@@ -1389,6 +1417,12 @@ export function UnitSection({
 
 
 export function MaterialsTab({ course, userData }) {
+    const activeEditor = useRef(null);
+    function requestLessonEditor(key, close) {
+        if (activeEditor.current && activeEditor.current.key.split(':')[0] !== key.split(':')[0] && !activeEditor.current.close()) return false;
+        activeEditor.current = { key, close };
+        return true;
+    }
 
     const[unitArr, setUnitArr]=useState([])
     const [editingUnits, setEditingUnits] = useState(false);
@@ -1542,7 +1576,7 @@ export function MaterialsTab({ course, userData }) {
             {visibleUnits.map(unit =>
                 <div id={`dragUnit-${unit.unitId}`} key={unit.unitId} draggable={canManageUnits && !unitSearch.trim()} onDragStart={()=>handleStartDrag(unit.unitId, unit.sortOrder)} onDrag={()=>handleDrag(unit.unitId)} onDragOver={(e)=>handleDragOver(e,unit.unitId, unit.sortOrder)} onDragEnd={()=>handleDragEnd(unit.unitId)}>
                     <UnitMaterials key={unit.unitId} unit={unit} canManage={canManageUnits && editingUnits} onDelete={() => sendDeleteUnits(unit.unitId)} onTitleChange={title => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, title } : item))} initialOpen={location.state?.unitId === unit.unitId}>
-                        <UnitSection liveUrl={course.liveUrl} initialLessonId={location.state?.unitId === unit.unitId ? location.state?.lessonId : null} initialLessonTab={location.state?.unitTab === 'quizzes' ? 'quiz' : 'video'} embedded onLessonsChange={lessons => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, lessons } : item))} unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>
+                        <UnitSection requestLessonEditor={requestLessonEditor} liveUrl={course.liveUrl} initialLessonId={location.state?.unitId === unit.unitId ? location.state?.lessonId : null} initialLessonTab={location.state?.unitTab === 'quizzes' ? 'quiz' : 'video'} embedded onLessonsChange={lessons => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, lessons } : item))} unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>
                     </UnitMaterials>
                 </div>
             )}
@@ -1585,7 +1619,7 @@ function CourseDetail() {
                 const res = await fetch(`${API}/courses/${courseId}`);
                 const data = await res.json();
                 if (data.mStatus === 'ok') setCourse(data.mData);
-                
+
                 const userRes= await fetch(`${API}/userdata/${user.id}`)
                 const userData = await userRes.json()
                 setUserAttributes(userData.mData)

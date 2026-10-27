@@ -58,7 +58,7 @@ export default function QuizPage() {
       setQuiz(result); setError(''); setRevision(r => r + 1);
     } catch (e) { setError(e.message); }
   }, [quizId]);
-  useEffect(() => { setQuiz(null); setNotice(''); setEditing(false); load(); }, [load]);
+  useEffect(() => { setQuiz(null); setNotice(''); setEditing(new URLSearchParams(window.location.search).get('edit') === '1'); load(); }, [load]);
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -88,7 +88,7 @@ export default function QuizPage() {
             <p>{quiz.course_title} / {quiz.unit_title}</p>
             <p className="quiz-muted">Release: {displayDate(quiz.release_at)}<br />Due: {displayDate(quiz.due_at)}<br />
               {quiz.late_until ? `Late submissions accepted until ${displayDate(quiz.late_until)}` : 'Late submissions are not allowed.'}<br />Time zone: {localZone}</p>
-            {quiz.can_manage && <button onClick={() => setEditing(!editing)}>{editing ? 'Close Editor' : 'Edit Quiz'}</button>}
+            {quiz.can_manage && editing && <button onClick={() => { if (window.confirm('Close the quiz editor? Unsaved changes will be discarded.')) setEditing(false); }}>Close Editor</button>}
           </section>
           {editing && quiz.can_manage && <QuizEditor key={revision} quiz={quiz} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); setNotice('Quiz saved. Calendar deadlines will use the updated dates.'); load(); }} onDeleted={() => navigate(`/courses/${quiz.course_id}`, { state: { activeTab: 'materials', unitId: quiz.unit_id, unitTab: 'quizzes', lessonId: quiz.lesson_id } })} />}
           {quiz.mode === 'online' ? <>
