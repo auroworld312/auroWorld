@@ -165,12 +165,15 @@ export function QuizEditor({ unitId, lessonId, quiz, videos, onSaved, onCancel, 
   </div>;
 }
 
-export function UnitQuizzes({ unitId, lessonId, allowCreate = true, afterVideoId, videos = [], revision = 0, onChanged }) {
+export function UnitQuizzes({ unitId, lessonId, allowCreate = true, onDraftChange }) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const [localRevision, setLocalRevision] = useState(0);
+  useEffect(() => { onDraftChange?.(creating); }, [creating, onDraftChange]);
+  useEffect(() => { if (!allowCreate) setCreating(false); }, [allowCreate]);
+  const [revision, setRevision] = useState(0);
   useEffect(() => {
     let active = true;
     setError('');
@@ -194,6 +197,7 @@ export function UnitQuizzes({ unitId, lessonId, allowCreate = true, afterVideoId
       <div className="quiz-row quiz-between"><h3>{quiz.title}</h3><span className="quiz-tag">{quiz.submitted ? '✓ Submitted' : quiz.status}</span></div>
       <p className="quiz-muted">Due: {displayDate(quiz.due_at)}<br />Release: {displayDate(quiz.release_at)}</p>
       <button onClick={() => navigate(`/quizzes/${quiz.id}`)}>{data.can_manage ? 'Manage Quiz' : 'Open Quiz'}</button>
+      {data.can_manage && allowCreate && <button style={{ marginLeft: 8 }} onClick={() => navigate(`/quizzes/${quiz.id}?edit=1`)}>Edit Quiz</button>}
     </div>)}
   </div>;
 }

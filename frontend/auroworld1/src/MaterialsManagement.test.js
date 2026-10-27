@@ -84,11 +84,10 @@ test('lessons can be created in bulk, searched and edited with the existing uplo
     expect(JSON.parse(global.fetch.mock.calls[0][1].body).lessonTitle).toBe('Introduction');
     fireEvent.change(screen.getByRole('textbox', { name: 'Search lessons' }), { target: { value: 'Lesson 2' } });
     expect(screen.queryByText('Lesson 1')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Manage lessons' }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Upload Video' }));
-    expect(screen.getByRole('button', { name: 'Choose File' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add Video' }));
+    expect(screen.getByRole('button', { name: 'Choose Video' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Upload Video' })).toBeInTheDocument();
 });
 
 test('successful video upload opens an inline player immediately', async () => {
@@ -97,13 +96,12 @@ test('successful video upload opens an inline player immediately', async () => {
     global.fetch.mockImplementation(async (url, options) => ({ json: async () => ({ mStatus: 'ok', mData: options?.method === 'POST' ? 22 : false }) }));
     const unit = { unitId: 1, title: 'Unit 1', lessons: [{ lessonId: 10, lessonTitle: 'Intro', lessonDescription: '', videos: [] }] };
     const { container } = render(<UnitSection embedded unit={unit} unitId={1} courseId={7} role="instructor" username="teacher" instructor="teacher" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Manage lessons' }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(screen.queryByText('Lesson Description')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reorder Videos' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Upload Video' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Video' }));
     fireEvent.change(screen.getByLabelText('Choose lesson video'), { target: { files: [new File(['video'], 'Intro.mp4', { type: 'video/mp4' })] } });
-    fireEvent.click(screen.getByRole('button', { name: 'Upload', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload Video', exact: true }));
     await waitFor(() => expect(container.querySelector('video')).toHaveAttribute('src', 'https://example.com/video.mp4'));
     expect(container.querySelector('video')).toHaveAttribute('controls');
     fireEvent.error(container.querySelector('video'));
@@ -132,12 +130,39 @@ test('lessons expose their own content tabs and inherit the course live link', (
     expect(screen.getByText('Quiz content')).toBeVisible();
     expect(screen.queryByText('No videos in this lesson yet.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Live Links' }));
-    expect(open).toHaveBeenCalledWith('https://zoom.us/j/123', '_blank', 'noopener,noreferrer');
-    expect(screen.queryByRole('button', { name: 'Upload Video' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open Live Link' })).toHaveAttribute('href', 'https://zoom.us/j/123');
+    expect(screen.queryByRole('button', { name: 'Add Video' })).not.toBeInTheDocument();
 });
 
 test('unsafe or absent live links stay disabled', () => {
     const unit = { unitId: 1, title: 'Unit 1', lessons: [{ lessonId: 10, lessonTitle: 'Intro', videos: [] }] };
     render(<UnitSection embedded unit={unit} unitId={1} role="student" liveUrl="javascript:alert(1)" initialLessonId={10} />);
-    expect(screen.getByRole('button', { name: 'Live Links' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Live Links' }));
+    expect(screen.queryByRole('link', { name: 'Open Live Link' })).not.toBeInTheDocument();
+});
+
+
+test('direct lesson editing keeps expand available and protects unsaved names', async () => {
+    const unit = { unitId: 1, title: 'Unit 1', lessons: [{ lessonId: 10, lessonTitle: 'Intro', lessonDescription: '', videos: [] }] };
+    render(<UnitSection embedded unit={unit} unitId={1} role="instructor" username="teacher" instructor="teacher" />);
+    expect(screen.queryByRole('button', { name: 'Manage lessons' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete Lesson' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Options for Intro' }));
+    expect(screen.getByRole('button', { name: 'Delete Lesson' })).toBeVisible();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Delete Lesson' }), { key: 'Escape' });
+    expect(screen.queryByRole('button', { name: 'Delete Lesson' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByRole('button', { name: 'Open Intro' })).toBeVisible();
+    const title = screen.getAllByRole('textbox').find(input => input.value === 'Intro');
+    fireEvent.change(title, { target: { value: 'Updated Intro' } });
+    const confirm = jest.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(confirm).toHaveBeenCalled();
+    expect(title).toHaveValue('Updated Intro');
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    await waitFor(() => expect(screen.getByText('Updated Intro')).toBeVisible());
+    expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeVisible();
+    confirm.mockRestore();
 });

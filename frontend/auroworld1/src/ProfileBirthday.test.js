@@ -20,6 +20,7 @@ jest.mock('@supabase/supabase-js', () => ({ createClient: () => ({
     } }) })
   })
 }) }));
+jest.mock('./quizApi', () => ({ quizRequest: async () => ({ firstname: 'Student', username: 'student', role: 'user', birthday: mockBirthday }) }));
 beforeEach(() => { mockBirthday = '2004-10-31'; mockNoUpdate = false; });
 test('saved birthday updates the displayed date and survives reload', async () => {
   const view = render(<Profile />);

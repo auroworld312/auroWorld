@@ -52,6 +52,11 @@ public final class QuizApi {
                 conn.commit();
             } catch (Exception e) { conn.rollback(); throw e; }
         }
+        app.get("/quiz-api/account", ctx -> handle(ctx, (conn, user) -> {
+            var profiles = rows(conn, "SELECT u.firstname,u.lastname,u.username,u.email,u.role,p.birthday,p.note FROM users u LEFT JOIN profile_attributes p ON p.uuid::text=u.unique_id::text WHERE u.unique_id::text=?", user.id);
+            require(!profiles.isEmpty(), 404, "Account profile not found.");
+            return profiles.get(0);
+        }));
         app.get("/quiz-api/units/{unitId}", ctx -> handle(ctx, (conn, user) -> {
             var unit = unit(conn, id(ctx, "unitId"));
             boolean manager = manage(user, unit);
@@ -69,6 +74,21 @@ public final class QuizApi {
                 quiz.put("submitted", !rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND user_id=? AND submitted_at IS NOT NULL LIMIT 1", quiz.get("id"), user.id).isEmpty());
             }
             return Map.of("quizzes", quizzes, "can_manage", manager);
+        }));
+        app.get("/quiz-api/lessons/{lessonId}/live-links", ctx -> handle(ctx, (conn, user) -> {
+            var lesson = one(conn, "SELECT unit_id FROM unit_lessons WHERE lesson_id=?", id(ctx, "lessonId"));
+            var parent = unit(conn, ((Number) lesson.get("unit_id")).longValue());
+            require(manage(user, parent) || enrolled(conn, user, parent), 403, "Enroll to view live links.");
+            return rows(conn, "SELECT * FROM lesson_live_links WHERE lesson_id=? ORDER BY id", id(ctx, "lessonId"));
+        }));
+        app.post("/quiz-api/lessons/{lessonId}/live-links", ctx -> handle(ctx, (conn, user) -> {
+            var lesson = one(conn, "SELECT unit_id FROM unit_lessons WHERE lesson_id=?", id(ctx, "lessonId"));
+            require(manage(user, unit(conn, ((Number) lesson.get("unit_id")).longValue())), 403, "Only the course instructor can add live links.");
+            var form = JSON.fromJson(ctx.body(), LiveLinkForm.class);
+            require(form != null && form.title != null && !form.title.isBlank() && form.title.length() <= 200 && form.url != null && form.url.length() <= 2048, 400, "Enter a title and valid link.");
+            var uri = URI.create(form.url.trim());
+            require(("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme())) && uri.getHost() != null && uri.getUserInfo() == null, 400, "Use an HTTP or HTTPS link.");
+            return one(conn, "INSERT INTO lesson_live_links(lesson_id,title,url) VALUES (?,?,?) RETURNING *", id(ctx, "lessonId"), form.title.trim(), uri.toString());
         }));
         app.get("/quiz-api/units/{unitId}/resources", ctx -> handle(ctx, (conn, user) -> {
             var unit = unit(conn, id(ctx, "unitId"));
@@ -444,6 +464,7 @@ public final class QuizApi {
     }
 
     record User(String id, String username, String role) {}
+    private record LiveLinkForm(String title, String url) {}
     private record AuthUser(String id) {}
     private static class QuizForm {
         String title, instructions, release_at, due_at, late_until, mode;
