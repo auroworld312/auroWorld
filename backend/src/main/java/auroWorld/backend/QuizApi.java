@@ -228,6 +228,11 @@ public final class QuizApi {
         }
         update(conn, "UPDATE course_quizzes SET mode=?,questions_json=?,question_version=question_version+? WHERE id=?", mode, questionsJson, changed ? 1 : 0, quizId);
         update(conn, "UPDATE course_quizzes SET max_attempts=?,lesson_id=? WHERE id=?", maxAttempts, lessonId, quizId);
+        if (body.after_video_id != null) {
+            Long afterVideo = body.after_video_id == 0 ? null : body.after_video_id;
+            require(afterVideo == null || !rows(conn, "SELECT video_id FROM unit_videos WHERE video_id=? AND lesson_id=?", afterVideo, lessonId).isEmpty(), 400, "Choose a video from this lesson.");
+            update(conn, "UPDATE course_quizzes SET after_video_id=? WHERE id=?", afterVideo, quizId);
+        }
         if ("file".equals(mode)) {
             replaceFiles(ctx, conn, quizId, null, body.keep_file_ids);
             require(!body.published || !files(conn, quizId, null).isEmpty(), 400, "Upload at least one question file before publishing.");
@@ -444,6 +449,7 @@ public final class QuizApi {
         String title, instructions, release_at, due_at, late_until, mode;
         Integer max_attempts;
         Long lesson_id;
+        Long after_video_id;
         List<OnlineQuiz.Question> questions;
         boolean published;
         List<Long> keep_file_ids;

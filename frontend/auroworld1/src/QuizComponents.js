@@ -69,7 +69,7 @@ function DateTimePicker({ label, value, onChange, id }) {
   </div>;
 }
 
-export function QuizEditor({ unitId, lessonId, quiz, onSaved, onCancel, onDeleted }) {
+export function QuizEditor({ unitId, lessonId, quiz, videos, onSaved, onCancel, onDeleted }) {
   const formId = useId();
   const [selectedLesson, setSelectedLesson] = useState(lessonId ?? quiz?.lesson_id ?? '');
   const [mode, setMode] = useState(quiz?.mode || 'file');
@@ -85,6 +85,7 @@ export function QuizEditor({ unitId, lessonId, quiz, onSaved, onCancel, onDelete
   const [incoming, setIncoming] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [afterVideo, setAfterVideo] = useState(videos?.some(v => v.videoId === quiz?.after_video_id) ? quiz.after_video_id : 0);
   async function deleteQuiz() {
     if (!window.confirm(`Delete "${quiz.title}"? All question files, student submissions, grades and feedback will be permanently deleted. This cannot be undone.`)) return;
     setError(''); setBusy(true);
@@ -109,7 +110,7 @@ export function QuizEditor({ unitId, lessonId, quiz, onSaved, onCancel, onDelete
       }
       const result = await quizRequest(quiz ? `/quizzes/${quiz.id}` : `/units/${unitId}`, {
         method: quiz ? 'PUT' : 'POST',
-        body: quizUpload({ lesson_id: Number(selectedLesson), title, instructions, published, mode, max_attempts: maxAttempts, questions: mode === 'online' ? questions : [], release_at: releaseAt, due_at: dueAt, late_until: lateUntil, keep_file_ids: existing.map(f => f.id) }, mode === 'file' ? incoming : []),
+        body: quizUpload({ lesson_id: Number(selectedLesson), title, instructions, published, mode, max_attempts: maxAttempts, after_video_id: videos ? afterVideo : undefined, questions: mode === 'online' ? questions : [], release_at: releaseAt, due_at: dueAt, late_until: lateUntil, keep_file_ids: existing.map(f => f.id) }, mode === 'file' ? incoming : []),
       });
       onSaved(result);
     } catch (e) { setError(e.message); }
@@ -122,6 +123,13 @@ export function QuizEditor({ unitId, lessonId, quiz, onSaved, onCancel, onDelete
         <label htmlFor={`${formId}-lesson`}>Lesson</label>
         <select id={`${formId}-lesson`} value={selectedLesson} onChange={event => setSelectedLesson(Number(event.target.value))}>
           {quiz.lessons.map(lesson => <option key={lesson.lesson_id} value={lesson.lesson_id}>{lesson.lesson_title}</option>)}
+        </select>
+      </>}
+      {videos?.length > 0 && <>
+        <label htmlFor={`${formId}-after`}>Show this quiz</label>
+        <select id={`${formId}-after`} value={afterVideo} onChange={event => setAfterVideo(Number(event.target.value))}>
+          <option value={0}>At the end of the lesson</option>
+          {videos.map(video => <option key={video.videoId} value={video.videoId}>After video: {video.title}</option>)}
         </select>
       </>}
       <label htmlFor={`${formId}-attempts`}>Allowed attempts</label>
@@ -157,25 +165,32 @@ export function QuizEditor({ unitId, lessonId, quiz, onSaved, onCancel, onDelete
   </div>;
 }
 
-export function UnitQuizzes({ unitId, lessonId, allowCreate = true }) {
+export function UnitQuizzes({ unitId, lessonId, allowCreate = true, afterVideoId, videos = [], revision = 0, onChanged }) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
-  const [revision, setRevision] = useState(0);
+  const [localRevision, setLocalRevision] = useState(0);
   useEffect(() => {
     let active = true;
     setError('');
     quizRequest(`/units/${unitId}${lessonId ? `?lessonId=${lessonId}` : ''}`).then(result => { if (active) setData(result); }).catch(e => { if (active) setError(e.message); });
     return () => { active = false; };
-  }, [unitId, lessonId, revision]);
+  }, [unitId, lessonId, localRevision, revision]);
+  const refresh = () => (onChanged ? onChanged() : setLocalRevision(r => r + 1));
+  const videoIds = videos.map(video => video.videoId);
+  const isEnd = afterVideoId === undefined || afterVideoId === null;
+  const quizzes = (data?.quizzes || []).filter(quiz => afterVideoId === undefined ? true
+    : isEnd ? !quiz.after_video_id || !videoIds.includes(quiz.after_video_id)
+    : quiz.after_video_id === afterVideoId);
+  if (!isEnd && !quizzes.length) return null;
   return <div className="quiz-panel" style={{ padding: 16 }}>
-    {error && <p className="quiz-error" role="alert">{error} <button onClick={() => setRevision(r => r + 1)}>Retry</button></p>}
-    {!data && !error && <p>Loading quizzes…</p>}
-    {data?.can_manage && allowCreate && !creating && <button className="primary material-add-button" style={{ marginBottom: 16 }} onClick={() => setCreating(true)}><span className="material-add-icon" aria-hidden="true" />Create Quiz</button>}
-    {creating && allowCreate && <QuizEditor lessonId={lessonId} unitId={unitId} onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setRevision(r => r + 1); }} />}
-    {data && !data.quizzes.length && <p className="quiz-muted">No quizzes available yet.</p>}
-    {data?.quizzes.map(quiz => <div className="quiz-card quiz-list-card" key={quiz.id}>
+    {isEnd && error && <p className="quiz-error" role="alert">{error} <button onClick={refresh}>Retry</button></p>}
+    {isEnd && !data && !error && <p>Loading quizzes…</p>}
+    {isEnd && data?.can_manage && allowCreate && !creating && <button className="primary material-add-button" style={{ marginBottom: 16 }} onClick={() => setCreating(true)}><span className="material-add-icon" aria-hidden="true" />Create Quiz</button>}
+    {isEnd && creating && allowCreate && <QuizEditor lessonId={lessonId} unitId={unitId} videos={videos} onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); refresh(); }} />}
+    {isEnd && data && !data.quizzes.length && <p className="quiz-muted">No quizzes available yet.</p>}
+    {quizzes.map(quiz => <div className="quiz-card quiz-list-card" key={quiz.id}>
       <div className="quiz-row quiz-between"><h3>{quiz.title}</h3><span className="quiz-tag">{quiz.submitted ? '✓ Submitted' : quiz.status}</span></div>
       <p className="quiz-muted">Due: {displayDate(quiz.due_at)}<br />Release: {displayDate(quiz.release_at)}</p>
       <button onClick={() => navigate(`/quizzes/${quiz.id}`)}>{data.can_manage ? 'Manage Quiz' : 'Open Quiz'}</button>

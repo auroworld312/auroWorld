@@ -65,3 +65,4 @@ WHERE EXISTS (SELECT 1 FROM course_quizzes q WHERE q.unit_id=u.unit_id AND q.les
 AND NOT EXISTS (SELECT 1 FROM unit_lessons l WHERE l.unit_id=u.unit_id);
 UPDATE course_quizzes q SET lesson_id=(SELECT l.lesson_id FROM unit_lessons l WHERE l.unit_id=q.unit_id ORDER BY l.sort_order,l.lesson_id LIMIT 1) WHERE q.lesson_id IS NULL;
 CREATE INDEX IF NOT EXISTS quiz_lesson_index ON course_quizzes(lesson_id);
+ALTER TABLE course_quizzes ADD COLUMN IF NOT EXISTS after_video_id INTEGER;
