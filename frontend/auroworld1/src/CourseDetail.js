@@ -280,7 +280,7 @@ export function UnitSection({
 }) {
     const [open, setOpen] = useState(false);
     const [openLessons, setOpenLessons] = useState(initialLessonId ? { [initialLessonId]: true } : {});
-    const [lessonTabs, setLessonTabs] = useState({});
+    const [lessonTabs] = useState({});
     const [quizRevision, setQuizRevision] = useState(0);
     let lessonLiveUrl = '';
     try { const url = new URL((liveUrl || '').trim()); if (['http:', 'https:'].includes(url.protocol)) lessonLiveUrl = url.href; } catch {}
