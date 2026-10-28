@@ -86,6 +86,7 @@ export function QuizEditor({ unitId, lessonId, quiz, videos, onSaved, onCancel, 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [afterVideo, setAfterVideo] = useState(videos?.some(v => v.videoId === quiz?.after_video_id) ? quiz.after_video_id : 0);
+
   async function deleteQuiz() {
     if (!window.confirm(`Delete "${quiz.title}"? All question files, student submissions, grades and feedback will be permanently deleted. This cannot be undone.`)) return;
     setError(''); setBusy(true);
@@ -95,6 +96,7 @@ export function QuizEditor({ unitId, lessonId, quiz, videos, onSaved, onCancel, 
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
+
   async function save(published) {
     setError(''); setBusy(true);
     try {
@@ -103,8 +105,9 @@ export function QuizEditor({ unitId, lessonId, quiz, videos, onSaved, onCancel, 
       if (published && (!releaseAt || !dueAt)) throw new Error('Select release and due dates and times.');
       if ((releaseAt || dueAt || lateUntil) && (!releaseAt || !dueAt || dueAt <= releaseAt)) throw new Error('Due date must be after release date.');
       if (allowLate && (!lateUntil || !dueAt || lateUntil <= dueAt)) throw new Error('Choose a late deadline after the normal due date.');
-      if (mode === 'online') { if (published) validateQuestions(questions); }
-      else {
+      if (mode === 'online') {
+        if (published) validateQuestions(questions);
+      } else {
         validateFiles(existing, incoming);
         if (published && !existing.length && !incoming.length) throw new Error('Upload a question file before publishing.');
       }
@@ -116,6 +119,7 @@ export function QuizEditor({ unitId, lessonId, quiz, videos, onSaved, onCancel, 
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
+
   return <div className="quiz-card quiz-form">
     <h3>{quiz ? 'Edit Quiz' : 'Create Quiz'}</h3>
     <fieldset disabled={busy}>
@@ -165,28 +169,43 @@ export function QuizEditor({ unitId, lessonId, quiz, videos, onSaved, onCancel, 
   </div>;
 }
 
-export function UnitQuizzes({ unitId, lessonId, allowCreate = true, onDraftChange }) {
+export function UnitQuizzes({
+  unitId,
+  lessonId,
+  allowCreate = true,
+  onDraftChange,
+  onChanged,
+  videos = [],
+  afterVideoId,
+  revision = 0
+}) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const [localRevision, setLocalRevision] = useState(0);
+
   useEffect(() => { onDraftChange?.(creating); }, [creating, onDraftChange]);
   useEffect(() => { if (!allowCreate) setCreating(false); }, [allowCreate]);
-  const [revision, setRevision] = useState(0);
+
   useEffect(() => {
     let active = true;
     setError('');
-    quizRequest(`/units/${unitId}${lessonId ? `?lessonId=${lessonId}` : ''}`).then(result => { if (active) setData(result); }).catch(e => { if (active) setError(e.message); });
+    quizRequest(`/units/${unitId}${lessonId ? `?lessonId=${lessonId}` : ''}`)
+      .then(result => { if (active) setData(result); })
+      .catch(e => { if (active) setError(e.message); });
     return () => { active = false; };
   }, [unitId, lessonId, localRevision, revision]);
+
   const refresh = () => (onChanged ? onChanged() : setLocalRevision(r => r + 1));
   const videoIds = videos.map(video => video.videoId);
   const isEnd = afterVideoId === undefined || afterVideoId === null;
   const quizzes = (data?.quizzes || []).filter(quiz => afterVideoId === undefined ? true
     : isEnd ? !quiz.after_video_id || !videoIds.includes(quiz.after_video_id)
     : quiz.after_video_id === afterVideoId);
+
   if (!isEnd && !quizzes.length) return null;
+
   return <div className="quiz-panel" style={{ padding: 16 }}>
     {isEnd && error && <p className="quiz-error" role="alert">{error} <button onClick={refresh}>Retry</button></p>}
     {isEnd && !data && !error && <p>Loading quizzes…</p>}
@@ -197,7 +216,14 @@ export function UnitQuizzes({ unitId, lessonId, allowCreate = true, onDraftChang
       <div className="quiz-row quiz-between"><h3>{quiz.title}</h3><span className="quiz-tag">{quiz.submitted ? '✓ Submitted' : quiz.status}</span></div>
       <p className="quiz-muted">Due: {displayDate(quiz.due_at)}<br />Release: {displayDate(quiz.release_at)}</p>
       <button onClick={() => navigate(`/quizzes/${quiz.id}`)}>{data.can_manage ? 'Manage Quiz' : 'Open Quiz'}</button>
-      {data.can_manage && allowCreate && <button style={{ marginLeft: 8 }} onClick={() => navigate(`/quizzes/${quiz.id}?edit=1`)}>Edit Quiz</button>}
+      {data.can_manage && (
+        <button
+          style={{ marginLeft: 8 }}
+          onClick={() => navigate(`/quizzes/${quiz.id}?edit=1`)}
+        >
+          Edit Quiz
+        </button>
+      )}
     </div>)}
   </div>;
 }

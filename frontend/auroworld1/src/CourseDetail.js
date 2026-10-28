@@ -280,6 +280,7 @@ export function UnitSection({
 }) {
     const [open, setOpen] = useState(false);
     const [openLessons, setOpenLessons] = useState(initialLessonId ? { [initialLessonId]: true } : {});
+    const [lessonTabs, setLessonTabs] = useState({});
     const [quizRevision, setQuizRevision] = useState(0);
     let lessonLiveUrl = '';
     try { const url = new URL((liveUrl || '').trim()); if (['http:', 'https:'].includes(url.protocol)) lessonLiveUrl = url.href; } catch {}
@@ -1078,6 +1079,7 @@ export function UnitSection({
                             {[...lessonsArray].sort((a,b)=>a.sortOrder-b.sortOrder).filter(lesson => lesson.lessonTitle.toLowerCase().includes(lessonSearch.trim().toLowerCase())).map((lesson, idx) => {
 
                                 const isLessonOpen = !!openLessons[lesson.lessonId];
+                                const lessonTab = lessonTabs[lesson.lessonId] || 'video';
                                 const sortedVideos = [...(lesson.videos || [])].sort((a, b) => a.sortOrder - b.sortOrder);
                                 const quizProps = { unitId, lessonId: lesson.lessonId, videos: sortedVideos, revision: quizRevision, onChanged: () => setQuizRevision(r => r + 1) };
                                 return (
@@ -1093,17 +1095,49 @@ export function UnitSection({
 
                                             </div>
 
-                                            <div className="lesson-header-actions" onClick={event => event.stopPropagation()}>
-                                                {canManage && <>
-                                                    {editingLesson === lesson.lessonId && <span className="lesson-editing-label">Editing</span>}
-                                                    <button className="materials-icon-btn" disabled={fileLoading} onClick={() => editingLesson === lesson.lessonId ? closeEditLesson() : editLessonButton(lesson)}>{editingLesson === lesson.lessonId ? 'Done' : 'Edit'}</button>
-                                                    <div className="lesson-menu-anchor" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setLessonMenu(null); }}>
-                                                        <button className="materials-icon-btn" aria-label={`Options for ${lesson.lessonTitle}`} aria-expanded={lessonMenu === lesson.lessonId} onClick={() => setLessonMenu(lessonMenu === lesson.lessonId ? null : lesson.lessonId)} onKeyDown={event => { if (event.key === 'Escape') setLessonMenu(null); }}><span aria-hidden="true">&#8226;&#8226;&#8226;</span></button>
-                                                        {lessonMenu === lesson.lessonId && <div className="lesson-options" onKeyDown={event => { if (event.key === 'Escape') setLessonMenu(null); }}><button className="materials-icon-btn danger" onClick={() => { setLessonMenu(null); deleteLessonButton(lesson.lessonId); }}>Delete Lesson</button></div>}
-                                                    </div>
-                                                </>}
-                                                <button className="materials-icon-btn" aria-label={`Open ${lesson.lessonTitle}`} aria-expanded={isLessonOpen} onClick={() => toggleLesson(lesson.lessonId)}><span className={`lesson-chevron${isLessonOpen ? ' is-open' : ''}`} aria-hidden="true" /></button>
-                                            </div>
+                                                <div
+                                                className="lesson-header-actions"
+                                                onClick={event => event.stopPropagation()}
+                                                >
+                                                {canManage && (
+                                                    <>
+                                                    {editingLesson === lesson.lessonId && (
+                                                        <span className="lesson-editing-label">Editing</span>
+                                                    )}
+
+                                                    <button
+                                                        className="materials-icon-btn"
+                                                        disabled={fileLoading}
+                                                        onClick={() =>
+                                                        editingLesson === lesson.lessonId
+                                                            ? closeEditLesson()
+                                                            : editLessonButton(lesson)
+                                                        }
+                                                    >
+                                                        {editingLesson === lesson.lessonId ? 'Done' : 'Edit'}
+                                                    </button>
+
+                                                    <button
+                                                        className="materials-icon-btn danger"
+                                                        onClick={() => deleteLessonButton(lesson.lessonId)}
+                                                    >
+                                                        Delete Lesson
+                                                    </button>
+                                                    </>
+                                                )}
+
+                                                <button
+                                                    className="materials-icon-btn"
+                                                    aria-label={`Open ${lesson.lessonTitle}`}
+                                                    aria-expanded={isLessonOpen}
+                                                    onClick={() => toggleLesson(lesson.lessonId)}
+                                                >
+                                                    <span
+                                                    className={`lesson-chevron${isLessonOpen ? ' is-open' : ''}`}
+                                                    aria-hidden="true"
+                                                    />
+                                                </button>
+                                                </div>
                                         </div>
 
                                         {/* EDIT LESSON */}
@@ -1250,11 +1284,19 @@ export function UnitSection({
 
                                         {isLessonOpen && <div className="quiz-tabs lesson-content-tabs" aria-label={`${lesson.lessonTitle} content`}>
                                             <button aria-pressed={lessonTab === 'video'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'video' }))}>Video</button>
-                                            <button aria-pressed={lessonTab === 'quiz'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'quiz' }))}>Quiz</button>
+                                
                                             <button aria-pressed={lessonTab === 'live'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'live' }))}>Live Links</button>
                                         </div>}
                                         {isLessonOpen && <div hidden={lessonTab !== 'live'}><LessonLiveLinks unitId={unitId} lessonId={lesson.lessonId} inheritedUrl={lessonLiveUrl} editing={canManage && editingLesson === lesson.lessonId} onDraftChange={editingLesson === lesson.lessonId ? setLiveDraftOpen : undefined} /></div>}
-                                        {isLessonOpen && <div hidden={lessonTab !== 'quiz'}><UnitQuizzes unitId={unitId} lessonId={lesson.lessonId} allowCreate={canManage && editingLesson === lesson.lessonId} onDraftChange={editingLesson === lesson.lessonId ? setQuizDraftOpen : undefined} /></div>}
+                                        {isLessonOpen && (
+                                                <div hidden={lessonTab !== 'quiz'}>
+                                                    <UnitQuizzes
+                                                        {...quizProps}
+                                                        allowCreate={canManage && editingLesson === lesson.lessonId}
+                                                        onDraftChange={setQuizDraftOpen}
+                                                    />
+                                                </div>
+                                            )}
                                         {isLessonOpen && lessonTab === 'video' && (
                                             <div className="materials-lesson-body">
                                         {canManage && editingLesson === lesson.lessonId && (
@@ -1501,7 +1543,7 @@ export function MaterialsTab({ course, userData }) {
     }
 
     const[unitArr, setUnitArr]=useState([])
-    const [editingUnits, setEditingUnits] = useState(false);
+   
     const canManageUnits = userData?.role === "admin" || (!!userData?.username && userData.username === course.instructor);
     const [unitSearch, setUnitSearch] = useState('');
     const [addingUnit, setAddingUnit] = useState(false);
@@ -1641,17 +1683,21 @@ export function MaterialsTab({ course, userData }) {
     const location = useLocation();
     const visibleUnits = [...unitArr].sort((a, b) => a.sortOrder - b.sortOrder).filter(unit => unit.title.toLocaleLowerCase().includes(unitSearch.trim().toLocaleLowerCase()));
     return <div className="unit-library">
-        <div className="unit-library-top">
-            <label className="unit-search">
-                <span className="unit-search-symbol" aria-hidden="true" />
-                <input aria-label="Search units" placeholder="Search units..." value={unitSearch} onChange={event => setUnitSearch(event.target.value)} />
-            </label>
-            {canManageUnits && <button className="unit-manage-toggle" aria-label="Manage units" title={editingUnits ? 'Finish managing units' : 'Manage units'} aria-pressed={editingUnits} onClick={() => setEditingUnits(!editingUnits)}>•••</button>}
-        </div>
+            <div className="unit-library-top">
+                <label className="unit-search">
+                    <span className="unit-search-symbol" aria-hidden="true" />
+                    <input
+                        aria-label="Search units"
+                        placeholder="Search units..."
+                        value={unitSearch}
+                        onChange={event => setUnitSearch(event.target.value)}
+                    />
+                </label>
+            </div>
         <div className="unit-library-list">
             {visibleUnits.map(unit =>
                 <div id={`dragUnit-${unit.unitId}`} key={unit.unitId} draggable={canManageUnits && !unitSearch.trim()} onDragStart={()=>handleStartDrag(unit.unitId, unit.sortOrder)} onDrag={()=>handleDrag(unit.unitId)} onDragOver={(e)=>handleDragOver(e,unit.unitId, unit.sortOrder)} onDragEnd={()=>handleDragEnd(unit.unitId)}>
-                    <UnitMaterials key={unit.unitId} unit={unit} canManage={canManageUnits && editingUnits} onDelete={() => sendDeleteUnits(unit.unitId)} onTitleChange={title => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, title } : item))} initialOpen={location.state?.unitId === unit.unitId}>
+                    <UnitMaterials key={unit.unitId} unit={unit} canManage={canManageUnits} onDelete={() => sendDeleteUnits(unit.unitId)} onTitleChange={title => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, title } : item))} initialOpen={location.state?.unitId === unit.unitId}>
                         <UnitSection requestLessonEditor={requestLessonEditor} liveUrl={course.liveUrl} initialLessonId={location.state?.unitId === unit.unitId ? location.state?.lessonId : null} initialLessonTab={location.state?.unitTab === 'quizzes' ? 'quiz' : 'video'} embedded onLessonsChange={lessons => setUnitArr(units => units.map(item => item.unitId === unit.unitId ? { ...item, lessons } : item))} unit={unit} courseId = {course.courseId} role ={userData?.role} username={userData?.username} instructor={course.instructor} unitId={unit.unitId} courseTitle={course.title}/>
                     </UnitMaterials>
                 </div>
