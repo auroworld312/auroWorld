@@ -152,3 +152,56 @@ html[data-theme="dark"] .lesson-editing-label { color: #d8cce8; }
 .lesson-library .materials-lesson.lesson-menu-open { overflow: visible; position: relative; z-index: 6; }
 .lesson-library .materials-lesson.lesson-menu-open .materials-lesson-top { border-radius: 11px; }
 @media (max-width: 650px) { .lesson-header-actions { gap: 4px; flex-shrink: 1; } }
+/* Keep the lesson section from growing wider than its panel */
+.lesson-library,
+.lesson-library .materials-lesson,
+.lesson-library .materials-lesson-body,
+.lesson-library .materials-unit-body {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.lesson-library .materials-lesson-list {
+  min-width: 0;
+}
+
+/* Let the button row wrap instead of stretching the layout */
+.lesson-library .materials-lesson-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.lesson-library .materials-lesson-toolbar button {
+  max-width: 100%;
+}
+
+/* Quiz form and add-video form must fit inside the lesson */
+.lesson-library .materials-lesson-body .quiz-panel,
+.lesson-library .materials-lesson-body .quiz-card,
+.lesson-library .materials-lesson-body .materials-add-lesson-form {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.lesson-library .materials-lesson-body .quiz-form input:not([type="checkbox"]),
+.lesson-library .materials-lesson-body .quiz-form select,
+.lesson-library .materials-lesson-body .quiz-form textarea {
+  max-width: 100%;
+}
+
+/* Long video titles / filenames wrap instead of widening the row */
+.lesson-library .materials-video-row > div,
+.lesson-library .materials-video-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Safety net: never show a horizontal scrollbar on the panel */
+.is-materials-info .course-detail-panel {
+  overflow-x: hidden;
+}
