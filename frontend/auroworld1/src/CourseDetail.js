@@ -1,6 +1,6 @@
 import LessonLiveLinks from './LessonLiveLinks';
 import NextClass from './NextClass';
-import { UnitQuizzes } from './QuizComponents';
+
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 // import { createClient } from '@supabase/supabase-js';
@@ -16,7 +16,7 @@ import VideoTab, { RoomChatPreview } from './LiveClassPreview';
 import { getCourseTimeValues } from './courseSchedule';
 import { uploadToB2, getB2Url, deleteFromB2, isB2, toKey, B2_PREFIX, isVideoFile, safeSegment } from './b2Storage';
 import {supabase} from './utils/supabaseClient.js'
-
+import { UnitQuizzes, QuizEditor } from './QuizComponents';
 
 async function authToken() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -294,6 +294,7 @@ export function UnitSection({
     const [lessonSearch, setLessonSearch] = useState('');
     const [lessonMenu, setLessonMenu] = useState(null);
     const [quizDraftOpen, setQuizDraftOpen] = useState(false);
+    const [creatingQuiz, setCreatingQuiz] = useState(null); // lessonId whose quiz form is open
     const [liveDraftOpen, setLiveDraftOpen] = useState(false);
     const [lessonCount, setLessonCount] = useState(1);
     const [creatingLessons, setCreatingLessons] = useState(false);
@@ -493,6 +494,7 @@ export function UnitSection({
         if (requestLessonEditor && !requestLessonEditor(`${unitId}:${lesson.lessonId}`, () => editorExitRef.current())) return;
         setLessonMenu(null);
         setQuizDraftOpen(false);
+        setCreatingQuiz(null);
         setLiveDraftOpen(false);
         setEditingLesson(lesson.lessonId);
         setOpenLessons(current => ({ ...current, [lesson.lessonId]: true }));
@@ -504,6 +506,7 @@ export function UnitSection({
     function closeEditLesson(force = false) {
         if (force !== true && !canLeaveLessonEditor()) return false;
         setQuizDraftOpen(false);
+        setCreatingQuiz(null);
         setLiveDraftOpen(false);
         setEditingLesson(null);
         cancelMaterials();
@@ -1158,82 +1161,6 @@ export function UnitSection({
                                             </div>
                                         )}
 
-                                        {/* LESSON TOOLBAR */}
-
-                                        {canManage && editingLesson === lesson.lessonId && (
-                                            <div className="materials-lesson-toolbar">
-                                                <div hidden><button onClick={() => startReorder(lesson.lessonId)}>Reorder Videos</button><button onClick={() => swapVideoId(lesson.lessonId)}>Swap Selected</button></div>
-                                                <input id={`lesson-upload-${lesson.lessonId}`} type="file" accept="video/*,.mkv,.avi,.mov,.m4v" aria-label="Choose lesson video" hidden disabled={fileLoading} onChange={event => uploadFileHandler(event, lesson.lessonId)} />
-                                                <button
-                                                    className="materials-icon-btn"
-                                                    disabled={fileLoading}
-                                                    onClick={() => { addMaterials(lesson.lessonId); document.getElementById(`lesson-upload-${lesson.lessonId}`).click(); }}
-                                                >
-                                                    Upload Video
-                                                </button>
-                                                <button className="materials-icon-btn" onClick={() => setOpenLessons(current => ({ ...current, [lesson.lessonId]: true }))}>Add / Manage Quiz</button>
-
-                                            </div>
-                                        )}
-
-                                        {/* ADD VIDEO */}
-
-                                        {canManage && editingLesson === lesson.lessonId && addingMaterials === lesson.lessonId && (
-                                            <div className="materials-add-lesson-form">
-                                                <label>Select File</label>
-
-                                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                    <input
-                                                        type="file"
-                                                        id={`hiddenAddFileInput-${lesson.lessonId}`}
-                                                        onChange={event => uploadFileHandler(event, lesson.lessonId)}
-                                                        accept="video/*,.mkv,.avi,.mov,.m4v"
-                                                        style={{ display: "none" }}
-                                                    />
-                                                    <button
-                                                        className="materials-icon-btn"
-                                                        onClick={() => document.getElementById(`hiddenAddFileInput-${lesson.lessonId}`).click()}
-                                                    >
-                                                        Choose File
-                                                    </button>
-                                                    <span style={{ fontSize: 13, color: "#6d6877", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                        {fileName}
-                                                    </span>
-                                                </div>
-
-                                                <label>Video title</label>
-
-                                                <input
-                                                    type="text"
-                                                    value={videoTitles[lesson.lessonId] || ""}
-                                                    onChange={(e) =>
-                                                        setVideoTitles((prev) => ({
-                                                            ...prev,
-                                                            [lesson.lessonId]: e.target.value
-                                                        }))
-                                                    }
-                                                    className="materials-inline-input"
-                                                    placeholder="Enter title"
-                                                />
-
-                                                {fileUpload && (
-                                                    <div style={{ fontSize: 12, color: "#6d6877" }}>
-                                                        Selected: {fileUpload.name}
-                                                    </div>
-                                                )}
-
-                                                <div style={{ display: "flex", gap: 8 }}>
-                                                    <button
-                                                        className="materials-icon-btn"
-                                                        disabled={fileLoading}
-                                                        onClick={() => uploadNewMaterials(fileName, fileUpload, lesson.lessonId)}
-                                                    >
-                                                        Upload
-                                                    </button>
-                                                    <button className="materials-icon-btn" onClick={cancelMaterials}>Cancel</button>
-                                                </div>
-                                            </div>
-                                        )}
 
                                         {/* REORDER LIST */}
 
@@ -1282,11 +1209,40 @@ export function UnitSection({
 
                                         {/* VIDEOS */}
 
-                                        {isLessonOpen && <div className="quiz-tabs lesson-content-tabs" aria-label={`${lesson.lessonTitle} content`}>
-                                            <button aria-pressed={lessonTab === 'video'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'video' }))}>Video</button>
-                                
-                                            <button aria-pressed={lessonTab === 'live'} onClick={() => setLessonTabs(current => ({ ...current, [lesson.lessonId]: 'live' }))}>Live Links</button>
-                                        </div>}
+                                        {canManage && editingLesson === lesson.lessonId && (
+                                            <div className="materials-lesson-toolbar">
+                                                <div hidden><button onClick={() => startReorder(lesson.lessonId)}>Reorder Videos</button><button onClick={() => swapVideoId(lesson.lessonId)}>Swap Selected</button></div>
+                                                <input id={`lesson-upload-${lesson.lessonId}`} type="file" aria-label="Choose lesson video" hidden disabled={fileLoading} onChange={event => uploadFileHandler(event, lesson.lessonId)} />
+                                                <button
+                                                    className="primary material-add-button"
+                                                    disabled={fileLoading}
+                                                    onClick={() => { addMaterials(lesson.lessonId); document.getElementById(`lesson-upload-${lesson.lessonId}`).click(); }}
+                                                >
+                                                    <span className="material-add-icon" aria-hidden="true" />Add Video
+                                                </button>
+                                                <button
+                                                    className="primary material-add-button"
+                                                    disabled={fileLoading || creatingQuiz === lesson.lessonId}
+                                                    onClick={() => { setQuizDraftOpen(true); setCreatingQuiz(lesson.lessonId); }}
+                                                >
+                                                    <span className="material-add-icon" aria-hidden="true" />Create Quiz
+                                                </button>
+                                            </div>
+                                        )}
+
+                                            {/* existing ADD VIDEO form (Select Video) stays here unchanged */}
+
+                                            {canManage && editingLesson === lesson.lessonId && creatingQuiz === lesson.lessonId && (
+                                                <div className="quiz-panel" style={{ padding: 16 }}>
+                                                    <QuizEditor
+                                                        lessonId={lesson.lessonId}
+                                                        unitId={unitId}
+                                                        videos={sortedVideos}
+                                                        onCancel={() => { setCreatingQuiz(null); setQuizDraftOpen(false); }}
+                                                        onSaved={() => { setCreatingQuiz(null); setQuizDraftOpen(false); setQuizRevision(r => r + 1); }}
+                                                    />
+                                                </div>
+                                            )}
                                         {isLessonOpen && <div hidden={lessonTab !== 'live'}><LessonLiveLinks unitId={unitId} lessonId={lesson.lessonId} inheritedUrl={lessonLiveUrl} editing={canManage && editingLesson === lesson.lessonId} onDraftChange={editingLesson === lesson.lessonId ? setLiveDraftOpen : undefined} /></div>}
                                         {isLessonOpen && (
                                                 <div hidden={lessonTab !== 'quiz'}>
@@ -1299,20 +1255,7 @@ export function UnitSection({
                                             )}
                                         {isLessonOpen && lessonTab === 'video' && (
                                             <div className="materials-lesson-body">
-                                        {canManage && editingLesson === lesson.lessonId && (
-                                            <div className="materials-lesson-toolbar">
-                                                <div hidden><button onClick={() => startReorder(lesson.lessonId)}>Reorder Videos</button><button onClick={() => swapVideoId(lesson.lessonId)}>Swap Selected</button></div>
-                                                <input id={`lesson-upload-${lesson.lessonId}`} type="file" aria-label="Choose lesson video" hidden disabled={fileLoading} onChange={event => uploadFileHandler(event, lesson.lessonId)} />
-                                                <button
-                                                    className="primary material-add-button"
-                                                    disabled={fileLoading}
-                                                    onClick={() => { addMaterials(lesson.lessonId); document.getElementById(`lesson-upload-${lesson.lessonId}`).click(); }}
-                                                >
-                                                    <span className="material-add-icon" aria-hidden="true" />Add Video
-                                                </button>
 
-                                            </div>
-                                        )}
 
                                         {/* ADD VIDEO */}
 
@@ -1488,7 +1431,7 @@ export function UnitSection({
 
                                                                         </div>
                                                                     )}
-                                                                    <UnitQuizzes {...quizProps} afterVideoId={video.videoId} allowCreate={false} />
+                                                                   <UnitQuizzes {...quizProps} afterVideoId={video.videoId} allowCreate={false} />
                                                                 </div>
                                                             );
                                                         })}
@@ -1496,7 +1439,7 @@ export function UnitSection({
                                                     </div>
                                                 )}
 
-                                                <UnitQuizzes {...quizProps} afterVideoId={null} allowCreate={canManage && editingLesson === lesson.lessonId} />
+                                               <UnitQuizzes {...quizProps} afterVideoId={null} allowCreate={canManage && editingLesson === lesson.lessonId} />
 
                                             </div>
                                         )}
