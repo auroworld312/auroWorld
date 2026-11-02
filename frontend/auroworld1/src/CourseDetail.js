@@ -280,7 +280,7 @@ export function UnitSection({
 }) {
     const [open, setOpen] = useState(false);
     const [openLessons, setOpenLessons] = useState(initialLessonId ? { [initialLessonId]: true } : {});
-    const [lessonTabs] = useState({});
+    const [lessonTabs, setLessonTabs] = useState({});
     const [quizRevision, setQuizRevision] = useState(0);
     let lessonLiveUrl = '';
     try { const url = new URL((liveUrl || '').trim()); if (['http:', 'https:'].includes(url.protocol)) lessonLiveUrl = url.href; } catch {}
@@ -423,11 +423,11 @@ export function UnitSection({
         const file = e.target.files?.[0];
 
         if (file) {
-            if (!file.type.startsWith('video/') && !isVideoFile(file.name)) {
-                alert('Please select a video file, such as MP4, MOV or WebM.');
-                e.target.value = '';
-                return;
-            }
+            //if (!file.type.startsWith('video/') && !isVideoFile(file.name)) {
+                //alert('Please select a video file, such as MP4, MOV or WebM.');
+               // e.target.value = '';
+                //return;
+            //}
             setFileUpload(file);
             setFileName(file.name);
             setVideoTitles(previous => ({ ...previous, [lessonId]: previous[lessonId] || file.name.replace(/\.[^.]+$/, '') }));
@@ -710,7 +710,8 @@ export function UnitSection({
 
         if (!canManage || fileLoading) return;
         if (!filedata) { alert("Choose a video first."); return; }
-        if (!filedata.type.startsWith('video/') && !isVideoFile(filedata.name)) { alert('Please choose a video file.'); return; }
+        //if (!filedata.type.startsWith('video/') && !isVideoFile(filedata.name)) { alert('Please choose a video file.'); return; }
+        if (!filedata) { alert("Choose a file first."); return; }
         if (!title) { alert("Enter a title first."); return; }
 
         setFileLoading(true);
@@ -1243,6 +1244,20 @@ export function UnitSection({
                                                     />
                                                 </div>
                                             )}
+                                        {isLessonOpen && (
+                                            <div className="quiz-tabs lesson-content-tabs">
+                                                {[['video', 'Content'], ['live', 'Live Links']].map(([key, label]) => (
+                                                    <button
+                                                        key={key}
+                                                        type="button"
+                                                        aria-pressed={lessonTab === key}
+                                                        onClick={() => setLessonTabs(prev => ({ ...prev, [lesson.lessonId]: key }))}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                         {isLessonOpen && <div hidden={lessonTab !== 'live'}><LessonLiveLinks unitId={unitId} lessonId={lesson.lessonId} inheritedUrl={lessonLiveUrl} editing={canManage && editingLesson === lesson.lessonId} onDraftChange={editingLesson === lesson.lessonId ? setLiveDraftOpen : undefined} /></div>}
                                         {isLessonOpen && (
                                                 <div hidden={lessonTab !== 'quiz'}>
