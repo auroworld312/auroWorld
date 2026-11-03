@@ -1,3 +1,4 @@
+import Admin from './admin';
 import Settings from './Settings';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Posts from './posts.js'
@@ -41,6 +42,7 @@ function App() {
                 <Route path="/posts" element={<Posts />} />
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/admin" element={<Admin />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/signup" element={<Signup />}/>
                 <Route path ="/resetpass" element={<ResetPassword />} />

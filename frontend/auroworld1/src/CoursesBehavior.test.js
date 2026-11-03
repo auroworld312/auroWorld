@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import Courses, { courseTimeGroup } from './courses';
 
 const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate }), { virtual: true });
+jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate, useLocation: () => ({}) }), { virtual: true });
 jest.mock('@supabase/supabase-js', () => ({ createClient: () => ({ auth: { getUser: async () => ({ data: { user: { id: 'bookmark-user' } } }) } }) }));
 jest.mock('./components/Header', () => () => <div>Header</div>);
 jest.mock('./components/Sidebar', () => () => <div>Sidebar</div>);

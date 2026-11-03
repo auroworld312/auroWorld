@@ -52,6 +52,11 @@ public final class QuizApi {
                 conn.commit();
             } catch (Exception e) { conn.rollback(); throw e; }
         }
+        app.get("/quiz-api/admin/accounts", ctx -> handle(ctx, (conn, user) -> {
+            require("admin".equals(user.role), 403, "Administrator access required.");
+            return rows(conn, "SELECT username,email,role FROM users ORDER BY lower(username)");
+        }));
+        app.post("/quiz-api/account/setup", this::setupAccount);
         app.get("/quiz-api/account", ctx -> handle(ctx, (conn, user) -> {
             var profiles = rows(conn, "SELECT u.firstname,u.lastname,u.username,u.email,u.role,p.birthday,p.note FROM users u LEFT JOIN profile_attributes p ON p.uuid::text=u.unique_id::text WHERE u.unique_id::text=?", user.id);
             require(!profiles.isEmpty(), 404, "Account profile not found.");
@@ -111,11 +116,12 @@ public final class QuizApi {
             "SELECT q.id, q.title, q.due_at, q.late_until, q.release_at, c.course_id, c.title AS course_title, u.title AS unit_title, " +
             "EXISTS(SELECT 1 FROM quiz_submissions s WHERE s.quiz_id=q.id AND s.user_id=? AND s.submitted_at IS NOT NULL) AS submitted " +
             "FROM course_quizzes q JOIN course_units u ON u.unit_id=q.unit_id JOIN courses c ON c.course_id=u.course_id " +
-            ("instructor".equals(user.role) ? "WHERE q.due_at IS NOT NULL AND " : "WHERE q.published AND ") + calendarCourseScope(user) + " ORDER BY q.due_at", user.id, "instructor".equals(user.role) ? user.username : user.id)));
+            (!"user".equals(user.role) ? "WHERE q.due_at IS NOT NULL AND " : "WHERE q.published AND ") + calendarCourseScope(user) + " ORDER BY q.due_at", user.id, "instructor".equals(user.role) ? user.username : user.id)));
         app.get("/quiz-api/quizzes/{quizId}", ctx -> handle(ctx, (conn, user) -> {
             var quiz = quiz(conn, id(ctx, "quizId"), false);
-            boolean manager = manage(user, quiz);
-            require(manager || (bool(quiz, "published") && enrolled(conn, user, quiz)), 403, "This quiz is not available to you.");
+            boolean manager = manage(user, quiz) && !("admin".equals(user.role) && "student".equals(ctx.queryParam("view")));
+            quiz.put("is_admin", "admin".equals(user.role));
+            require("admin".equals(user.role) || manager || (bool(quiz, "published") && enrolled(conn, user, quiz)), 403, "This quiz is not available to you.");
             Instant now = Instant.now();
             boolean released = bool(quiz, "published") && time(quiz, "release_at") != null && !now.isBefore(time(quiz, "release_at"));
             String questionsJson = (String) quiz.remove("questions_json");
@@ -178,12 +184,13 @@ public final class QuizApi {
         app.get("/quiz-api/files/{fileId}", ctx -> handle(ctx, (conn, user) -> {
             var file = one(conn, "SELECT id,quiz_id,submission_id,filename,media_type FROM quiz_files WHERE id=?", id(ctx, "fileId"));
             var quiz = quiz(conn, ((Number) file.get("quiz_id")).longValue(), false);
-            boolean manager = manage(user, quiz);
+            boolean manager = manage(user, quiz) && !("admin".equals(user.role) && "student".equals(ctx.queryParam("view")));
+            quiz.put("is_admin", "admin".equals(user.role));
             if (file.get("submission_id") == null) {
                 require(manager || (!"online".equals(quiz.get("mode")) && enrolled(conn, user, quiz) && bool(quiz, "published") && time(quiz, "release_at") != null && !Instant.now().isBefore(time(quiz, "release_at"))), 403, "Quiz files are not available yet.");
             } else {
                 var answer = one(conn, "SELECT user_id,submitted_at FROM quiz_submissions WHERE id=?", file.get("submission_id"));
-                require((manager && answer.get("submitted_at") != null) || (user.id.equals(answer.get("user_id")) && enrolled(conn, user, quiz)), 403, "You cannot access this answer.");
+                require((manager && answer.get("submitted_at") != null) || (user.id.equals(answer.get("user_id")) && ("admin".equals(user.role) || enrolled(conn, user, quiz))), 403, "You cannot access this answer.");
             }
             try (var ps = prepare(conn, "SELECT content FROM quiz_files WHERE id=?", file.get("id")); var rs = ps.executeQuery()) {
                 rs.next();
@@ -265,7 +272,7 @@ public final class QuizApi {
         conn.setAutoCommit(false);
         var quiz = quiz(conn, id(ctx, "quizId"), true);
         require(!"online".equals(quiz.get("mode")), 400, "Use the online question form for this quiz.");
-        require(!manage(user, quiz) && enrolled(conn, user, quiz), 403, "Only enrolled students can submit answers.");
+        require(("admin".equals(user.role) || (!manage(user, quiz) && enrolled(conn, user, quiz))), 403, "Only enrolled students can submit answers.");
         require(canSubmit(quiz, Instant.now()), 403, "The submission window is closed or has not opened.");
         requireAttempt(conn, quiz, user);
         var form = JSON.fromJson(ctx.formParam("metadata"), AnswerForm.class);
@@ -287,7 +294,7 @@ public final class QuizApi {
     private Object saveOnlineAnswer(Context ctx, Connection conn, User user) throws Exception {
         conn.setAutoCommit(false);
         var quiz = quiz(conn, id(ctx, "quizId"), true);
-        require(!manage(user, quiz) && enrolled(conn, user, quiz), 403, "Only enrolled students can submit answers.");
+        require(("admin".equals(user.role) || (!manage(user, quiz) && enrolled(conn, user, quiz))), 403, "Only enrolled students can submit answers.");
         require("online".equals(quiz.get("mode")), 400, "This quiz uses file submissions.");
         require(canSubmit(quiz, Instant.now()), 403, "The submission window is closed or has not opened.");
         var form = JSON.fromJson(ctx.body(), OnlineAnswerForm.class);
@@ -385,7 +392,7 @@ public final class QuizApi {
             (submissionId == null ? "submission_id IS NULL" : "submission_id=?") + " ORDER BY id", submissionId == null ? new Object[]{quizId, feedback} : new Object[]{quizId, feedback, submissionId});
     }
 
-    private User authenticate(Context ctx) throws Exception {
+    private AuthUser verifiedIdentity(Context ctx) throws Exception {
         String authorization = ctx.header("Authorization");
         require(authorization != null && authorization.startsWith("Bearer ") && authorization.length() < 16000, 401, "Please log in again.");
         var request = HttpRequest.newBuilder(URI.create(AUTH_URL + "/auth/v1/user")).timeout(Duration.ofSeconds(15))
@@ -394,12 +401,65 @@ public final class QuizApi {
         require(response.statusCode() == 200, 401, "Your session has expired. Please log in again.");
         var auth = JSON.fromJson(response.body(), AuthUser.class);
         require(auth != null && auth.id != null, 401, "Invalid session.");
+        return auth;
+    }
+
+    private User authenticate(Context ctx) throws Exception {
+        var auth = verifiedIdentity(ctx);
         try (var conn = connection()) {
-            var record = rows(conn, "SELECT username,role FROM users WHERE unique_id::text=?", auth.id);
+            var record = rows(conn, "SELECT username,role,email FROM users WHERE unique_id::text=?", auth.id);
             require(!record.isEmpty(), 403, "User profile not found.");
+            require(record.size() == 1 && auth.email != null && auth.email.equalsIgnoreCase(String.valueOf(record.get(0).get("email")).trim()), 409, "Account association needs review. Please contact support.");
             return new User(auth.id, (String) record.get(0).get("username"), (String) record.get(0).get("role"));
         }
     }
+
+    // Authenticated initialization is shared by password and Google sign-in.
+    // Existing records are never re-linked or assigned a new role here.
+    private void setupAccount(Context ctx) {
+        ctx.header("Cache-Control", "no-store");
+        try {
+            var auth = verifiedIdentity(ctx);
+            require(auth.email != null && !auth.email.isBlank(), 400, "A verified email is required.");
+            var body = JSON.fromJson(ctx.body(), SetupAccount.class);
+            try (var conn = connection()) {
+                accountSetupResponse(ctx, initializeAccount(conn, auth, body));
+            }
+        } catch (Fault e) { error(ctx, e.code, e.getMessage()); }
+        catch (com.google.gson.JsonParseException e) { error(ctx, 400, "Invalid account details."); }
+        catch (Exception e) { error(ctx, 503, "Account setup is unavailable. Please try again."); }
+    }
+    static void accountSetupResponse(Context ctx, Map<String, Boolean> result) {
+        ctx.contentType("application/json").result(JSON.toJson(new StructuredResponse("ok", null, result)));
+    }
+    static Map<String, Boolean> initializeAccount(Connection conn, AuthUser auth, SetupAccount body) throws Exception {
+                conn.setAutoCommit(false);
+                try {
+                    // Serializes initialization, including username/email collision checks.
+                    update(conn, "LOCK TABLE users, profile_attributes IN SHARE ROW EXCLUSIVE MODE");
+                    var existing = rows(conn, "SELECT username,email,role FROM users WHERE unique_id::text=?", auth.id);
+                    if (!existing.isEmpty()) {
+                        require(existing.size() == 1 && auth.email.equalsIgnoreCase(String.valueOf(existing.get(0).get("email")).trim()), 409, "Account association needs review. Please contact support.");
+                        require(Set.of("user", "instructor", "admin").contains(String.valueOf(existing.get(0).get("role"))), 409, "Your existing account role needs review. Please contact support.");
+                        conn.commit();
+                        return Map.of("ready", true);
+                    }
+                    require(rows(conn, "SELECT username FROM users WHERE lower(trim(email))=lower(?)", auth.email.trim()).isEmpty(), 409, "An existing account uses this email. Please contact support to restore its association.");
+                    require(rows(conn, "SELECT uuid FROM profile_attributes WHERE uuid=? OR lower(trim(email))=lower(?)", auth.id, auth.email.trim()).isEmpty(), 409, "An existing profile needs review. Please contact support.");
+                    if (body == null || body.role == null) {
+                        conn.commit();
+                        return Map.of("ready", false);
+                    }
+                    require(Set.of("user", "instructor").contains(body.role), 400, "Choose Student or Teacher.");
+                    require(body.username != null && body.username.matches("[A-Za-z0-9_]{5,30}"), 400, "Use 5-30 letters, numbers or underscores for your username.");
+                    require(rows(conn, "SELECT username FROM users WHERE lower(username)=lower(?)", body.username).isEmpty(), 409, "This username is already taken.");
+                    update(conn, "INSERT INTO users(username,email,unique_id,role) VALUES(?,?,?,?)", body.username, auth.email, auth.id, body.role);
+                    update(conn, "INSERT INTO profile_attributes(uuid,email,username,role) VALUES(?,?,?,?)", auth.id, auth.email, body.username, body.role);
+                    conn.commit();
+                    return Map.of("ready", true);
+                } catch (Exception e) { conn.rollback(); throw e; }
+    }
+    record SetupAccount(String username, String role) {}
 
     private void handle(Context ctx, Action action) {
         ctx.header("Cache-Control", "no-store");
@@ -460,12 +520,12 @@ public final class QuizApi {
         return values.get(0);
     }
     static String calendarCourseScope(User user) {
-        return "instructor".equals(user.role) ? "c.instructor=?" : "EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=c.course_id AND e.unique_id::text=?)";
+        return "admin".equals(user.role) ? "CAST(? AS text) IS NOT NULL" : "instructor".equals(user.role) ? "c.instructor=?" : "EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=c.course_id AND e.unique_id::text=?)";
     }
 
     record User(String id, String username, String role) {}
     private record LiveLinkForm(String title, String url) {}
-    private record AuthUser(String id) {}
+    record AuthUser(String id, String email) {}
     private static class QuizForm {
         String title, instructions, release_at, due_at, late_until, mode;
         Integer max_attempts;

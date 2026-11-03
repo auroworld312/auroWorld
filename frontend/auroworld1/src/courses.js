@@ -535,7 +535,7 @@ function Courses() {
                                         <h2>{<button className="courses-title-link" onClick={() => navigate(`/courses/${course.courseId}`)}>{course.title}</button>}</h2>
                                         <p>{course.description}</p>
                                     </div>
-                                    {isTeacher && <div className="courses-menu" data-course-menu onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setCourseMenu(null); }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setCourseMenu(null); }}>
+                                    {(isTeacher || userAttributes?.role === "admin") && <div className="courses-menu" data-course-menu onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setCourseMenu(null); }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setCourseMenu(null); }}>
                                         <button className="courses-menu-trigger" aria-label={`Course options for ${course.title}`} aria-expanded={courseMenu === course.courseId} onClick={() => setCourseMenu(courseMenu === course.courseId ? null : course.courseId)}>&#8943;</button>
                                         {courseMenu === course.courseId && <div className="courses-menu-options">
                                             <button onClick={() => openCourseForm(course)}>Edit Course</button>

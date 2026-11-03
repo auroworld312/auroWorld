@@ -44,6 +44,7 @@ function AnswerForm({ quiz, onSaved, disabled }) {
 export default function QuizPage() {
   const { quizId } = useParams();
   const navigate = useNavigate();
+  const [studentView, setStudentView] = useState(false);
   const [quiz, setQuiz] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -53,11 +54,11 @@ export default function QuizPage() {
   const [offset, setOffset] = useState(0);
   const load = useCallback(async () => {
     try {
-      const result = await quizRequest(`/quizzes/${quizId}`);
+      const result = await quizRequest(`/quizzes/${quizId}${studentView ? "?view=student" : ""}`);
       setOffset(Date.parse(result.server_now) - Date.now());
       setQuiz(result); setError(''); setRevision(r => r + 1);
     } catch (e) { setError(e.message); }
-  }, [quizId]);
+  }, [quizId, studentView]);
   useEffect(() => { setQuiz(null); setNotice(''); setEditing(new URLSearchParams(window.location.search).get('edit') === '1'); load(); }, [load]);
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 1000);
@@ -88,6 +89,7 @@ export default function QuizPage() {
             <p>{quiz.course_title} / {quiz.unit_title}</p>
             <p className="quiz-muted">Release: {displayDate(quiz.release_at)}<br />Due: {displayDate(quiz.due_at)}<br />
               {quiz.late_until ? `Late submissions accepted until ${displayDate(quiz.late_until)}` : 'Late submissions are not allowed.'}<br />Time zone: {localZone}</p>
+            {quiz.is_admin && <button onClick={() => { setEditing(false); setStudentView(!studentView); }}>{studentView ? "Manage Quiz" : "Take Quiz as Student"}</button>}
             {quiz.can_manage && editing && <button onClick={() => { if (window.confirm('Close the quiz editor? Unsaved changes will be discarded.')) setEditing(false); }}>Close Editor</button>}
           </section>
           {editing && quiz.can_manage && <QuizEditor key={revision} quiz={quiz} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); setNotice('Quiz saved. Calendar deadlines will use the updated dates.'); load(); }} onDeleted={() => navigate(`/courses/${quiz.course_id}`, { state: { activeTab: 'materials', unitId: quiz.unit_id, unitTab: 'quizzes', lessonId: quiz.lesson_id } })} />}

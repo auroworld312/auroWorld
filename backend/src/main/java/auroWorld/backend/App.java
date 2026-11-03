@@ -289,31 +289,8 @@ public class App
             });
         });
 
-        app.post("/newuser",ctx->{
-            ctx.status(200);
-            ctx.contentType("application/json");
-            //System.out.println("ctx body for creating account  : "+ctx.body());
-
-            CreateAccountRequest car = gson.fromJson(ctx.body(),CreateAccountRequest.class);
-
-            if(car==null || car.email == null || car.username==null || car.user_uuid==null){
-                //System.out.println(car);
-                //System.out.println(car.email);
-                ////System.out.println(car.username);
-                //System.out.println(car.user_uuid);
-                ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "missing username or email", null)));
-                return;
-            }
-
-            int outcome = db.insertNewAccount(car.username,car.email, car.user_uuid,null,null);
-
-            if(outcome<0){
-                ctx.result(gson.toJson(new StructuredResponse("adding to user table failed",null,outcome)));
-            }
-            else{
-                ctx.result(gson.toJson(new StructuredResponse("ok",null,outcome)));
-            }
+        app.post("/newuser", ctx -> {
+            ctx.status(410).contentType("application/json").result(gson.toJson(new StructuredResponse("error", "This account endpoint is retired. Please use the current sign-in page.", null)));
         });
 
         app.get("/profile_attributes/{uuid}",ctx->{
@@ -327,29 +304,8 @@ public class App
             ctx.result(gson.toJson(new StructuredResponse("ok",null,profile)));
         });
 
-        app.post("/profile_attributes", ctx->{
-            ctx.status(200);
-            ctx.contentType("application/json");
-            // System.out.println("ctx bdoy : "+ctx.body());
-
-            CreateAccountRequest car = gson.fromJson(ctx.body(),CreateAccountRequest.class);
-            if(car==null || car.email == null || car.username==null || car.user_uuid==null){
-                System.out.println(car);
-                System.out.println(car.email);
-                System.out.println(car.username);
-                System.out.println(car.user_uuid);
-                ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "missing username or email", null)));
-                return;
-            }
-            int  result = db.insertNewProfile(car.username,car.email,car.user_uuid);
-
-            if(result==0){
-                ctx.result(gson.toJson(new StructuredResponse("adding to profile table failed",null,result)));
-            }
-            else{
-                ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
-            }
+        app.post("/profile_attributes", ctx -> {
+            ctx.status(410).contentType("application/json").result(gson.toJson(new StructuredResponse("error", "This account endpoint is retired. Please use the current sign-in page.", null)));
         });
 
         app.get("/username/{uuid}", ctx->{
@@ -416,34 +372,8 @@ public class App
             
         });
 
-        app.post("/auth/newuser", ctx->{
-            ctx.status(200);
-            ctx.contentType("application/json");
-
-            System.out.println("ctx body: "+ctx.body());
-
-            GoogleAccountRequest gar = gson.fromJson(ctx.body(),GoogleAccountRequest.class);
-
-            if(gar==null || gar.username==null || gar.email==null || gar.user_uuid==null ){
-                System.out.println(gar);
-                System.out.println(gar.username);
-                System.out.println(gar.email);
-                System.out.println(gar.lastname);
-                System.out.println(gar.firstname);
-                System.out.println(gar.user_uuid);
-                ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "missing username or email", gar)));
-                return;
-            }
-
-            int result = db.insertNewAccount(gar.username,gar.email,gar.user_uuid,gar.lastname,gar.firstname);
-
-            if(result==0){
-                ctx.result(gson.toJson(new StructuredResponse("adding to user table failed",null,result)));
-            }
-            else{
-                ctx.result(gson.toJson(new StructuredResponse("ok",null,result)));
-            }
+        app.post("/auth/newuser", ctx -> {
+            ctx.status(410).contentType("application/json").result(gson.toJson(new StructuredResponse("error", "This account endpoint is retired. Please use the current sign-in page.", null)));
         });
 
         app.get("/users/{userId}/messages", ctx->{
@@ -858,31 +788,9 @@ public class App
             ctx.result(gson.toJson(resp));
         });
 
-    app.put("/change/role", ctx->{
-        ctx.status(200);
-        ctx.contentType("application/json");
-
-        ChangeRoleRequest crr = gson.fromJson(ctx.body(), ChangeRoleRequest.class);
-
-        if(crr==null || crr.username==null || crr.role==null || crr.unique_id==null){
-            System.out.println(crr);
-            System.out.println(crr.username);
-            System.out.println(crr.role);
-            System.out.println(crr.unique_id);
-            ctx.result(gson.toJson(new StructuredResponse(
-                        "error", "missgin userrole feature", null)));
-                return;
-        }
-        System.out.println(crr);
-        System.out.println(crr.username);
-        System.out.println(crr.role);
-        System.out.println(crr.unique_id);
-
-        int id = db.changeUserRole(crr.username, crr.role,crr.unique_id);
-
-        StructuredResponse resp = new StructuredResponse("ok",null,null);
-        ctx.result(gson.toJson(resp));
-    });
+    app.put("/change/role", ctx -> {
+            ctx.status(410).contentType("application/json").result(gson.toJson(new StructuredResponse("error", "This account endpoint is retired. Please use the current sign-in page.", null)));
+        });
 
     app.get("/userdata/{uuid}",ctx->{
         ctx.status(200);
