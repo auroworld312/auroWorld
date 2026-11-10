@@ -12,10 +12,10 @@ export default function LiveClassPreview({ course }) {
     let meetingUrl = '';
     try {
         const url = new URL((course.liveUrl || '').trim());
-        if (['https:', 'http:'].includes(url.protocol)) meetingUrl = url.href;
+        if (['https:', 'http:'].includes(url.protocol) && !url.username && !url.password) meetingUrl = url.href;
     } catch {}
     const scheduled = isCourseTime(course, now);
-    const canJoin = scheduled && !!meetingUrl;
+    const canJoin = !!meetingUrl;
     return <section className="live-preview" aria-label="Live classroom">
         <div className="live-room-heading"><span className="live-room-eyebrow">LIVE CLASSROOM</span><span className={`live-room-status${scheduled ? ' is-current' : ''}`}><i aria-hidden="true" />{scheduled ? 'Scheduled session' : 'Outside class hours'}</span></div>
         <div className="live-room-stage">
@@ -25,9 +25,10 @@ export default function LiveClassPreview({ course }) {
             {course.instructor && <p className="live-room-instructor">With {course.instructor}</p>}
             <p className="live-room-intro">Meet your instructor and join the conversation.</p>
             <button className="live-preview-join" disabled={!canJoin} onClick={() => {
-                if (canJoin && isCourseTime(course, new Date())) window.open(meetingUrl, '_blank', 'noopener,noreferrer');
-            }}>Join Class<span className="live-room-external" aria-hidden="true" /></button>
-            <p className="live-preview-hint">{!meetingUrl ? 'Your instructor has not added a meeting link yet.' : scheduled ? 'Your meeting opens in a new tab.' : 'Available during your scheduled class hours.'}</p>
+                if (canJoin) window.open(meetingUrl, '_blank', 'noopener,noreferrer');
+            }}>Open Live Link<span className="live-room-external" aria-hidden="true" /></button>
+            {meetingUrl && <a className="live-meeting-url" href={meetingUrl} target="_blank" rel="noopener noreferrer">{meetingUrl}</a>}
+            <p className="live-preview-hint">{!meetingUrl ? 'Your instructor has not added a meeting link yet.' : 'Opens your course meeting in a new tab.'}</p>
         </div>
         <div className="live-room-footer"><span className="live-room-footer-mark" aria-hidden="true" /><p>Video, audio and class chat are hosted in your instructor?s meeting room.</p></div>
     </section>;

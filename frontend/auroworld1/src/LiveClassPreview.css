@@ -35,3 +35,6 @@
 .live-session-note h3 { font-size: 13px; font-weight: 600; color: #4a2b6b; margin: 0 0 8px; }
 .live-session-note p { color: #82758e; font-size: 12px; line-height: 1.8; margin: 0; }
 @media (max-width: 650px) { .is-live-preview .course-detail-panel { padding: 16px !important; } .live-room-stage { min-height: 390px; padding: 32px 20px; } }
+
+.live-meeting-url { display: block; max-width: 100%; margin: 18px auto 0; color: #e3c7e6; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; text-underline-offset: 4px; }
+.live-meeting-url:focus-visible { outline: 3px solid #e3c7e6; outline-offset: 4px; }

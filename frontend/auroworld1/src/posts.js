@@ -5,7 +5,8 @@ import Button from './components/Button';
 import Card from './components/Card';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import { useUser } from './UserContext';
+import UserAvatar from './components/UserAvatar';
+import './posts.css';
 import ReactGA from "react-ga4";
 import './spinner/spin.css'
 import {supabase} from './utils/supabaseClient.js'
@@ -16,7 +17,7 @@ const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' :
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const COURSE_COLORS = ['#6C63FF', '#0f9d58', '#f4511e', '#8430ce', '#e91e63', '#00bcd4'];
+const COURSE_COLORS = ['#4A2B6B', '#7A4B8C', '#635079'];
 
 function parseDays(timesStr, daysOfWeekStr) {
     if (daysOfWeekStr) {
@@ -55,7 +56,7 @@ function TodaySchedule({ enrolledCourses, navigate }) {
         return days.includes(todayDow);
     });
     return (
-        <div style={{ width: '280px', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="posts-schedule" style={{ width: '280px', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ backgroundColor: 'var(--post-card, #fff)', borderRadius: '14px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
                 <div style={{ fontSize: '13px', color: 'var(--post-muted, #888)', marginBottom: '4px' }}>Today is</div>
                 <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--post-text, #333)' }}>{dayName}</div>
@@ -106,7 +107,7 @@ function TodaySchedule({ enrolledCourses, navigate }) {
 
 function Posts(){
     const navigate=useNavigate();
-    const { displayName, email, avatarUrl } = useUser();
+    const [expandedComments, setExpandedComments] = useState({});
 
     // console.log('problem1')
     const {state} = useLocation()
@@ -114,22 +115,6 @@ function Posts(){
     const {passedUserId} = state || {}
 
     const [changeLoading, setChangeLoading] = useState(false)
-
-    function getInitials() {
-        const name = displayName || email || '';
-        const parts = name.trim().split(' ');
-        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-        return name[0]?.toUpperCase() || '?';
-    }
-
-    function getAvatarColor() {
-        const colors = ['#6C63FF', '#FF6584', '#43B89C', '#F6B93B', '#E55039', '#2E86AB'];
-        const str = email || '';
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-        return colors[Math.abs(hash) % colors.length];
-    }
-
 
     // Resolves the current user's username without depending on the
     // userAttributes state having finished loading yet. Falls back to a
@@ -337,6 +322,7 @@ function Posts(){
     }
 
     function commentButton(msg_id){
+        setExpandedComments(previous => ({ ...previous, [msg_id]: !previous[msg_id] }));
         const p = posts.find((item) => item.msgId === msg_id);
 
         if(document.getElementById(`addComment-${msg_id}`).style.display==="block" || document.getElementById(`openAddComment-${msg_id}`).style.display==="block"){
@@ -748,30 +734,25 @@ function Posts(){
     // console.log("userAttributes.username: "+userAttributes?.username)
 
     return(
-        <div className="posts-page" style={{ display:'flex', height:'100vh', width:'100vw', margin:'0', overflow:'hidden', backgroundColor:'var(--post-page, #E3C7E6)', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize:'16px', color:'var(--post-text, #111)', opacity:changeLoading? 0.5 : 1 }}>
+        <div className="posts-page" style={{ display:'flex', height:'100vh', width:'100vw', margin:'0', overflow:'hidden', backgroundColor:'var(--post-page, #EEEBF5)', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize:'16px', color:'var(--post-text, #111)', opacity:changeLoading? 0.5 : 1 }}>
             <div className = 'loader' style={{display:changeLoading?'flex':'none'}}></div>
             <Sidebar onMainpage={mainpageButton} onCourses={coursesButton} onSignout={signoutButton} onAdmin={adminButton} />
 
-            <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
+            <div className="posts-main" style={{ flex:1, display:'flex', flexDirection:'column' }}>
 
                 <Header username={currentUserName} />
 
-                <div style={{ flex:1, overflow:'hidden', padding:'20px', display:'flex', gap:'20px' }}>
+                <div className="posts-body" style={{ flex:1, overflow:'hidden', padding:'20px', display:'flex', gap:'20px' }}>
 
-                    <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:'16px' }}>
+                    <div className="posts-feed" style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:'16px' }}>
 
+                        <h1 className="posts-heading">Posts</h1>
                         {/* Post composer */}
-                        <div style={{ backgroundColor:'var(--post-card, #fff)', borderRadius:'12px', padding:'16px 20px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', gap:'12px' }}>
-                            {avatarUrl ? (
-                                <img src={avatarUrl} alt="avatar" style={{ width:'42px', height:'42px', borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />
-                            ) : (
-                                <div style={{ width:'42px', height:'42px', borderRadius:'50%', backgroundColor:getAvatarColor(), display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontWeight:'700', color:'#fff', flexShrink:0 }}>
-                                    {getInitials()}
-                                </div>
-                            )}
-                            <div onClick={postButton} style={{ flex:1, padding:'10px 16px', borderRadius:'24px', backgroundColor:'var(--post-inset, #f0f2f5)', color:'var(--post-muted, #888)', fontSize:'15px', cursor:'pointer' }}>
+                        <div className="posts-composer" style={{ backgroundColor:'var(--post-card, #fff)', borderRadius:'12px', padding:'16px 20px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', gap:'12px' }}>
+                            <UserAvatar size={42} />
+                            <button type="button" className="posts-compose-prompt" onClick={postButton} style={{ flex:1, padding:'10px 16px', borderRadius:'24px', backgroundColor:'var(--post-inset, #f0f2f5)', color:'var(--post-muted, #888)', fontSize:'15px', cursor:'pointer' }}>
                                 What's on your mind?
-                            </div>
+                            </button>
                             <Button onClick={postButton}>Post</Button>
                         </div>
 
@@ -801,22 +782,22 @@ function Posts(){
                             </Card>
                         </div>
 
-                        <div style={{ display:'flex', gap:'10px' }}>
-                            <select onChange={(e) => setSortType(e.target.value)} style={{ flex:1, padding:'8px 12px', borderRadius:'8px', border:'1px solid #e0e0e0', backgroundColor:'var(--post-card, #fff)', fontSize:'14px' }}>
+                        <div className="posts-filters" style={{ display:'flex', gap:'10px' }}>
+                            <select aria-label="Sort posts" onChange={(e) => setSortType(e.target.value)} style={{ flex:1, padding:'8px 12px', borderRadius:'8px', border:'1px solid #e0e0e0', backgroundColor:'var(--post-card, #fff)', fontSize:'14px' }}>
                                 <option value="sortByNewest">Sort Posts By New</option>
                                 <option value="sortByUpvotes">Sort Posts By Upvotes</option>
                             </select>
-                            <input type="text" placeholder="Search by username..." onChange={(e) => setPostUsernameQuery(e.target.value)} style={{ flex:2, padding:'8px 12px', borderRadius:'8px', border:'1px solid #e0e0e0', fontSize:'14px' }} />
+                            <input aria-label="Search posts by username" type="search" placeholder="Search by username..." onChange={(e) => setPostUsernameQuery(e.target.value)} style={{ flex:2, padding:'8px 12px', borderRadius:'8px', border:'1px solid #e0e0e0', fontSize:'14px' }} />
                         </div>
 
                         <div id="messageList" style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
                             {data.filter((post)=>post.username?.toLowerCase().includes(postUsernameQuery))?.map((post) => (
 
-                            <div key={post.msgId} style={{ backgroundColor:'var(--post-card, #fff)', borderRadius:'12px', padding:'20px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
+                            <div key={post.msgId} className="post-card" style={{ backgroundColor:'var(--post-card, #fff)', borderRadius:'12px', padding:'20px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
 
                                 {/* Post header */}
                                 <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'14px' }}>
-                                    <div style={{ width:'42px', height:'42px', borderRadius:'50%', backgroundColor:'#6C63FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontWeight:'700', color:'#fff', flexShrink:0 }}>
+                                    <div style={{ width:'42px', height:'42px', borderRadius:'50%', backgroundColor:'#7A4B8C', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontWeight:'700', color:'#fff', flexShrink:0 }}>
                                         {post.username?.[0]?.toUpperCase() || '?'}
                                     </div>
                                     <div>
@@ -836,37 +817,26 @@ function Posts(){
                                 </div>
 
                                 {/* Post content */}
-                                <div style={{ fontSize:'25px', fontWeight:'700', marginBottom:'8px', color:'var(--post-text, #111)' }}>{post.subject}</div>
-                                <div style={{ fontSize:'20px', color:'var(--post-text, #333)', lineHeight:'1.5', marginBottom:'14px' }}>{post.message}</div>
+                                <div className="post-title" style={{ fontSize:'25px', fontWeight:'700', marginBottom:'8px', color:'var(--post-text, #111)' }}>{post.subject}</div>
+                                <div className="post-copy" style={{ fontSize:'20px', color:'var(--post-text, #333)', lineHeight:'1.5', marginBottom:'14px' }}>{post.message}</div>
 
                                 {imageUrls[post.msgId] && (
-                                    <img src={imageUrls[post.msgId]} alt="Post attachment" style={{ maxWidth:'100%', borderRadius:'10px', marginBottom:'14px' }} />
+                                    <img src={imageUrls[post.msgId]} alt="Post attachment" className="post-attachment" style={{ maxWidth:'100%', borderRadius:'10px', marginBottom:'14px' }} />
                                 )}
 
-                                <p style={{ fontSize:'20px', fontWeight:'bold' }}>{post.upvote} Upvotes</p>
-
-                                {imageUrls[post.msgId] && (
-                                    <div style={{ display:'flex', gap:'10px', marginTop:'10px', flexWrap:'wrap' }}>
-                                        <Button variant="secondary" onClick={()=> downloadFile(post.msgId)}>
-                                            Download <i className="fa-solid fa-download"></i>
-                                        </Button>
-                                    </div>
-                                )}
-
-                                {/* Action bar */}
-                                <div style={{ display:'flex', alignItems:'center', gap:'16px', paddingTop:'12px', borderTop:'1px solid #f0f0f0' }}>
-                                    {likedPosts.find((item) => item===post.msgId) && (
-                                        <button onClick={() => upvoteButton(post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'40px', color:'var(--post-text, #555)', fontWeight:'600' }}>
-                                            <i className="fa-solid fa-thumbs-up" style={{color:" rgb(177, 151, 252)"}}></i>
+                                <p className="post-likes">{post.upvote} {Number(post.upvote) === 1 ? 'like' : 'likes'}</p>
+                                <div className="post-actions">
+                                    <button type="button" className="post-action post-action-like" aria-pressed={likedPosts.includes(post.msgId)} onClick={() => upvoteButton(post.msgId)}>
+                                        <img src="/assets/posts/like.svg" alt="" />Like
+                                    </button>
+                                    {imageUrls[post.msgId] && (
+                                        <button type="button" className="post-action" onClick={() => downloadFile(post.msgId)}>
+                                            <img src="/assets/posts/download.svg" alt="" />Download Links
                                         </button>
                                     )}
-                                    {!(likedPosts.find((item) => item===post.msgId)) && (
-                                        <button onClick={() => upvoteButton(post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'40px', color:'var(--post-text, #555)', fontWeight:'600' }}>
-                                           <i className="fa-regular fa-thumbs-up"></i>
-                                        </button>
-                                    )}
-                                    <button onClick={() => commentButton(post.msgId)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', fontSize:'35px', color:'var(--post-text, #555)', fontWeight:'600' }}>
-                                        💬 Comment
+                                    <button type="button" className="post-action post-action-comments" aria-expanded={!!expandedComments[post.msgId]} aria-controls={`commentList-${post.msgId}`} onClick={() => commentButton(post.msgId)}>
+                                        {expandedComments[post.msgId] ? 'Hide comments' : 'See comments'} ({post.commentdata?.length || 0})
+                                        <img src="/assets/posts/chevron.svg" alt="" />
                                     </button>
                                 </div>
 
@@ -904,8 +874,8 @@ function Posts(){
                                 {/* {post.commentdata && post.commentdata.length > 0 && ( */}
                                     <div id={`commentList-${post.msgId}`} style={{display:"none"}}>
                                         <div style={{ marginTop:'15px', paddingTop:'15px', borderTop:'1px solid #f0f0f0', display:'flex', flexDirection:'column', gap:'10px' }}>
-                                            {[...post.commentdata]?.reverse().map((comment)=>(
-                                                <div key={comment.commentId} style={{ backgroundColor:'var(--post-inset, #f7f7f7)', padding:'12px 14px', borderRadius:'10px' }}>
+                                            {[...(post.commentdata || [])]?.reverse().map((comment)=>(
+                                                <div key={comment.commentId} className="post-comment" style={{ backgroundColor:'var(--post-inset, #f7f7f7)', padding:'12px 14px', borderRadius:'10px' }}>
                                                     <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
                                                         <div style={{ width:'28px', height:'28px', borderRadius:'50%', backgroundColor:'#43B89C', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', color:'#fff' }}>
                                                             {comment.username?.[0]?.toUpperCase() || '?'}
