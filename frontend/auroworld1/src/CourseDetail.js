@@ -2,7 +2,7 @@ import LessonLiveLinks from './LessonLiveLinks';
 import NextClass from './NextClass';
 
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Fragment  } from "react";
 // import { createClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -29,6 +29,28 @@ const isExternalUrl = p => /^https?:\/\//i.test(p || '');
 const TEXT_PREFIX = 'text:';
 const isTextPost = p => typeof p === 'string' && p.startsWith(TEXT_PREFIX);
 // Deletes files from whichever storage they live in (old Supabase files or new B2 files)
+const LINK_PATTERN = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
+
+function safeLink(raw) {
+    const href = /^www\./i.test(raw) ? `https://${raw}` : raw;
+    try {
+        const url = new URL(href);
+        return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '';
+    } catch { return ''; }
+}
+
+// Renders plain text with any http(s)/www links made clickable. No HTML is ever injected.
+export function LinkedText({ text }) {
+    return <>{String(text).split(LINK_PATTERN).map((part, index) => {
+        if (index % 2 === 0) return <Fragment key={index}>{part}</Fragment>; // text between links
+        const candidate = part.replace(/[.,;:!?)\]}'"]+$/, '');            // keep trailing punctuation out of the link
+        const trailing = part.slice(candidate.length);
+        const href = safeLink(candidate);
+        return href
+            ? <Fragment key={index}><a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#5145bf', textDecoration: 'underline' }}>{candidate}</a>{trailing}</Fragment>
+            : <Fragment key={index}>{part}</Fragment>;
+    })}</>;
+}
 async function removeStoredFiles(allPaths) {
     const paths = allPaths.filter(p => !isTextPost(p));
     const b2Keys = paths.filter(isB2).map(toKey);
@@ -1462,7 +1484,7 @@ export function UnitSection({
 
                                                                                 {isTextPost(video.driveUrl) ? (
                                                                                     <div style={{ padding: 20, background: "#fff", color: "#2e1a48", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.7 }}>
-                                                                                        {video.driveUrl.slice(TEXT_PREFIX.length)}
+                                                                                        <LinkedText text={video.driveUrl.slice(TEXT_PREFIX.length)} />
                                                                                     </div>
                                                                                 ) : video.driveUrl &&
                                                                                 !video.driveUrl.includes("FILE_ID") &&
