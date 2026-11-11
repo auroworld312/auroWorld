@@ -26,8 +26,11 @@ async function authToken() {
 // True only for real external links (e.g. a quiz URL), never for B2/Supabase storage paths
 const isExternalUrl = p => /^https?:\/\//i.test(p || '');
 
+const TEXT_PREFIX = 'text:';
+const isTextPost = p => typeof p === 'string' && p.startsWith(TEXT_PREFIX);
 // Deletes files from whichever storage they live in (old Supabase files or new B2 files)
-async function removeStoredFiles(paths) {
+async function removeStoredFiles(allPaths) {
+    const paths = allPaths.filter(p => !isTextPost(p));
     const b2Keys = paths.filter(isB2).map(toKey);
     const supabasePaths = paths.filter(p => p && p !== 'empty' && !isB2(p));
     await deleteFromB2(b2Keys, authToken);
@@ -289,7 +292,8 @@ export function UnitSection({
     const [fileLoading, setFileLoading] = useState(false)
 
     const [lessonsArray, setLessonArray] = useState(unit?.lessons || []);
-
+    const [addingText, setAddingText] = useState(null); // lessonId
+    const [textDraft, setTextDraft] = useState({ title: '', body: '' });
     const [showAddLesson, setShowAddLesson] = useState(false);
     const [lessonSearch, setLessonSearch] = useState('');
     const [lessonMenu, setLessonMenu] = useState(null);
@@ -360,7 +364,7 @@ export function UnitSection({
 
                     for (const video of lesson.videos) {
                         if (isB2(video.driveUrl)) continue;
-
+                        if (isTextPost(video.driveUrl)) continue;
                         if (
                             video.driveUrl.includes(
                                 `course/${courseId}/unit/${unitId}/lesson/${lesson.lessonId}`
@@ -701,6 +705,8 @@ export function UnitSection({
 
     function cancelMaterials() {
         setAddingMaterials(null);
+        setAddingText(null);
+        setTextDraft({ title: '', body: '' });
         setFileUpload(null);
         setFileName("No video selected");
     }
@@ -780,7 +786,43 @@ export function UnitSection({
             setFileLoading(false);
         }
     }
-
+    async function uploadNewText(lessonId) {
+        if (!canManage || fileLoading) return;
+        const title = textDraft.title.trim();
+        const body = textDraft.body.trim();
+        if (!title) { alert("Enter a title first."); return; }
+        if (!body) { alert("Enter some text first."); return; }
+        setFileLoading(true);
+        try {
+            const response = await fetch(`${API}/unit_videos/unit/${unit.unitId}/lesson/${lessonId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title, filepath: TEXT_PREFIX + body })
+            });
+            const data = await response.json();
+            if (data.mStatus !== "ok" || !(data.mData > 0)) {
+                alert("Adding text failed: " + (data.mMessage || ""));
+                return;
+            }
+            const newPost = {
+                videoId: data.mData, unitId: unit.unitId, lessonId,
+                title, driveUrl: TEXT_PREFIX + body, duration: null, sortOrder: 0
+            };
+            setLessonArray(prev => prev.map(lesson =>
+                lesson.lessonId === lessonId
+                    ? { ...lesson, videos: [...(lesson.videos || []), newPost] }
+                    : lesson
+            ));
+            setOpenLessons(prev => ({ ...prev, [lessonId]: true }));
+            setActiveVideo(newPost.videoId);
+            cancelMaterials();
+        } catch (error) {
+            console.error(error);
+            alert("Adding text failed. Please try again.");
+        } finally {
+            setFileLoading(false);
+        }
+    }
     /* DELETE VIDEO */
 
     async function deleteFile(driveurl, lessonId, videoId) {
@@ -1223,6 +1265,18 @@ export function UnitSection({
                                                 </button>
                                                 <button
                                                     className="primary material-add-button"
+                                                    disabled={fileLoading}
+                                                    onClick={() => {
+                                                        setAddingMaterials(null);
+                                                        setAddingText(lesson.lessonId);
+                                                        setOpenLessons(prev => ({ ...prev, [lesson.lessonId]: true }));
+                                                        setLessonTabs(prev => ({ ...prev, [lesson.lessonId]: 'video' }));
+                                                    }}
+                                                >
+                                                    <span className="material-add-icon" aria-hidden="true" />Add Text
+                                                </button>
+                                                <button
+                                                    className="primary material-add-button"
                                                     disabled={fileLoading || creatingQuiz === lesson.lessonId}
                                                     onClick={() => { setQuizDraftOpen(true); setCreatingQuiz(lesson.lessonId); }}
                                                 >
@@ -1330,7 +1384,31 @@ export function UnitSection({
                                                 </div>
                                             </div>
                                         )}
-
+                                        {canManage && editingLesson === lesson.lessonId && addingText === lesson.lessonId && (
+                                            <div className="materials-add-lesson-form">
+                                                <label>Title</label>
+                                                <input
+                                                    type="text"
+                                                    className="materials-inline-input"
+                                                    placeholder="Enter title"
+                                                    maxLength={200}
+                                                    value={textDraft.title}
+                                                    onChange={e => setTextDraft(d => ({ ...d, title: e.target.value }))}
+                                                />
+                                                <label>Text</label>
+                                                <textarea
+                                                    className="materials-inline-input"
+                                                    style={{ minHeight: 100, resize: 'vertical' }}
+                                                    maxLength={20000}
+                                                    value={textDraft.body}
+                                                    onChange={e => setTextDraft(d => ({ ...d, body: e.target.value }))}
+                                                />
+                                                <div style={{ display: "flex", gap: 8 }}>
+                                                    <button className="materials-icon-btn" disabled={fileLoading} onClick={() => uploadNewText(lesson.lessonId)}>Post Text</button>
+                                                    <button className="materials-icon-btn" onClick={cancelMaterials}>Cancel</button>
+                                                </div>
+                                            </div>
+                                        )}
 
 
                                                 {(lesson.videos || []).length === 0 ? (
@@ -1353,7 +1431,7 @@ export function UnitSection({
                                                                             ga4AddView(video.videoId, video.title, unit.title, courseTitle);
                                                                         }}
                                                                     >
-                                                                        <div className="materials-video-play">▶</div>
+                                                                       <div className="materials-video-play">{isTextPost(video.driveUrl) ? '📄' : '▶'}</div>
 
                                                                         <div style={{ flex: 1, minWidth: 0 }}>
                                                                             <div className="materials-video-title">{video.title}</div>
@@ -1382,9 +1460,13 @@ export function UnitSection({
                                                                     {isActive && (
                                                                         <div style={{ background: "#f5c8f3", borderRadius: 8, overflow: "hidden", marginBottom: 8 }}>
 
-                                                                            {video.driveUrl &&
-                                                                            !video.driveUrl.includes("FILE_ID") &&
-                                                                            video.driveUrl !== "empty" ? (
+                                                                                {isTextPost(video.driveUrl) ? (
+                                                                                    <div style={{ padding: 20, background: "#fff", color: "#2e1a48", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.7 }}>
+                                                                                        {video.driveUrl.slice(TEXT_PREFIX.length)}
+                                                                                    </div>
+                                                                                ) : video.driveUrl &&
+                                                                                !video.driveUrl.includes("FILE_ID") &&
+                                                                                video.driveUrl !== "empty" ? (
                                                                                 fileUrl[video.videoId] ? (
                                                                                     isVideoFile(video.driveUrl) ? (
                                                                                         <><video
