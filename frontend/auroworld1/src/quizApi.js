@@ -54,3 +54,10 @@ export function validateFiles(existing, incoming) {
   }
   if ([...existing, ...incoming].reduce((sum, file) => sum + file.size, 0) > 30 * 1024 * 1024) throw new Error('Attachments must total no more than 30 MB.');
 }
+
+// Legacy material endpoints now enforce the same owner permissions as quizzes.
+export async function authenticatedFetch(url, options) {
+  if (!options?.method || options.method === "GET") return options ? fetch(url, options) : fetch(url);
+  const { data: { session } } = await supabase.auth.getSession();
+  return fetch(url, { ...options, headers: { ...options.headers, ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}) } });
+}

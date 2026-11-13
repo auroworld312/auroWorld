@@ -1,3 +1,4 @@
+import LiveClasses from './LiveClasses';
 import Admin from './admin';
 import Settings from './Settings';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -46,6 +47,7 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/signup" element={<Signup />}/>
                 <Route path ="/resetpass" element={<ResetPassword />} />
+                <Route path="/live-classes" element={<LiveClasses />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/courses/:courseId" element={<CourseDetail />} />
                 <Route path="/quizzes/:quizId" element={<QuizPage />} />

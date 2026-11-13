@@ -7,6 +7,11 @@ import './NextClass.css';
 export function nextClass(courses, now = new Date()) {
     const sessions = [];
     for (const course of courses) {
+        if(course.starts_at && course.ends_at) {
+            const start=new Date(course.starts_at),end=new Date(course.ends_at);
+            if(end>now) sessions.push({course:{courseId:course.course_id,title:course.event_title || course.course_title+' - '+course.lesson_title,instructor:course.teacher},start,end,live:start<=now,url:paymentLink(course.live_url)});
+            continue;
+        }
         const [from, to] = getCourseTimeValues(course.times);
         const date = (course.startDate || '').slice(0, 10);
         if (!from || !to || from === to || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
@@ -40,7 +45,8 @@ export default function NextClass() {
         let active = true;
         const load = async () => {
             try {
-                const result = await quizRequest('/calendar-courses');
+                const [legacy, dated, events] = await Promise.all([quizRequest('/calendar-courses'), quizRequest('/calendar-sessions'), quizRequest('/live-events')]);
+                const result = [...legacy,...dated,...events.filter(e=>!e.cancelled).map(e=>({...e,event_title:e.title,lesson_title:e.title,teacher:e.host_name}))];
                 if (active) { setCourses(result); setError(''); setNow(new Date()); }
             } catch (err) { if (active) setError(err.message); }
         };

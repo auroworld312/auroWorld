@@ -3,7 +3,7 @@ import { MaterialsTab, UnitSection } from './CourseDetail';
 import { getB2Url, uploadToB2 } from './b2Storage';
 
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ state: null }), useNavigate: () => jest.fn() }), { virtual: true });
-jest.mock('@supabase/supabase-js', () => ({ createClient: () => ({}) }));
+jest.mock('@supabase/supabase-js', () => ({ createClient: () => ({ auth: { getSession: async () => ({ data: { session: { access_token: 'test-token' } } }) } }) }));
 jest.mock('./components/Sidebar', () => () => null);
 jest.mock('./components/Header', () => () => null);
 jest.mock('react-ga4', () => ({ event: jest.fn() }));
@@ -31,10 +31,8 @@ test('search filters units while student management stays hidden', () => {
     expect(screen.getByText('No units match your search.')).toBeInTheDocument();
 });
 
-test('management toggle exposes editing and saves a renamed unit', async () => {
+test('owner edits and saves a renamed unit', async () => {
     render(<MaterialsTab course={course} userData={teacher} />);
-    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Manage units' }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
     const name = screen.getByRole('textbox', { name: /Unit name/ });
     expect(name).toHaveValue('Introduction');
@@ -53,7 +51,6 @@ test('bottom create form adds a unit and delete removes only the selected unit',
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
     await screen.findByText('Practice');
     expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/course_units/7'), expect.objectContaining({ body: JSON.stringify({ unitName: 'Practice', sortOrder: 2 }) }));
-    fireEvent.click(screen.getByRole('button', { name: 'Manage units' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete Practice' }));
     await waitFor(() => expect(screen.queryByText('Practice')).not.toBeInTheDocument());
     expect(screen.getByText('Introduction')).toBeInTheDocument();
@@ -123,12 +120,9 @@ test('lessons expose their own content tabs and inherit the course live link', (
     const open = jest.spyOn(window, 'open').mockImplementation(() => null);
     const unit = { unitId: 1, title: 'Unit 1', lessons: [{ lessonId: 10, lessonTitle: 'Intro', videos: [] }] };
     render(<UnitSection embedded unit={unit} unitId={1} courseId={7} role="student" liveUrl="https://zoom.us/j/123" />);
-    expect(screen.queryByRole('button', { name: 'Video', exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Content', exact: true })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open Intro' }));
-    expect(screen.getByRole('button', { name: 'Video', exact: true })).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Quiz', exact: true }));
-    expect(screen.getByText('Quiz content')).toBeVisible();
-    expect(screen.queryByText('No videos in this lesson yet.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Content', exact: true })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Live Links' }));
     expect(screen.getByRole('link', { name: 'Open Live Link' })).toHaveAttribute('href', 'https://zoom.us/j/123');
     expect(screen.queryByRole('button', { name: 'Add Video' })).not.toBeInTheDocument();
@@ -146,11 +140,7 @@ test('direct lesson editing keeps expand available and protects unsaved names', 
     const unit = { unitId: 1, title: 'Unit 1', lessons: [{ lessonId: 10, lessonTitle: 'Intro', lessonDescription: '', videos: [] }] };
     render(<UnitSection embedded unit={unit} unitId={1} role="instructor" username="teacher" instructor="teacher" />);
     expect(screen.queryByRole('button', { name: 'Manage lessons' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Delete Lesson' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Options for Intro' }));
     expect(screen.getByRole('button', { name: 'Delete Lesson' })).toBeVisible();
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Delete Lesson' }), { key: 'Escape' });
-    expect(screen.queryByRole('button', { name: 'Delete Lesson' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(screen.getByRole('button', { name: 'Open Intro' })).toBeVisible();
     const title = screen.getAllByRole('textbox').find(input => input.value === 'Intro');

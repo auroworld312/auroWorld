@@ -1,36 +1,40 @@
+import { quizRequest } from './quizApi';
+import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { isCourseTime } from './courseSchedule';
 import { courseDays } from './CourseEnrollment';
 import './LiveClassPreview.css';
 
 export default function LiveClassPreview({ course }) {
+    const navigate=useNavigate();
     const [now, setNow] = useState(() => new Date());
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
-    let meetingUrl = '';
-    try {
-        const url = new URL((course.liveUrl || '').trim());
-        if (['https:', 'http:'].includes(url.protocol) && !url.username && !url.password) meetingUrl = url.href;
-    } catch {}
-    const scheduled = isCourseTime(course, now);
-    const canJoin = !!meetingUrl;
+    const [liveStatus,setLiveStatus] = useState(null);
+    useEffect(() => {
+        let active=true;
+        const load=()=>quizRequest('/course-live-status').then(rows=>{if(active)setLiveStatus(rows.find(r=>String(r.course_id)===String(course.courseId || course.course_id)) ?? null);}).catch(()=>{});
+        load(); const timer=setInterval(load,30000);
+        return ()=>{active=false;clearInterval(timer);};
+    },[course.courseId,course.course_id]);
+    const scheduled = liveStatus ? (liveStatus.live || (!liveStatus.owner_scheduled && isCourseTime(course, now))) : isCourseTime(course, now);
+    const canJoin = true;
     return <section className="live-preview" aria-label="Live classroom">
-        <div className="live-room-heading"><span className="live-room-eyebrow">LIVE CLASSROOM</span><span className={`live-room-status${scheduled ? ' is-current' : ''}`}><i aria-hidden="true" />{scheduled ? 'Scheduled session' : 'Outside class hours'}</span></div>
+        <div className="live-room-heading"><span className="live-room-eyebrow">LIVE CLASSROOM</span><span className={`live-room-status${scheduled ? ' is-current' : ''}`}><i aria-hidden="true" />{scheduled ? 'Live now' : 'No live classes now'}</span></div>
         <div className="live-room-stage">
             <div className="live-room-broadcast" aria-hidden="true"><span /><i /></div>
             <span className="live-room-stage-label">YOUR LIVE LEARNING SPACE</span>
             <h2>{course.title}</h2>
-            {course.instructor && <p className="live-room-instructor">With {course.instructor}</p>}
+            {course.instructor && <p className="live-room-instructor">Course by {course.instructor}</p>}
             <p className="live-room-intro">Meet your instructor and join the conversation.</p>
             <button className="live-preview-join" disabled={!canJoin} onClick={() => {
-                if (canJoin) window.open(meetingUrl, '_blank', 'noopener,noreferrer');
-            }}>Open Live Link<span className="live-room-external" aria-hidden="true" /></button>
-            {meetingUrl && <a className="live-meeting-url" href={meetingUrl} target="_blank" rel="noopener noreferrer">{meetingUrl}</a>}
-            <p className="live-preview-hint">{!meetingUrl ? 'Your instructor has not added a meeting link yet.' : 'Opens your course meeting in a new tab.'}</p>
+                navigate('/live-classes', {state:{level:course.level || '',fromCourse:course.title}});
+            }}>View live events<span className="live-room-external" aria-hidden="true" /></button>
+            <p className="live-preview-hint">Live events have their own registration. Browse the Live Classes calendar.</p>
         </div>
-        <div className="live-room-footer"><span className="live-room-footer-mark" aria-hidden="true" /><p>Video, audio and class chat are hosted in your instructor?s meeting room.</p></div>
+        <div className="live-room-footer"><span className="live-room-footer-mark" aria-hidden="true" /><p>Video, audio and class chat are hosted in the event meeting room.</p></div>
     </section>;
 }
 

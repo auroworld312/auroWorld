@@ -1,3 +1,5 @@
+import { authenticatedFetch } from './quizApi';
+import { quizRequest } from './quizApi';
 import { useNavigate, useLocation} from "react-router-dom";
 import { useEffect, useState, useCallback, useRef } from "react";
 // import { createClient } from '@supabase/supabase-js';
@@ -40,6 +42,9 @@ function Courses() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const [tab, setTab] = useState('all');
     const [allCourses, setAllCourses] = useState([]);
+    const [liveStatuses,setLiveStatuses] = useState({});
+    useEffect(()=>{let active=true;const load=()=>quizRequest('/course-live-status').then(rows=>{if(active)setLiveStatuses(Object.fromEntries(rows.map(r=>[r.course_id,r])));}).catch(()=>{});load();const timer=setInterval(load,30000);return()=>{active=false;clearInterval(timer);};},[]);
+    const courseLive=(course,now)=>Object.prototype.hasOwnProperty.call(liveStatuses,course.courseId)?(liveStatuses[course.courseId].live || (!liveStatuses[course.courseId].owner_scheduled && isCourseTime(course,now))):isCourseTime(course,now);
     const [enrolledIds, setEnrolledIds] = useState(new Set());
     const [enrollmentLoading, setEnrollmentLoading] = useState(false);
     const [enrollmentError, setEnrollmentError] = useState('');
@@ -135,7 +140,7 @@ function Courses() {
             if(userAttsGrabbed.current===false && currentUserId!=='noId'){
                 async function getUserAtts() {
                     try {
-                        const res = await fetch(`${API}/userdata/${currentUserId}`);
+                        const res = await authenticatedFetch(`${API}/userdata/${currentUserId}`);
                         const data = await res.json();
                         setUserAttributes(data.mData);
                     } catch (error) {
@@ -154,7 +159,7 @@ function Courses() {
     useEffect(()=>{
         if(instructorsGrabbed.current===false){
             async function getInstructors(){
-                fetch(`${API}/all/instructors`)
+                authenticatedFetch(`${API}/all/instructors`)
                 .then(res => res.json())
                 .then(data => {
                     //console.log("FULL RESPONSE:", data)
@@ -177,7 +182,7 @@ function Courses() {
 
     const loadCourses = useCallback(async () => {
         try {
-            const res = await fetch(`${API}/courses`);
+            const res = await authenticatedFetch(`${API}/courses`);
             const data = await res.json();
             // console.log('courses = ',data.mData)
             setAllCourses(data.mData || []);
@@ -189,7 +194,7 @@ function Courses() {
         setEnrollmentLoading(true);
         setEnrollmentError('');
         try {
-            const res = await fetch(`${API}/courses/enrolled/${uuid}`);
+            const res = await authenticatedFetch(`${API}/courses/enrolled/${uuid}`);
             const data = await res.json();
             if (res.ok === false || data.mStatus !== 'ok' || !Array.isArray(data.mData)) throw new Error('Unable to load enrolled courses. Please try again.');
             setEnrolledIds(new Set(data.mData.map(c => String(c.courseId))));
@@ -231,7 +236,7 @@ function Courses() {
         setLoadingChanges(true);
         setCourseMenu(null);
         try {
-            const pathsResponse = await fetch(`${API}/filepaths/course/${course.courseId}`);
+            const pathsResponse = await authenticatedFetch(`${API}/filepaths/course/${course.courseId}`);
             const pathsData = await pathsResponse.json();
             if (pathsData.mStatus !== 'ok') throw new Error(pathsData.mMessage || 'Could not load course files.');
             const paths = (pathsData.mData || []).filter(path => path && path !== 'empty' && !/^https?:\/\//i.test(path));
@@ -244,7 +249,7 @@ function Courses() {
                 const { error } = await supabase.storage.from('course_videos').remove(legacyPaths);
                 if (error) throw error;
             }
-            const response = await fetch(`${API}/courses/${course.courseId}`, { method: 'DELETE' });
+            const response = await authenticatedFetch(`${API}/courses/${course.courseId}`, { method: 'DELETE' });
             const data = await response.json();
             if (data.mStatus !== 'ok') throw new Error(data.mMessage || 'Could not delete course.');
             setAllCourses(previous => previous.filter(item => item.courseId !== course.courseId));
@@ -324,7 +329,7 @@ function Courses() {
         }
         try {
             setLoadingChanges(true)
-            const response = await fetch(editingCourse ? `${API}/courses/edit/${editingCourse.courseId}` : `${API}/courses`, {
+            const response = await authenticatedFetch(editingCourse ? `${API}/courses/edit/${editingCourse.courseId}` : `${API}/courses`, {
                 method: editingCourse ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title:title, description: description, instructor:instructor, times:times, startDate: start_date, level:level, price:price, paymentUrl:paymentUrl.trim(), live_url:live_url.trim(), thumbnail: thumbnail || null, updateThumbnail: !!editingCourse, liveUrl: live_url.trim(), unitCount: newCourse.unitCount, daysOfWeek: [...selectedDays].sort((a, b) => a - b).join(',') })
             });
@@ -332,7 +337,7 @@ function Courses() {
             if (data.mStatus !== 'ok') { setLoadingChanges(false); alert('Saving course failed: ' + data.mMessage); return; }
             const savedId = editingCourse?.courseId || data.mData;
             if (editingCourse || thumbnail || paymentUrl.trim()) {
-                const savedResponse = await fetch(`${API}/courses/${savedId}`);
+                const savedResponse = await authenticatedFetch(`${API}/courses/${savedId}`);
                 const savedData = await savedResponse.json();
                 if (savedData.mStatus !== 'ok' || (savedData.mData?.thumbnail || '') !== thumbnail) {
                     throw new Error('The course image was not saved. Your selection is still here. Restart the updated backend and try again.');
@@ -362,9 +367,7 @@ function Courses() {
     const levelOptions = ['Beginner', 'Elementary', 'Pre-Intermediate', 'Intermediate', 'Advanced', 'Proficient'];
     const timeOptions = ['Morning', 'Afternoon', 'Evening', 'Asynchronous'];
 
-    const visibleCourses = !userAttributes ? [] : userAttributes.role === 'instructor'
-        ? allCourses.filter(course => !!userAttributes.username && course.instructor === userAttributes.username)
-        : allCourses;
+    const visibleCourses = !userAttributes ? [] : allCourses;
     const enrolledCourses = visibleCourses.filter(c => enrolledIds.has(String(c.courseId)));
     const displayList = (tab === 'enrolled' ? enrolledCourses : visibleCourses)
         .filter(c => c.title?.toLowerCase().includes(search.toLowerCase()) || c.instructor?.toLowerCase().includes(search.toLowerCase()))
@@ -535,7 +538,7 @@ function Courses() {
                                         <h2>{<button className="courses-title-link" onClick={() => navigate(`/courses/${course.courseId}`)}>{course.title}</button>}</h2>
                                         <p>{course.description}</p>
                                     </div>
-                                    {(isTeacher || userAttributes?.role === "admin") && <div className="courses-menu" data-course-menu onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setCourseMenu(null); }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setCourseMenu(null); }}>
+                                    {((isTeacher && course.instructor === userAttributes.username) || userAttributes?.role === "admin") && <div className="courses-menu" data-course-menu onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setCourseMenu(null); }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setCourseMenu(null); }}>
                                         <button className="courses-menu-trigger" aria-label={`Course options for ${course.title}`} aria-expanded={courseMenu === course.courseId} onClick={() => setCourseMenu(courseMenu === course.courseId ? null : course.courseId)}>&#8943;</button>
                                         {courseMenu === course.courseId && <div className="courses-menu-options">
                                             <button onClick={() => openCourseForm(course)}>Edit Course</button>
@@ -556,8 +559,8 @@ function Courses() {
                                     {/* Actions */}
                                     <div className="courses-card-footer">
                                         <span className="courses-live-status" role="status">
-                                            {isCourseTime(course, now) ? 'Live' : 'Not Live'}
-                                            <img src={`/assets/courses/${isCourseTime(course, now) ? 'live' : 'not-live'}.svg`} alt="" />
+                                            {courseLive(course, now) ? 'Live' : 'Not Live'}
+                                            <img src={`/assets/courses/${courseLive(course, now) ? 'live' : 'not-live'}.svg`} alt="" />
                                         </span>
                                     </div>
                                 </article>

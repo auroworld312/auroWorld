@@ -1,3 +1,4 @@
+import { authenticatedFetch } from './quizApi';
 import { useState } from 'react';
 import './CourseMaterials.css';
 import UnitForm from './UnitForm';
@@ -21,7 +22,7 @@ export default function UnitMaterials({ unit, children, initialOpen = false, can
     setError('');
     setSaving(true);
     try {
-      const response = await fetch(`${API}/edit/unit/${unit.unitId}`, {
+      const response = await authenticatedFetch(`${API}/edit/unit/${unit.unitId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ unitName: trimmed }),

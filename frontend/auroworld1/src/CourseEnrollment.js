@@ -30,7 +30,7 @@ export function CourseOverview({ course }) {
     </div>;
 }
 
-export default function CourseEnrollment({ course, enrolled, enrolling, onEnroll, isOwner }) {
+export default function CourseEnrollment({ course, enrolled, enrolling, onEnroll, isOwner, teacher, onTeaching }) {
     const free = course.price === 'Free';
     const url = paymentLink(course.paymentUrl);
     const lessons = (course.units || []).reduce((sum, unit) => sum + (unit.lessons?.length || 0), 0);
@@ -39,11 +39,11 @@ export default function CourseEnrollment({ course, enrolled, enrolling, onEnroll
         <div className="course-enrollment-content">
             <span className="course-eyebrow">{free ? 'FREE COURSE' : 'PAID COURSE'}</span>
             <h3>{free ? 'Free' : 'Join this course'}</h3>
-            {isOwner ? <div className="course-enrollment-state">Your course</div> : enrolled ? <div className="course-enrollment-state" role="status">Already Enrolled</div> : free ?
+            {teacher ? <button className="course-purchase" onClick={onTeaching}>Manage live events</button> : isOwner ? <div className="course-enrollment-state">Your course</div> : enrolled ? <div className="course-enrollment-state" role="status">Already Enrolled</div> : free ?
                 <button className="course-purchase" onClick={onEnroll} disabled={enrolling}>{enrolling ? 'Enrolling...' : 'Enroll Now'}</button> :
                 url ? <a className="course-purchase" href={url} target="_blank" rel="noopener noreferrer"><img src="/assets/courses/payment.svg" alt="" />Purchase Now</a> :
                 <button className="course-purchase" disabled>Payment unavailable</button>}
-            {!free && !enrolled && !isOwner && <p className="course-payment-note">{url ? 'Continue to the instructor’s payment page. Payment does not automatically enroll you yet.' : 'The instructor has not added a payment link yet.'}</p>}
+            {!teacher && !free && !enrolled && !isOwner && <p className="course-payment-note">{url ? 'Continue to the instructor’s payment page. Payment does not automatically enroll you yet.' : 'The instructor has not added a payment link yet.'}</p>}
             <dl className="course-enrollment-facts">
                 {course.level && <div><dt>Level</dt><dd>{course.level}</dd></div>}
                 <div><dt>Units</dt><dd>{course.units?.length || 0}</dd></div>

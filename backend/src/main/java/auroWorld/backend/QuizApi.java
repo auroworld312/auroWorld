@@ -52,6 +52,16 @@ public final class QuizApi {
                 conn.commit();
             } catch (Exception e) { conn.rollback(); throw e; }
         }
+        try (var stream = QuizApi.class.getResourceAsStream("/course-schedule-schema.sql"); var conn = connection()) {
+            conn.setAutoCommit(false);
+            try (var statement = conn.createStatement()) {
+                for (String sql : new String(stream.readAllBytes(), StandardCharsets.UTF_8).replace("\uFEFF", "").split(";")) if (!sql.isBlank()) statement.execute(sql);
+                conn.commit();
+            } catch (Exception e) { conn.rollback(); throw e; }
+        }
+        new CourseScheduleApi(this).register(app);
+        new LiveEventApi(this).register(app);
+        new CourseMaterialGuards(this).register(app);
         app.get("/quiz-api/admin/accounts", ctx -> handle(ctx, (conn, user) -> {
             require("admin".equals(user.role), 403, "Administrator access required.");
             return rows(conn, "SELECT username,email,role FROM users ORDER BY lower(username)");
@@ -111,7 +121,7 @@ public final class QuizApi {
         }));
         app.get("/quiz-api/calendar-courses", ctx -> handle(ctx, (conn, user) -> rows(conn,
             "SELECT " + ("instructor".equals(user.role) ? "true" : "false") + " AS \"calendarOwner\", c.course_id AS \"courseId\", c.title, c.instructor, c.times, c.start_date AS \"startDate\", c.thumbnail, c.live_url AS \"liveUrl\", c.days_of_week AS \"daysOfWeek\" FROM courses c WHERE " +
-            calendarCourseScope(user) + " ORDER BY c.course_id", "instructor".equals(user.role) ? user.username : user.id)));
+            "(" + ("instructor".equals(user.role) ? "c.instructor=?" : calendarCourseScope(user)) + ") AND NOT EXISTS(SELECT 1 FROM course_offerings o WHERE o.course_id=c.course_id AND o.teacher=c.instructor) ORDER BY c.course_id", "instructor".equals(user.role) ? user.username : user.id)));
         app.get("/quiz-api/calendar", ctx -> handle(ctx, (conn, user) -> rows(conn,
             "SELECT q.id, q.title, q.due_at, q.late_until, q.release_at, c.course_id, c.title AS course_title, u.title AS unit_title, " +
             "EXISTS(SELECT 1 FROM quiz_submissions s WHERE s.quiz_id=q.id AND s.user_id=? AND s.submitted_at IS NOT NULL) AS submitted " +
@@ -372,7 +382,7 @@ public final class QuizApi {
     }
 
     private boolean enrolled(Connection conn, User user, Map<String, Object> target) throws SQLException {
-        return !rows(conn, "SELECT 1 FROM enrollments WHERE course_id=? AND unique_id::text=?", target.get("course_id"), user.id).isEmpty();
+        return ("instructor".equals(user.role) && CourseScheduleApi.assigned(conn, user, ((Number)target.get("course_id")).longValue())) || !rows(conn, "SELECT 1 FROM enrollments WHERE course_id=? AND unique_id::text=?", target.get("course_id"), user.id).isEmpty();
     }
 
     private Map<String, Object> unit(Connection conn, long id) throws SQLException {
@@ -461,7 +471,7 @@ public final class QuizApi {
     }
     record SetupAccount(String username, String role) {}
 
-    private void handle(Context ctx, Action action) {
+    void handle(Context ctx, Action action) {
         ctx.header("Cache-Control", "no-store");
         try {
             User user = authenticator.authenticate(ctx);
@@ -482,11 +492,11 @@ public final class QuizApi {
     private static void error(Context ctx, int code, String message) {
         ctx.status(code).contentType("application/json").result(JSON.toJson(new StructuredResponse("error", message, null)));
     }
-    private static long id(Context ctx, String key) { return Long.parseLong(ctx.pathParam(key)); }
+    static long id(Context ctx, String key) { return Long.parseLong(ctx.pathParam(key)); }
     private static boolean bool(Map<String, Object> row, String key) { return Boolean.TRUE.equals(row.get(key)); }
     private static Instant time(Map<String, Object> row, String key) { return parseTime((String) row.get(key)); }
     private static Instant parseTime(String value) { return value == null || value.isBlank() ? null : Instant.parse(value); }
-    private static void require(boolean valid, int code, String message) { if (!valid) throw new Fault(code, message); }
+    static void require(boolean valid, int code, String message) { if (!valid) throw new Fault(code, message); }
     private static PreparedStatement prepare(Connection conn, String sql, Object... params) throws SQLException {
         var ps = conn.prepareStatement(sql);
         for (int i = 0; i < params.length; i++) {
@@ -497,10 +507,10 @@ public final class QuizApi {
         }
         return ps;
     }
-    private static void update(Connection conn, String sql, Object... params) throws SQLException {
+    static void update(Connection conn, String sql, Object... params) throws SQLException {
         try (var ps = prepare(conn, sql, params)) { ps.executeUpdate(); }
     }
-    private static List<Map<String, Object>> rows(Connection conn, String sql, Object... params) throws SQLException {
+    static List<Map<String, Object>> rows(Connection conn, String sql, Object... params) throws SQLException {
         try (var ps = prepare(conn, sql, params); var rs = ps.executeQuery()) {
             var result = new ArrayList<Map<String, Object>>();
             while (rs.next()) {
@@ -514,13 +524,13 @@ public final class QuizApi {
             return result;
         }
     }
-    private static Map<String, Object> one(Connection conn, String sql, Object... params) throws SQLException {
+    static Map<String, Object> one(Connection conn, String sql, Object... params) throws SQLException {
         var values = rows(conn, sql, params);
         require(!values.isEmpty(), 404, "Quiz, unit or file not found.");
         return values.get(0);
     }
     static String calendarCourseScope(User user) {
-        return "admin".equals(user.role) ? "CAST(? AS text) IS NOT NULL" : "instructor".equals(user.role) ? "c.instructor=?" : "EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=c.course_id AND e.unique_id::text=?)";
+        return "admin".equals(user.role) ? "CAST(? AS text) IS NOT NULL" : "instructor".equals(user.role) ? "? IN (SELECT c.instructor UNION SELECT ct.username FROM course_teachers ct WHERE ct.course_id=c.course_id)" : "EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=c.course_id AND e.unique_id::text=?)";
     }
 
     record User(String id, String username, String role) {}
@@ -543,6 +553,6 @@ public final class QuizApi {
         final int code;
         Fault(int code, String message) { super(message); this.code = code; }
     }
-    private interface Action { Object run(Connection conn, User user) throws Exception; }
+    interface Action { Object run(Connection conn, User user) throws Exception; }
     interface Authenticator { User authenticate(Context ctx) throws Exception; }
 }

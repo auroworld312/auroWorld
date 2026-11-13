@@ -1,3 +1,5 @@
+import { authenticatedFetch } from './quizApi';
+import { quizRequest } from './quizApi';
 import LessonLiveLinks from './LessonLiveLinks';
 import NextClass from './NextClass';
 
@@ -12,7 +14,7 @@ import UnitForm from './UnitForm';
 import './spinner/spin.css'
 import './CourseInfo.css';
 import CourseEnrollment, { CourseOverview } from './CourseEnrollment';
-import VideoTab, { RoomChatPreview } from './LiveClassPreview';
+import LiveClassPreview, { RoomChatPreview } from './LiveClassPreview';
 import { getCourseTimeValues } from './courseSchedule';
 import { uploadToB2, getB2Url, deleteFromB2, isB2, toKey, B2_PREFIX, isVideoFile, safeSegment } from './b2Storage';
 import {supabase} from './utils/supabaseClient.js'
@@ -137,7 +139,7 @@ function CourseTab({ course, userData, navigate }) {
                 liveUrl:document.getElementById("editLiveUrl").value,
                 daysOfWeek: selectedDays.join(',')
             }
-            const response=await fetch(`${API}/courses/edit/${courseId}`,{
+            const response=await authenticatedFetch(`${API}/courses/edit/${courseId}`,{
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(editCourseBody)
@@ -166,7 +168,7 @@ function CourseTab({ course, userData, navigate }) {
         if (!window.confirm('Delete this course? This cannot be undone.')) return;
         try{
             setLoadingCourseTab(true)
-            const pathsRes = await fetch(`${API}/filepaths/course/${courseId}`)
+            const pathsRes = await authenticatedFetch(`${API}/filepaths/course/${courseId}`)
             const pathsData = await pathsRes.json()
             const paths = (pathsData.mData || []).filter(p => p && p !== 'empty' && !isExternalUrl(p))
 
@@ -181,7 +183,7 @@ function CourseTab({ course, userData, navigate }) {
                 }
             }
 
-            const response = await fetch(`${API}/courses/${courseId}`, { method: "DELETE", headers: { "Content-Type": "application/json" } })
+            const response = await authenticatedFetch(`${API}/courses/${courseId}`, { method: "DELETE", headers: { "Content-Type": "application/json" } })
             const deleteCourse = await response.json();
             if(deleteCourse.mStatus!=="ok"){
                 alert("Deleting course failed: "+deleteCourse.mMessage);
@@ -484,7 +486,7 @@ export function UnitSection({
             // return
             for (let index = 0; index < lessonCount; index++) {
                 const title = lessonTitles[index]?.trim() || `Lesson ${firstOrder + index + 1}`;
-                const response = await fetch(`${API}/course/${courseId}/unit/${unitId}/addlesson/${firstOrder + index}`, {
+                const response = await authenticatedFetch(`${API}/course/${courseId}/unit/${unitId}/addlesson/${firstOrder + index}`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ lessonTitle: title, lessonDescription: '' })
                 });
@@ -554,7 +556,7 @@ export function UnitSection({
                 lessonDescription: editLessonDescription.trim()
             };
 
-            const response = await fetch(
+            const response = await authenticatedFetch(
                 `${API}/edit/lesson/${lId}`,
                 {
                     method: "PUT",
@@ -613,7 +615,7 @@ export function UnitSection({
                 }
             }
 
-            const response = await fetch(`${API}/delete/lesson/${lId}`, {
+            const response = await authenticatedFetch(`${API}/delete/lesson/${lId}`, {
                 method: "DELETE", headers: { "Content-Type": "application/json" }
             });
             const data = await response.json();
@@ -642,7 +644,7 @@ export function UnitSection({
         try{
             const lessons = [Id1, Id2, sort1, sort2]
             console.log('lessons = ',lessons)
-            const swapResponse = await fetch(`${API}/swaplessons`,{
+            const swapResponse = await authenticatedFetch(`${API}/swaplessons`,{
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: lessons
@@ -744,7 +746,7 @@ export function UnitSection({
 
         setFileLoading(true);
         try {
-            const doesFileExist = await fetch(`${API}/unit_videos/${unit.unitId}/lesson/${lessonId}/${encodeURIComponent(title)}`);
+            const doesFileExist = await authenticatedFetch(`${API}/unit_videos/${unit.unitId}/lesson/${lessonId}/${encodeURIComponent(title)}`);
             const doesFileExistData = await doesFileExist.json();
 
             if (doesFileExistData.mData) {
@@ -765,7 +767,7 @@ export function UnitSection({
             }
 
             // Only create the DB row after the file is safely stored
-            const response = await fetch(`${API}/unit_videos/unit/${unit.unitId}/lesson/${lessonId}`, {
+            const response = await authenticatedFetch(`${API}/unit_videos/unit/${unit.unitId}/lesson/${lessonId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ title, filepath: B2_PREFIX + key })
@@ -816,7 +818,7 @@ export function UnitSection({
         if (!body) { alert("Enter some text first."); return; }
         setFileLoading(true);
         try {
-            const response = await fetch(`${API}/unit_videos/unit/${unit.unitId}/lesson/${lessonId}`, {
+            const response = await authenticatedFetch(`${API}/unit_videos/unit/${unit.unitId}/lesson/${lessonId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ title, filepath: TEXT_PREFIX + body })
@@ -864,7 +866,7 @@ export function UnitSection({
                 }
             }
 
-            const videoEntry = await fetch(
+            const videoEntry = await authenticatedFetch(
                 `${API}/delete/unit_videos/unit/${unit.unitId}/lesson/${lessonId}/videoId/${videoId}`,
                 { method: "DELETE", headers: { "Content-Type": "application/json" } }
             );
@@ -937,7 +939,7 @@ export function UnitSection({
                 videoTitle2: video2.title
             };
 
-            const response = await fetch(
+            const response = await authenticatedFetch(
                 `${API}/course_units/unit/${unit.unitId}/lesson/${lId}/swap/${video1.videoId}/${video2.videoId}`,
                 {
                     method: "PUT",
@@ -1014,7 +1016,7 @@ export function UnitSection({
         try{
             const videos = [vidId1, vidId2, vidSort1, vidSort2]
             // console.log('videos = ',videos)
-            const swapResponse = await fetch(`${API}/swapvideos`,{
+            const swapResponse = await authenticatedFetch(`${API}/swapvideos`,{
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: videos
@@ -1625,7 +1627,7 @@ export function MaterialsTab({ course, userData }) {
         setUnitError('');
         try {
             const sortOrder = Math.max(-1, ...unitArr.map(unit => Number(unit.sortOrder) || 0)) + 1;
-            const response = await fetch(`${API}/course_units/${course.courseId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unitName: title, sortOrder }) });
+            const response = await authenticatedFetch(`${API}/course_units/${course.courseId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unitName: title, sortOrder }) });
             const data = await response.json();
             if (data.mStatus !== "ok") throw new Error(data.mMessage || 'Could not create unit.');
             setUnitArr(units => [...units, { unitId: data.mData, courseId: course.courseId, title, sortOrder, lessons: [] }]);
@@ -1653,7 +1655,7 @@ export function MaterialsTab({ course, userData }) {
                 }
             }
 
-            const deleteUnitResponse = await fetch(`${API}/delete/units/course/${course.courseId}`,{
+            const deleteUnitResponse = await authenticatedFetch(`${API}/delete/units/course/${course.courseId}`,{
                 method:"POST",
                 headers: { "Content-Type": "application/json" },
                 body: String(unitId)
@@ -1675,7 +1677,7 @@ export function MaterialsTab({ course, userData }) {
     async function swapUnits(){
         try{
             const units = [uId1, uId2, sortNum1, sortNum2]
-            const swapResponse = await fetch(`${API}/course/${course.courseId}/swapunits`,{
+            const swapResponse = await authenticatedFetch(`${API}/course/${course.courseId}/swapunits`,{
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: units
@@ -1784,8 +1786,11 @@ function CourseDetail() {
     const [requestedTab, setActiveTab] = useState(['video', 'materials'].includes(location.state?.activeTab) ? location.state.activeTab : 'course');
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
-    const canAccessContent = isEnrolled || userAttributes?.role === 'admin' || (userAttributes?.role === 'instructor' && !!userAttributes.username && userAttributes.username === course?.instructor);
-    const activeTab = canAccessContent ? requestedTab : 'course';
+    const [assignedTeacher, setAssignedTeacher] = useState(false);
+    useEffect(() => { let active=true; quizRequest('/teaching-courses').then(rows=>{if(active) setAssignedTeacher(rows.some(r=>String(r.course_id)===String(courseId)));}).catch(()=>{}); return()=>{active=false;}; },[courseId]);
+    const canAccessContent = assignedTeacher || isEnrolled || userAttributes?.role === 'admin' || (userAttributes?.role === 'instructor' && !!userAttributes.username && userAttributes.username === course?.instructor);
+    const canAccessLive = canAccessContent || userAttributes?.role === 'instructor';
+    const activeTab = (requestedTab === 'video' ? canAccessLive : canAccessContent) ? requestedTab : 'course';
 
     const initGrabbed = useRef(false)
     useEffect(() => {
@@ -1795,16 +1800,16 @@ function CourseDetail() {
                 if (!user) { navigate('/login'); return; }
                 setCurrentUserId(user.id);
 
-                const enrollRes = await fetch(`${API}/courses/enrolled/${user.id}`);
+                const enrollRes = await authenticatedFetch(`${API}/courses/enrolled/${user.id}`);
                 const enrollData = await enrollRes.json();
                 const enrolledIds = new Set((enrollData.mData || []).map(c => c.courseId));
                 setIsEnrolled(enrolledIds.has(parseInt(courseId)));
 
-                const res = await fetch(`${API}/courses/${courseId}`);
+                const res = await authenticatedFetch(`${API}/courses/${courseId}`);
                 const data = await res.json();
                 if (data.mStatus === 'ok') setCourse(data.mData);
 
-                const userRes= await fetch(`${API}/userdata/${user.id}`)
+                const userRes= await authenticatedFetch(`${API}/userdata/${user.id}`)
                 const userData = await userRes.json()
                 setUserAttributes(userData.mData)
 
@@ -1821,7 +1826,7 @@ function CourseDetail() {
         if (!currentUserId || course?.price !== 'Free') return;
         setEnrolling(true);
         try {
-            const res = await fetch(`${API}/courses/${courseId}/enroll`, {
+            const res = await authenticatedFetch(`${API}/courses/${courseId}/enroll`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_uuid: currentUserId }),
             });
@@ -1866,7 +1871,7 @@ function CourseDetail() {
                                 {activeTab === 'video' ? <><img src="/assets/live/back.svg" alt="" />Back</> : '\u2190 Back'}
                             </button>
                             <div className="course-detail-tabs" style={{ display: 'flex', gap: '8px' }}>
-                                <TabButton label="Video" active={activeTab === 'video'} onClick={() => { if (canAccessContent) setActiveTab('video'); }} />
+                                <TabButton label="Video" active={activeTab === 'video'} onClick={() => { if (canAccessLive) setActiveTab('video'); }} />
                                 <TabButton label="Course" active={activeTab === 'course'} onClick={() => setActiveTab('course')} />
                                 <TabButton label="Materials" active={activeTab === 'materials'} onClick={() => { if (canAccessContent) setActiveTab('materials'); }} />
                             </div>
@@ -1874,8 +1879,8 @@ function CourseDetail() {
 
                         {/* Tab content */}
                         <div className="course-detail-panel" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', minHeight: '400px' }}>
-                            {activeTab === 'video' && <VideoTab course={course} />}
-                            {activeTab === 'course' && <CourseTab course={course} userData={userAttributes} navigate={navigate} />}
+                            {activeTab === 'video' && <LiveClassPreview course={course} />}
+                            {activeTab === 'course' && <><CourseTab course={course} userData={userAttributes} navigate={navigate} /></>}
                             {activeTab === 'materials' && <MaterialsTab course={course} userData={userAttributes} />}
                         </div>
                     </div>
@@ -1885,7 +1890,7 @@ function CourseDetail() {
 
                         {activeTab === 'video' ? <RoomChatPreview course={course} /> : activeTab === 'materials' && ['user', 'student'].includes(userAttributes?.role) ? <NextClass /> : <>
                         {/* Thumbnail */}
-                        <CourseEnrollment course={course} enrolled={isEnrolled} enrolling={enrolling} onEnroll={handleEnroll} isOwner={userAttributes?.role === 'instructor' && userAttributes?.username === course.instructor} />
+                        <CourseEnrollment teacher={['instructor','admin'].includes(userAttributes?.role)} onTeaching={()=>navigate('/live-classes')} course={course} enrolled={isEnrolled} enrolling={enrolling} onEnroll={handleEnroll} isOwner={userAttributes?.role === 'instructor' && userAttributes?.username === course.instructor} />
                                 {/* Course highlights */}
                         {/* Live status */}
                         </>}
@@ -1904,7 +1909,7 @@ export default CourseDetail;
     //     if(userAttsGrabbed.current===false){
     //         async function getUserAtts(){
     //             try{
-    //                 const res= await fetch(`${API}/userdata/${currentUserId}`)
+    //                 const res= await authenticatedFetch(`${API}/userdata/${currentUserId}`)
     //                 const data = await res.json()
     //                 setUserAttributes(data.mData)
     //             }catch(error){
