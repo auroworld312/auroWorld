@@ -1731,6 +1731,38 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
             return -1;
         }
     }
+    public int deleteProblemReport(int reportId){
+        String deleteReport = "DELETE FROM help_page WHERE report_id = ? ";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(deleteReport)){
+            ps.setInt(1,reportId);
+            return ps.executeUpdate();
+        
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+
+    }
+    public int addProblemReport(String title, String description, String filepath, String uuid){
+        String insertReport = "INSERT INTO help_page(subject, description, ss_path, uuid) "+
+        "VALUES (?, ?, ?, ?) ";
+
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(insertReport)){
+            ps.setString(1,title);
+            ps.setString(2,description);
+            ps.setString(3,filepath);
+            ps.setString(4,uuid);
+
+            return ps.executeUpdate();
+        }
+        catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
     public UserData getUserAttributes(String uuid){
         String grabUser = "SELECT username, firstname, lastname, email, role, note FROM users WHERE unique_id=?";
         try(Connection conn = getConnection();
@@ -1755,6 +1787,21 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
             return null;
         }
     }
+
+    public int changeUserRoleNoUsername(String uuid, String role){
+        String sql = "UPDATE users SET role=? WHERE unique_id =?";
+        
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setString(1,role);
+            ps.setString(2,uuid);
+            return ps.executeUpdate();
+
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
     public int changeUserRole(String username, String role, String uuid){
         String changerole = "UPDATE users SET username=?, role=? WHERE unique_id=? ";
 
@@ -1770,7 +1817,6 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
             return -1;
         }
     }
-    
     public List<UserData> grabAllInstructors(){
         String selectinstructors = "SELECT * FROM users WHERE role IN (?, ?) ";
         List<UserData> instructorList = new ArrayList<>();

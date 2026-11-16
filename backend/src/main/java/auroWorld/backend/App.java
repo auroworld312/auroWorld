@@ -196,6 +196,12 @@ public class App
         public String role;
         public String unique_id;
     }
+    private static final class ReportProblem{
+        public String description;
+        public String title;
+        public String filepath;
+        public String uuid;
+    }
     //function for getting session token from window
     private static SessionData requireSession(Context ctx) {
         String token = ctx.header("X-Session-Token");
@@ -772,11 +778,11 @@ public class App
 
             String targetId = ctx.pathParam("userId");
 
-            System.out.println("targetId = "+targetId);
+            // System.out.println("targetId = "+targetId);
 
             Database.ProfilePublicData profile = db.selectPublicProfile(targetId);
 
-            System.out.println("profile: "+profile);
+            // System.out.println("profile: "+profile);
 
             StructuredResponse resp = (profile == null)
                     ? new StructuredResponse("error", "profile not found", null)
@@ -788,16 +794,79 @@ public class App
             ctx.result(gson.toJson(resp));
         });
 
+    app.post("/report-problem",ctx->{
+        ctx.status(201);
+        ctx.contentType("application/json");
+
+        ReportProblem rp = gson.fromJson(ctx.body(),ReportProblem.class);
+
+        if(rp == null || rp.title==null || rp.description==null){
+            ctx.result(gson.toJson(new StructuredResponse(
+                "error","missing attribute",null
+            )));
+            return;
+        }
+
+        int success = db.addProblemReport(rp.title,rp.description,rp.filepath,rp.uuid);
+
+        if(success==-1){
+            ctx.result(gson.toJson(new StructuredResponse("adding report failed", null, success)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, success)));
+        }
+    });
+
+    app.delete("/report-problem/{report_id}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        int reportId = Integer.parseInt(ctx.pathParam("report_id"));
+
+        int success = db.deleteProblemReport(reportId);
+
+        if(success==-1){
+            ctx.result(gson.toJson(new StructuredResponse("deleting report failed", null, success)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, success)));
+        }
+    });
+
     app.put("/change/role", ctx -> {
             ctx.status(410).contentType("application/json").result(gson.toJson(new StructuredResponse("error", "This account endpoint is retired. Please use the current sign-in page.", null)));
         });
+
+    app.put("/change-role/{uuid}",ctx->{
+        ctx.status(200);
+        ctx.contentType("application/json");
+
+        String uuid = ctx.pathParam("uuid");
+
+        ChangeRoleRequest crr = gson.fromJson(ctx.body(), ChangeRoleRequest.class);
+
+        if (crr == null || crr.role ==null) {
+            ctx.result(gson.toJson(new StructuredResponse(
+                    "error", "missing role", null)));
+            return;
+        }
+
+        int success = db.changeUserRoleNoUsername(uuid, crr.role);
+
+        if(success==-1){
+            ctx.result(gson.toJson(new StructuredResponse("changing user role failed", null, success)));
+        }
+        else{
+            ctx.result(gson.toJson(new StructuredResponse("ok", null, success)));
+        }
+    });
 
     app.get("/userdata/{uuid}",ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
 
         String uuid = ctx.pathParam("uuid");
-        System.out.println(uuid);
+        // System.out.println(uuid);
 
         Database.UserData user = db.getUserAttributes(uuid);
 

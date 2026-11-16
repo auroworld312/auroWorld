@@ -54,7 +54,7 @@ public final class QuizApi {
         }
         app.get("/quiz-api/admin/accounts", ctx -> handle(ctx, (conn, user) -> {
             require("admin".equals(user.role), 403, "Administrator access required.");
-            return rows(conn, "SELECT username,email,role FROM users ORDER BY lower(username)");
+            return rows(conn, "SELECT username,email,role, unique_id FROM users ORDER BY lower(username)");
         }));
         app.post("/quiz-api/account/setup", this::setupAccount);
         app.get("/quiz-api/account", ctx -> handle(ctx, (conn, user) -> {

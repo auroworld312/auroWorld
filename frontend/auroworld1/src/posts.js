@@ -110,7 +110,6 @@ function Posts(){
 
     // console.log('problem1')
     const {state} = useLocation()
-    // console.log('problem2')
     const {passedUserId} = state || {}
 
     const [changeLoading, setChangeLoading] = useState(false)

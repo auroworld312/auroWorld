@@ -1,6 +1,7 @@
 import Admin from './admin';
 import Settings from './Settings';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import HelpPage from './components/helpPage.js';
 import Posts from './posts.js'
 import Courses from './courses.js'
 import Login from './login.js'
@@ -49,6 +50,7 @@ function App() {
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/courses/:courseId" element={<CourseDetail />} />
                 <Route path="/quizzes/:quizId" element={<QuizPage />} />
+                <Route path="/help-page" element={<HelpPage/>} />
               </Routes>
           </BrowserRouter>
         </UserProvider>
