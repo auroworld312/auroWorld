@@ -38,10 +38,12 @@ function Sidebar() {
                 </nav>
             </div>
             <nav className="app-sidebar-account" aria-label="Account">
+
                 {role === "admin" && <NavItem isCollapsed={isCollapsed} icon="settings" label="Administration" active={pathname === "/admin"} onClick={() => navigate("/admin")} />}
                 <button className="app-sidebar-item app-sidebar-user" aria-label="Account" aria-current={pathname === '/profile' ? 'page' : undefined} onClick={() => navigate('/profile')} title={displayName || email || 'Account'}>
                     <UserAvatar size={30} />{!isCollapsed && <span>{displayName || email || 'Account'}</span>}
                 </button>
+                <NavItem isCollapsed={isCollapsed} icon="problem" label="Report Problem" active={pathname==='/report-problem'} onClick={()=>navigate('/report-problem')} />
                 <NavItem isCollapsed={isCollapsed} icon="settings" label="Settings" active={pathname === '/settings'} onClick={() => navigate('/settings')} />
                 <NavItem isCollapsed={isCollapsed} icon="sign-out" label="Sign Out" onClick={async () => { await supabase.auth.signOut(); navigate('/login'); }} />
             </nav>

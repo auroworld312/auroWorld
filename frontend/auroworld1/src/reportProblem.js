@@ -1,15 +1,15 @@
 
 import {useState, useRef, useEffect} from 'react';
 import { useLocation, useNavigate} from "react-router-dom";
-import { supabase } from '../utils/supabaseClient.js';
-import Sidebar from './Sidebar';
-import Header from './Header';
-import './helpPage.css'
-import '../spinner/spin.css'
+import { supabase } from './utils/supabaseClient.js';
+import Sidebar from './components/Sidebar.js';
+import Header from './components/Header.js';
+import './reportProblem.css'
+import './spinner/spin.css'
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld-rtpx.onrender.com'
 
-function HelpPage(){
+function ReportProblem(){
     const navigate=useNavigate();
 
     const [fileUpload,setFileUpload] = useState()
@@ -207,4 +207,4 @@ function HelpPage(){
     )
 }
 
-export default HelpPage;
+export default ReportProblem;
