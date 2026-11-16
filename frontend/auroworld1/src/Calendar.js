@@ -1,3 +1,5 @@
+import LiveEvents from './LiveEvents';
+import CourseSessions from './CourseSessions';
 import { createPortal } from 'react-dom';
 import './Calendar.css';
 import React, { useState, useEffect, useRef } from 'react';
@@ -57,6 +59,7 @@ function parseCourseSchedule(timesStr, daysOfWeekStr) {
 function Calendar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [editingClass,setEditingClass]=useState(null);
   const passedDate = location.state?.selectedDate ? new Date(location.state.selectedDate) : new Date();
   const [selectedDate, setSelectedDate] = useState(passedDate);
   const [panelDate, setPanelDate] = useState(passedDate);
@@ -82,7 +85,8 @@ function Calendar() {
     {
       async function loadEnrolledCourses() {
         try {
-          const courses = await quizRequest('/calendar-courses');
+          const [courses, legacySessions, liveEvents] = await Promise.all([quizRequest('/calendar-courses'), quizRequest('/calendar-sessions'), quizRequest('/live-events')]);
+          const sessions=[...legacySessions,...liveEvents.filter(e=>!e.cancelled).map(e=>({...e,event_id:e.id,lesson_title:e.title,teacher:e.host_name}))];
           if (!active) return;
           const events = [];
           courses.forEach((course, index) => {
@@ -104,6 +108,16 @@ function Calendar() {
               endMinute: schedule?.endMinute,
             });
           });
+          sessions.forEach(session => {
+            if (!session.starts_at || !session.ends_at) return;
+            const start=new Date(session.starts_at), end=new Date(session.ends_at);
+            for(let day=new Date(start);day<end;) {
+              const midnight=new Date(day);midnight.setHours(24,0,0,0);
+              const segmentEnd=end<midnight?end:midnight;
+              events.push({courseId:session.course_id,sessionId:session.id,eventId:session.event_id,canEdit:session.can_edit,title:session.event_id?session.lesson_title:session.course_title+' - '+session.lesson_title,instructor:session.teacher,liveUrl:session.live_url,color:COURSE_COLORS[0],days:[day.getDay()],dateKey:day.toDateString(),startHour:day.getHours(),startMinute:day.getMinutes(),endHour:segmentEnd.getTime()===midnight.getTime()?24:segmentEnd.getHours(),endMinute:segmentEnd.getMinutes(),times:day.toLocaleTimeString()+' - '+segmentEnd.toLocaleTimeString()});
+              day=midnight;
+            }
+          });
           setCourseEvents(events);
           setCourseError('');
         } catch (e) { if (active) setCourseError(e.message); }
@@ -113,8 +127,9 @@ function Calendar() {
       loadEnrolledCourses();
       const refresh = () => loadEnrolledCourses();
       window.addEventListener('focus', refresh);
+      window.addEventListener('live-events-changed', refresh);
       const timer = setInterval(refresh, 60000);
-      return () => { active = false; window.removeEventListener('focus', refresh); clearInterval(timer); };
+      return () => { active = false; window.removeEventListener('focus', refresh); window.removeEventListener('live-events-changed', refresh); clearInterval(timer); };
     }
   }, [reloadCourses]);
 
@@ -206,7 +221,7 @@ function Calendar() {
     courseEvents.forEach(event => {
       weekDates.forEach((date, dayIndex) => {
         const dow = date.getDay();
-        if (event.days.includes(dow)) {
+        if (event.dateKey ? event.dateKey === date.toDateString() : event.days.includes(dow)) {
           const topPx = event.startHour * 60 + event.startMinute;
           const heightPx = (event.endHour * 60 + event.endMinute) - topPx;
           blocks.push({ ...event, dayIndex, topPx, heightPx, date });
@@ -232,7 +247,7 @@ function Calendar() {
   };
 
   const isTeacherCalendar = courseEvents.some(e => e.calendarOwner);
-  const selectedDayEvents = isTeacherCalendar ? courseEvents : courseEvents.filter(e => e.days.includes(selectedDate.getDay()));
+  const selectedDayEvents = courseEvents.filter(e => e.dateKey ? e.dateKey === selectedDate.toDateString() : isTeacherCalendar || e.days.includes(selectedDate.getDay()));
   const monthName = panelDate.toLocaleString('en-US', { month: 'long' });
 
   return (
@@ -272,13 +287,13 @@ function Calendar() {
               {eventBlocks.map((event, idx) => (
                 <div
                   key={`${event.courseId}-${event.dayIndex}-${idx}`}
-                  onClick={() => navigate(`/courses/${event.courseId}`, { state: { activeTab: 'course' } })}
+                  onClick={() => event.eventId ? navigate('/live-classes') : navigate(`/courses/${event.courseId}`, { state: { activeTab: 'video' } })}
                   onMouseEnter={(e) => showEventDetails(e, event, idx)}
                   onFocus={(e) => showEventDetails(e, event, idx)}
                   onBlur={() => setHoveredEvent(null)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/courses/${event.courseId}`, { state: { activeTab: 'course' } }); } if (e.key === 'Escape') setHoveredEvent(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); event.eventId ? navigate('/live-classes') : navigate(`/courses/${event.courseId}`, { state: { activeTab: 'video' } }); } if (e.key === 'Escape') setHoveredEvent(null); }}
                   onMouseLeave={() => setHoveredEvent(null)}
                   style={{
                     position: 'absolute',
@@ -371,11 +386,11 @@ function Calendar() {
               )}
 
               {(isTeacherCalendar || viewMode === 'day') && selectedDayEvents.map(event => (
-                <div key={event.courseId}
-                  onClick={() => navigate(`/courses/${event.courseId}`, { state: { activeTab: 'course' } })}
+                <div key={`${event.courseId}-${event.eventId ? 'event-'+event.eventId : event.sessionId || 'course'}-${event.dateKey || ''}`}
+                  onClick={() => event.eventId ? navigate('/live-classes') : navigate(`/courses/${event.courseId}`, { state: { activeTab: 'video' } })}
                   className="calendar-schedule-card"
                   role="button" tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/courses/${event.courseId}`, { state: { activeTab: 'course' } }); } }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); event.eventId ? navigate('/live-classes') : navigate(`/courses/${event.courseId}`, { state: { activeTab: 'video' } }); } }}
                   style={{ backgroundColor: '#fff', border: '1px solid #D8D3E8',
                     padding: '12px 15px', borderRadius: '10px', fontSize: '14px',
                     cursor: 'pointer', marginBottom: '10px' }}>
@@ -385,7 +400,7 @@ function Calendar() {
                   <div style={{ fontSize: '12px', marginTop: '4px', color: '#555' }}>
                     {event.times || 'Time not set'}
                   </div>
-                  <div style={{ fontSize: '12px', color: event.color, marginTop: '2px' }}>View class</div>
+                  <div style={{ fontSize: '12px', color: event.color, marginTop: '2px' }}>View class</div>{event.canEdit && <button onClick={e=>{e.stopPropagation();setEditingClass(event);}} onKeyDown={e=>e.stopPropagation()}>Edit class</button>}
                 </div>
               ))}
             </div>
@@ -393,6 +408,7 @@ function Calendar() {
           </div>
         </div>
       </div>
+    {editingClass && <div className="schedule-modal-backdrop"><div role="dialog" aria-modal="true" aria-label="Edit calendar class" className="schedule-modal"><button onClick={()=>setEditingClass(null)}>Close</button>{editingClass.eventId ? <LiveEvents course={{courseId:editingClass.courseId}} editingEventId={editingClass.eventId} onClose={()=>{setEditingClass(null);setReloadCourses(n=>n+1);}} /> : <CourseSessions course={{courseId:editingClass.courseId}} editingSessionId={editingClass.sessionId} onClose={()=>{setEditingClass(null);setReloadCourses(n=>n+1);}} />}</div></div>}
     </div>
   );
 }

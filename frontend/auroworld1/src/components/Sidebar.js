@@ -33,6 +33,7 @@ function Sidebar() {
                 <nav className="app-sidebar-navigation" aria-label="Main navigation">
                     <NavItem isCollapsed={isCollapsed} icon="posts" label="Posts" active={pathname === '/posts'} onClick={() => navigate('/posts',{state:{passedUserId}})} />
                     <NavItem isCollapsed={isCollapsed} icon="courses" label="Courses" active={pathname.startsWith('/courses') || pathname.startsWith('/quizzes/')} onClick={() => navigate('/courses',{state:{passedUserId}})} />
+                    <NavItem isCollapsed={isCollapsed} icon="calendar" label="Live Classes" active={pathname === '/live-classes'} onClick={() => navigate('/live-classes')} />
                     <NavItem isCollapsed={isCollapsed} icon="calendar" label="Calendar" active={pathname === '/calendar'} onClick={() => navigate('/calendar')} />
                 </nav>
             </div>

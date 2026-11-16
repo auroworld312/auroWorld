@@ -3,7 +3,7 @@ import Courses, { courseTimeGroup } from './courses';
 
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate, useLocation: () => ({}) }), { virtual: true });
-jest.mock('@supabase/supabase-js', () => ({ createClient: () => ({ auth: { getUser: async () => ({ data: { user: { id: 'bookmark-user' } } }) } }) }));
+jest.mock('@supabase/supabase-js', () => ({ createClient: () => ({ auth: { getSession: async () => ({ data: { session: { access_token: 'test-token' } } }), getUser: async () => ({ data: { user: { id: 'bookmark-user' } } }) } }) }));
 jest.mock('./components/Header', () => () => <div>Header</div>);
 jest.mock('./components/Sidebar', () => () => <div>Sidebar</div>);
 jest.mock('react-ga4', () => ({ event: jest.fn() }));
@@ -110,11 +110,7 @@ test.each(['instructor', 'user', 'admin'])('%s sees the appropriate course list'
     }) }));
     render(<Courses />);
     expect(await screen.findByRole('heading', { name: 'French' })).toBeInTheDocument();
-    if (role === 'instructor') {
-        expect(screen.queryByRole('heading', { name: 'Spanish' })).not.toBeInTheDocument();
-    } else {
-        expect(screen.getByRole('heading', { name: 'Spanish' })).toBeInTheDocument();
-    }
+    expect(screen.getByRole('heading', { name: 'Spanish' })).toBeInTheDocument();
     expect(global.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
 });
 
