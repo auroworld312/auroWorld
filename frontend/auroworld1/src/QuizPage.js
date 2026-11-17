@@ -72,9 +72,12 @@ export default function QuizPage() {
   }, [quiz, offset, load]);
   const now = clock + offset;
   const released = quiz?.published && now >= Date.parse(quiz.release_at);
-  const windowOpen = released && now < Date.parse(quiz.late_until || quiz.due_at);
+  const dueMs = quiz?.due_at ? Date.parse(quiz.due_at) : null;
+  const lateMs = quiz?.late_until ? Date.parse(quiz.late_until) : null;
+  const windowEnd = lateMs ?? dueMs;
+  const windowOpen = released && (windowEnd == null || now < windowEnd);
   const canSubmit = windowOpen && (quiz.attempts_remaining ?? 1) > 0;
-  const status = !quiz?.published ? 'Draft' : !released ? 'Scheduled' : !windowOpen ? 'Closed' : now >= Date.parse(quiz.due_at) ? 'Late submissions' : 'Open';
+  const status = !quiz?.published ? 'Draft' : !released ? 'Scheduled' : !windowOpen ? 'Closed' : dueMs != null && now >= dueMs ? 'Late submissions' : 'Open';
   return <div className="quiz-page">
     <Sidebar />
     <div className="quiz-page-main"><Header />
@@ -87,8 +90,10 @@ export default function QuizPage() {
           <section className="quiz-card quiz-overview">
             <div className="quiz-row quiz-between"><h1>{quiz.title}</h1><span className="quiz-tag">{status}</span></div>
             <p>{quiz.course_title} / {quiz.unit_title}</p>
-            <p className="quiz-muted">Release: {displayDate(quiz.release_at)}<br />Due: {displayDate(quiz.due_at)}<br />
-              {quiz.late_until ? `Late submissions accepted until ${displayDate(quiz.late_until)}` : 'Late submissions are not allowed.'}<br />Time zone: {localZone}</p>
+            <p className="quiz-muted">Release: {displayDate(quiz.release_at)}<br />
+              Due: {quiz.due_at ? displayDate(quiz.due_at) : 'No due date'}<br />
+              {!quiz.due_at ? 'Submissions stay open.' : quiz.late_until ? `Late submissions accepted until ${displayDate(quiz.late_until)}` : 'Late submissions are not allowed.'}<br />
+              Time zone: {localZone}</p>
             {quiz.is_admin && <button onClick={() => { setEditing(false); setStudentView(!studentView); }}>{studentView ? "Manage Quiz" : "Take Quiz as Student"}</button>}
             {quiz.can_manage && editing && <button onClick={() => { if (window.confirm('Close the quiz editor? Unsaved changes will be discarded.')) setEditing(false); }}>Close Editor</button>}
           </section>

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS course_quizzes (
     due_at TIMESTAMPTZ,
     late_until TIMESTAMPTZ,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CHECK (NOT published OR (release_at IS NOT NULL AND due_at IS NOT NULL)),
+    CHECK (NOT published OR release_at IS NOT NULL),
     CHECK (release_at < due_at),
     CHECK (late_until IS NULL OR late_until > due_at)
 );

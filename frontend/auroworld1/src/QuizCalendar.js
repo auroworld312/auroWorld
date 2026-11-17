@@ -21,6 +21,7 @@ export function useQuizDeadlines() {
 export function QuizDeadlineBlocks({ quizzes, weekDates }) {
   const navigate = useNavigate();
   return quizzes.map(quiz => {
+    if (!quiz.due_at) return null;
     const due = new Date(quiz.due_at);
     const index = weekDates.findIndex(date => date.toDateString() === due.toDateString());
     if (index < 0) return null;
@@ -36,7 +37,7 @@ export function QuizDeadlineBlocks({ quizzes, weekDates }) {
 
 export function QuizDeadlineList({ quizzes, selectedDate, error }) {
   const navigate = useNavigate();
-  const items = quizzes.filter(quiz => new Date(quiz.due_at).toDateString() === selectedDate.toDateString());
+  const items = quizzes.filter(quiz => quiz.due_at && new Date(quiz.due_at).toDateString() === selectedDate.toDateString());
   return <div style={{ marginBottom: 16 }}>
     <h4 style={{ color: '#a8540a', marginBottom: 8 }}>Quiz Deadlines</h4>
     {error ? <p role="alert" style={{ fontSize: 13, color: '#9b2020' }}>Quiz deadlines could not load: {error}</p>

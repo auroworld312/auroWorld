@@ -126,7 +126,7 @@ public final class QuizApi {
             "SELECT q.id, q.title, q.due_at, q.late_until, q.release_at, c.course_id, c.title AS course_title, u.title AS unit_title, " +
             "EXISTS(SELECT 1 FROM quiz_submissions s WHERE s.quiz_id=q.id AND s.user_id=? AND s.submitted_at IS NOT NULL) AS submitted " +
             "FROM course_quizzes q JOIN course_units u ON u.unit_id=q.unit_id JOIN courses c ON c.course_id=u.course_id " +
-            (!"user".equals(user.role) ? "WHERE q.due_at IS NOT NULL AND " : "WHERE q.published AND ") + calendarCourseScope(user) + " ORDER BY q.due_at", user.id, "instructor".equals(user.role) ? user.username : user.id)));
+            (!"user".equals(user.role) ? "WHERE q.due_at IS NOT NULL AND " : "WHERE q.published AND q.due_at IS NOT NULL AND ") + calendarCourseScope(user) + " ORDER BY q.due_at", user.id, "instructor".equals(user.role) ? user.username : user.id)));
         app.get("/quiz-api/quizzes/{quizId}", ctx -> handle(ctx, (conn, user) -> {
             var quiz = quiz(conn, id(ctx, "quizId"), false);
             boolean manager = manage(user, quiz) && !("admin".equals(user.role) && "student".equals(ctx.queryParam("view")));
@@ -250,6 +250,8 @@ public final class QuizApi {
         if (!create && !mode.equals(target.get("mode"))) require(rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? LIMIT 1", target.get("id")).isEmpty(), 409, "The quiz type cannot change after a student has saved or submitted an answer.");
         if (changed) require(rows(conn, "SELECT id FROM quiz_submissions WHERE quiz_id=? AND submitted_at IS NOT NULL LIMIT 1", target.get("id")).isEmpty(), 409, "Questions cannot change after a student has submitted. Create another quiz instead.");
         Instant release = parseTime(body.release_at), due = parseTime(body.due_at), late = parseTime(body.late_until);
+        // A missing release date means the quiz is released at the time it is saved.
+        if (release == null) release = Instant.now();
         validateSchedule(body.published, release, due, late);
         if (!create && bool(target, "published")) {
             require(body.published, 400, "A published quiz cannot be moved back to draft.");
@@ -296,7 +298,7 @@ public final class QuizApi {
         require(!files(conn, quizId, submissionId).isEmpty(), 400, "Upload at least one answer file.");
         Instant now = Instant.now();
         require(canSubmit(quiz, now), 403, "The submission window closed while uploading. Your submission was not accepted.");
-        if (form.submit) update(conn, "UPDATE quiz_submissions SET submitted_at=?,late=? WHERE id=?", now, !now.isBefore(time(quiz, "due_at")), submissionId);
+        if (form.submit) update(conn, "UPDATE quiz_submissions SET submitted_at=?,late=? WHERE id=?", now, isLate(quiz, now), submissionId);
         conn.commit();
         return Map.of("id", submissionId, "submitted", form.submit);
     }
@@ -318,7 +320,7 @@ public final class QuizApi {
         require(canSubmit(quiz, now), 403, "The submission window has closed.");
         Map<String, Object> result = form.submit ? OnlineQuiz.grade(questions, form.answers) : null;
         update(conn, "UPDATE quiz_submissions SET online_answers=?,question_version=?,submitted_at=?,late=?,online_result=?,score=?,graded_at=? WHERE id=?",
-            JSON.toJson(form.answers), form.question_version, form.submit ? now : null, form.submit && !now.isBefore(time(quiz, "due_at")), result == null ? null : JSON.toJson(result), result == null ? null : result.get("score"), form.submit ? now : null, submissionId);
+            JSON.toJson(form.answers), form.question_version, form.submit ? now : null, form.submit && isLate(quiz, now), result == null ? null : JSON.toJson(result), result == null ? null : result.get("score"), form.submit ? now : null, submissionId);
         conn.commit();
         return Map.of("id", submissionId, "submitted", form.submit);
     }
@@ -360,20 +362,31 @@ public final class QuizApi {
         require(total <= 30L * 1024 * 1024, 400, "Attachments must total no more than 30 MB.");
     }
 
+    // A quiz needs a release date to be published. The due date is optional; without one, submissions stay open until the late deadline (if any) or indefinitely.
     static void validateSchedule(boolean published, Instant release, Instant due, Instant late) {
-        require(!published || (release != null && due != null), 400, "Select a release date and a due date before publishing.");
-        require((release == null && due == null && late == null) || (release != null && due != null && due.isAfter(release) && (late == null || late.isAfter(due))), 400, "Release must be before due; late deadline must be after due.");
+        require(!published || release != null, 400, "Select a release date before publishing.");
+        require(due == null || release != null, 400, "Set a release date before setting a due date.");
+        require(release == null || due == null || due.isAfter(release), 400, "Due date must be after release date.");
+        require(late == null || due != null, 400, "Set a due date before allowing late submissions.");
+        require(late == null || late.isAfter(due), 400, "Late deadline must be after due date.");
     }
 
     static boolean canSubmit(Map<String, Object> quiz, Instant now) {
         Instant release = time(quiz, "release_at"), due = time(quiz, "due_at"), late = time(quiz, "late_until");
-        return bool(quiz, "published") && release != null && due != null && !now.isBefore(release) && now.isBefore(late == null ? due : late);
+        Instant end = late != null ? late : due;
+        return bool(quiz, "published") && release != null && !now.isBefore(release)
+            && (end == null || now.isBefore(end));
+    }
+
+    static boolean isLate(Map<String, Object> quiz, Instant now) {
+        Instant due = time(quiz, "due_at");
+        return due != null && !now.isBefore(due);
     }
 
     static String status(Map<String, Object> quiz, Instant now) {
         if (!bool(quiz, "published")) return "Draft";
         if (time(quiz, "release_at") == null || now.isBefore(time(quiz, "release_at"))) return "Scheduled";
-        if (canSubmit(quiz, now)) return now.isBefore(time(quiz, "due_at")) ? "Open" : "Late submissions";
+        if (canSubmit(quiz, now)) return isLate(quiz, now) ? "Late submissions" : "Open";
         return "Closed";
     }
 
