@@ -14,7 +14,7 @@ import UnitForm from './UnitForm';
 import './spinner/spin.css'
 import './CourseInfo.css';
 import CourseEnrollment, { CourseOverview } from './CourseEnrollment';
-import LiveClassPreview, { RoomChatPreview } from './LiveClassPreview';
+// import LiveClassPreview, { RoomChatPreview } from './LiveClassPreview';
 import { getCourseTimeValues } from './courseSchedule';
 import { uploadToB2, getB2Url, deleteFromB2, isB2, toKey, B2_PREFIX, isVideoFile, safeSegment } from './b2Storage';
 import {supabase} from './utils/supabaseClient.js'
@@ -1783,7 +1783,8 @@ function CourseDetail() {
     const [userAttributes,setUserAttributes]=useState(null)
     const [course, setCourse] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [requestedTab, setActiveTab] = useState(['video', 'materials'].includes(location.state?.activeTab) ? location.state.activeTab : 'course');
+    // const [requestedTab, setActiveTab] = useState(['video', 'materials'].includes(location.state?.activeTab) ? location.state.activeTab : 'course');
+    const [requestedTab, setActiveTab] = useState(['materials'].includes(location.state?.activeTab) ? location.state.activeTab : 'course');
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
     const [assignedTeacher, setAssignedTeacher] = useState(false);
@@ -1868,10 +1869,11 @@ function CourseDetail() {
                         {/* Back + Tabs */}
                         <div className="course-detail-navigation" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
                             <button className="course-detail-back" onClick={() => navigate('/courses')} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: '1.5px solid #e0e0e0', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '700', color: '#555', padding: '8px 16px' }}>
-                                {activeTab === 'video' ? <><img src="/assets/live/back.svg" alt="" />Back</> : '\u2190 Back'}
+                                {/* {activeTab === 'video' ? <><img src="/assets/live/back.svg" alt="" />Back</> : '\u2190 Back'} */}
+                                {'\u2190 Back'}
                             </button>
                             <div className="course-detail-tabs" style={{ display: 'flex', gap: '8px' }}>
-                                <TabButton label="Video" active={activeTab === 'video'} onClick={() => { if (canAccessLive) setActiveTab('video'); }} />
+                                {/* <TabButton label="Video" active={activeTab === 'video'} onClick={() => { if (canAccessLive) setActiveTab('video'); }} /> */}
                                 <TabButton label="Course" active={activeTab === 'course'} onClick={() => setActiveTab('course')} />
                                 <TabButton label="Materials" active={activeTab === 'materials'} onClick={() => { if (canAccessContent) setActiveTab('materials'); }} />
                             </div>
@@ -1879,7 +1881,7 @@ function CourseDetail() {
 
                         {/* Tab content */}
                         <div className="course-detail-panel" style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', minHeight: '400px' }}>
-                            {activeTab === 'video' && <LiveClassPreview course={course} />}
+                            {/* {activeTab === 'video' && <LiveClassPreview course={course} />} */}
                             {activeTab === 'course' && <><CourseTab course={course} userData={userAttributes} navigate={navigate} /></>}
                             {activeTab === 'materials' && <MaterialsTab course={course} userData={userAttributes} />}
                         </div>
@@ -1888,7 +1890,8 @@ function CourseDetail() {
                     {/* Right sidebar */}
                     <div className="course-detail-sidebar" style={{ width: '240px', minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                        {activeTab === 'video' ? <RoomChatPreview course={course} /> : activeTab === 'materials' && ['user', 'student'].includes(userAttributes?.role) ? <NextClass /> : <>
+                        {/* {activeTab === 'video' ? <RoomChatPreview course={course} /> : activeTab === 'materials' && ['user', 'student'].includes(userAttributes?.role) ? <NextClass /> : <> */}
+                        {activeTab === 'materials' && ['user', 'student'].includes(userAttributes?.role) ? <NextClass /> : <>
                         {/* Thumbnail */}
                         <CourseEnrollment teacher={['instructor','admin'].includes(userAttributes?.role)} onTeaching={()=>navigate('/live-classes')} course={course} enrolled={isEnrolled} enrolling={enrolling} onEnroll={handleEnroll} isOwner={userAttributes?.role === 'instructor' && userAttributes?.username === course.instructor} />
                                 {/* Course highlights */}
@@ -1902,24 +1905,3 @@ function CourseDetail() {
 }
 
 export default CourseDetail;
-
-
-    // const userAttsGrabbed = useRef(false)
-    // useEffect(()=>{
-    //     if(userAttsGrabbed.current===false){
-    //         async function getUserAtts(){
-    //             try{
-    //                 const res= await authenticatedFetch(`${API}/userdata/${currentUserId}`)
-    //                 const data = await res.json()
-    //                 setUserAttributes(data.mData)
-    //             }catch(error){
-    //                 console.log(error.message)
-    //             }
-    //             return
-    //         }
-    //         getUserAtts()
-    //     }
-    //     return ()=>{
-    //         userAttsGrabbed.current=true
-    //     }
-    // },[currentUserId])

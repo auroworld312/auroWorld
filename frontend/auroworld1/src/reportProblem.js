@@ -164,7 +164,7 @@ function ReportProblem(){
     }
 
     return(
-        <div id="reportBugForm" className='help-page' style={{ display:'flex', height:'100vh', width:'100vw', margin:'0', overflow:'hidden', backgroundColor:'var(--post-page, #E3C7E6)', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize:'16px', color:'var(--post-text, #111)', opacity:sending? 0.5 : 1 }}>
+        <div id="reportBugForm" className='help-page' style={{ display:'flex', height:'100vh', width:'100vw', margin:'0', backgroundColor:'var(--post-page, #E3C7E6)', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', fontSize:'16px', color:'var(--post-text, #111)', opacity:sending? 0.5 : 1 }}>
             
             <div className = 'loader' style={{display:sending?'flex':'none'}}></div>
             
@@ -189,7 +189,7 @@ function ReportProblem(){
                         <input type="file" name="screenshot" id="screenshot" onChange={uploadImageHandler}/>
 
                         <button style={{display:'flex', alignSelf: 'flex-start'}}id="remove-file" onClick={removeFile}>Clear</button>
-                        <img src={previewUrl} alt="" style={{ maxWidth:'25%', borderRadius:'8px' }}></img>
+                        <img src={previewUrl} alt="" style={{ maxWidth:'75%', borderRadius:'8px' }}></img>
                         {fileUpload &&(
                             <div style={{ margin:'10px 0', fontSize:'14px', color:'var(--post-muted, #666)' }}>
                                 <p>Selected File: {fileUpload.name}</p>

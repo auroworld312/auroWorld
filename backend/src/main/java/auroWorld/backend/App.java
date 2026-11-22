@@ -141,7 +141,14 @@ public class App
     private static final class DeleteCourseRequest{
         public String user_uuid;
     }
-
+    private static final class CreateCourseRequestV2{
+        public Integer unitCount;
+        public String title;
+        public String thumbnail;
+        public String description;
+        public String instructor;
+        public String level;
+    }
     private static final class CreateCourseRequest{
         public Integer unitCount;
         public String title;
@@ -154,7 +161,15 @@ public class App
         public String level;
         public String price;
         public String live_url;
-        public String daysOfWeek;   // NEW, e.g. "1,3,5"
+        public String daysOfWeek;
+    }
+    private static final class ChangeCourseRequestV2{
+        public String title;
+        public String thumbnail;
+        public boolean updateThumbnail;
+        public String description;
+        public String instructor;
+        public String level;
     }
     private static final class ChangeCourseRequest{
         public String title;
@@ -1265,33 +1280,27 @@ public class App
         ctx.result(gson.toJson(new StructuredResponse("ok", null, videoId)));
     });
 
-    app.put("/courses/edit/{cId}", ctx ->{
+     app.put("/courses/edit/{cId}", ctx ->{
         ctx.status(200);
         ctx.contentType("application/json");
 
         int courseId = Integer.parseInt(ctx.pathParam("cId"));
 
-        ChangeCourseRequest ccr = gson.fromJson(ctx.body(),ChangeCourseRequest.class);
+        ChangeCourseRequestV2 ccr = gson.fromJson(ctx.body(),ChangeCourseRequestV2.class);
 
         if (ccr == null || ccr.title ==null || ccr.description == null 
-        || ccr.instructor==null || ccr.times==null || ccr.startDate ==null || ccr.level==null
-        || ccr.price==null || ccr.liveUrl==null) {
+        || ccr.instructor==null|| ccr.level==null) {
             ctx.result(gson.toJson(new StructuredResponse(
                     "error", "missing course feature", null)));
             return;
         }
 
-        if (!CoursePayment.isValidUrl(ccr.paymentUrl)) {
-            ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Payment link must be a valid HTTP or HTTPS URL", null)));
-            return;
-        }
-        if (ccr.paymentUrl != null) ccr.paymentUrl = ccr.paymentUrl.trim();
         if (ccr.updateThumbnail && ccr.thumbnail != null && (ccr.thumbnail.length() > 400000 || !(ccr.thumbnail.matches("data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}") || ccr.thumbnail.startsWith("https://") || ccr.thumbnail.startsWith("http://")))) {
             ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Invalid course image", null)));
             return;
         }
-        int id = db.editCourseInfo(courseId, ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
-            ccr.level, ccr.price, ccr.liveUrl, ccr.daysOfWeek, ccr.updateThumbnail, ccr.thumbnail, ccr.paymentUrl);
+        int id = db.editCourseInfoV2(courseId, ccr.title,ccr.description,ccr.instructor
+            ,ccr.level,ccr.updateThumbnail, ccr.thumbnail);
 
         if(id<=0){
             ctx.result(gson.toJson(new StructuredResponse("error",null,id)));
@@ -1300,6 +1309,42 @@ public class App
             ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
         }
     });
+
+    // app.put("/courses/edit/{cId}", ctx ->{
+    //     ctx.status(200);
+    //     ctx.contentType("application/json");
+
+    //     int courseId = Integer.parseInt(ctx.pathParam("cId"));
+
+    //     ChangeCourseRequest ccr = gson.fromJson(ctx.body(),ChangeCourseRequest.class);
+
+    //     if (ccr == null || ccr.title ==null || ccr.description == null 
+    //     || ccr.instructor==null || ccr.times==null || ccr.startDate ==null || ccr.level==null
+    //     || ccr.price==null || ccr.liveUrl==null) {
+    //         ctx.result(gson.toJson(new StructuredResponse(
+    //                 "error", "missing course feature", null)));
+    //         return;
+    //     }
+
+    //     if (!CoursePayment.isValidUrl(ccr.paymentUrl)) {
+    //         ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Payment link must be a valid HTTP or HTTPS URL", null)));
+    //         return;
+    //     }
+    //     if (ccr.paymentUrl != null) ccr.paymentUrl = ccr.paymentUrl.trim();
+    //     if (ccr.updateThumbnail && ccr.thumbnail != null && (ccr.thumbnail.length() > 400000 || !(ccr.thumbnail.matches("data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}") || ccr.thumbnail.startsWith("https://") || ccr.thumbnail.startsWith("http://")))) {
+    //         ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Invalid course image", null)));
+    //         return;
+    //     }
+    //     int id = db.editCourseInfo(courseId, ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
+    //         ccr.level, ccr.price, ccr.liveUrl, ccr.daysOfWeek, ccr.updateThumbnail, ccr.thumbnail, ccr.paymentUrl);
+
+    //     if(id<=0){
+    //         ctx.result(gson.toJson(new StructuredResponse("error",null,id)));
+    //     }
+    //     else{
+    //         ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
+    //     }
+    // });
 
     app.get("/filepaths/course/{courseId}",ctx->{
         ctx.status(200);
@@ -1328,34 +1373,24 @@ public class App
         }
     });
 
-    app.post("/courses", ctx ->{
+    app.post("/courses",ctx->{
         ctx.status(200);
         ctx.contentType("application/json");
 
-        CreateCourseRequest ccr = gson.fromJson(ctx.body(), CreateCourseRequest.class);
+        CreateCourseRequestV2 ccr = gson.fromJson(ctx.body(), CreateCourseRequestV2.class);
 
         if (ccr == null || ccr.title ==null || ccr.description == null 
-        || ccr.instructor==null || ccr.times==null || ccr.startDate ==null || ccr.level==null
-        || ccr.price==null) {
+        || ccr.instructor==null || ccr.level==null) {
             System.out.println(ccr);
             System.out.println(ccr.title);
             System.out.println(ccr.description);
             System.out.println(ccr.instructor);
-            System.out.println(ccr.times);
-            System.out.println(ccr.startDate);
             System.out.println(ccr.level);
-            System.out.println(ccr.price);
-            System.out.println(ccr.live_url);
             ctx.result(gson.toJson(new StructuredResponse(
                     "error", "missgin course feature", null)));
             return;
         }
 
-        if (!CoursePayment.isValidUrl(ccr.paymentUrl)) {
-            ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Payment link must be a valid HTTP or HTTPS URL", null)));
-            return;
-        }
-        if (ccr.paymentUrl != null) ccr.paymentUrl = ccr.paymentUrl.trim();
         if (ccr.thumbnail != null && (ccr.thumbnail.length() > 400000 || !ccr.thumbnail.matches("data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}"))) {
             ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Invalid course image", null)));
             return;
@@ -1365,8 +1400,7 @@ public class App
             ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Choose between 0 and 50 initial units.", null)));
             return;
         }
-       int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
-        ccr.level, ccr.price, ccr.live_url == null ? "" : ccr.live_url, ccr.daysOfWeek, unitCount, ccr.thumbnail, ccr.paymentUrl);
+       int id = db.createCourseV2(ccr.title,ccr.description,ccr.instructor,ccr.level,unitCount, ccr.thumbnail);
         if (id < 0) {
             ctx.status(500).result(gson.toJson(new StructuredResponse("error", "Course creation failed. Please try again.", null)));
             return;
@@ -1374,6 +1408,52 @@ public class App
 
         ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
     });
+    // app.post("/courses", ctx ->{
+    //     ctx.status(200);
+    //     ctx.contentType("application/json");
+
+    //     CreateCourseRequest ccr = gson.fromJson(ctx.body(), CreateCourseRequest.class);
+
+    //     if (ccr == null || ccr.title ==null || ccr.description == null 
+    //     || ccr.instructor==null || ccr.times==null || ccr.startDate ==null || ccr.level==null
+    //     || ccr.price==null) {
+    //         System.out.println(ccr);
+    //         System.out.println(ccr.title);
+    //         System.out.println(ccr.description);
+    //         System.out.println(ccr.instructor);
+    //         System.out.println(ccr.times);
+    //         System.out.println(ccr.startDate);
+    //         System.out.println(ccr.level);
+    //         System.out.println(ccr.price);
+    //         System.out.println(ccr.live_url);
+    //         ctx.result(gson.toJson(new StructuredResponse(
+    //                 "error", "missgin course feature", null)));
+    //         return;
+    //     }
+
+    //     if (!CoursePayment.isValidUrl(ccr.paymentUrl)) {
+    //         ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Payment link must be a valid HTTP or HTTPS URL", null)));
+    //         return;
+    //     }
+    //     if (ccr.paymentUrl != null) ccr.paymentUrl = ccr.paymentUrl.trim();
+    //     if (ccr.thumbnail != null && (ccr.thumbnail.length() > 400000 || !ccr.thumbnail.matches("data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}"))) {
+    //         ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Invalid course image", null)));
+    //         return;
+    //     }
+    //     int unitCount = ccr.unitCount == null ? 0 : ccr.unitCount;
+    //     if (unitCount < 0 || unitCount > 50) {
+    //         ctx.status(400).result(gson.toJson(new StructuredResponse("error", "Choose between 0 and 50 initial units.", null)));
+    //         return;
+    //     }
+    //    int id = db.createCourse(ccr.title,ccr.description,ccr.instructor,ccr.times,ccr.startDate,
+    //     ccr.level, ccr.price, ccr.live_url == null ? "" : ccr.live_url, ccr.daysOfWeek, unitCount, ccr.thumbnail, ccr.paymentUrl);
+    //     if (id < 0) {
+    //         ctx.status(500).result(gson.toJson(new StructuredResponse("error", "Course creation failed. Please try again.", null)));
+    //         return;
+    //     }
+
+    //     ctx.result(gson.toJson(new StructuredResponse("ok", null, id)));
+    // });
 
     app.get("/courses", ctx -> {
         ctx.status(200);
