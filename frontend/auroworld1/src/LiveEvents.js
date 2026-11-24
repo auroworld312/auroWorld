@@ -16,6 +16,11 @@ export default function LiveEvents({course={}, editingEventId, onClose, initialL
   const opened=useRef(null);
   const panel=useRef(null);
   const [notice,setNotice]=useState('');
+  const duplicate = e => {
+    setError(''); setNotice(''); setDetail(null);
+    setForm({title:`${e.title.slice(0, 193)} (copy)`, description:e.description || '', host_name:e.host_name || '', category:e.category || '', level:e.level || '', live_url:e.live_url || '', starts_at:localInput(e.starts_at), ends_at:localInput(e.ends_at), cancelled:false, duplicate:true});
+    panel.current?.scrollIntoView?.({behavior:'smooth',block:'start'});
+  };
   const edit=e=>setForm({...e,starts_at:localInput(e.starts_at),ends_at:localInput(e.ends_at)});
   useEffect(()=>{
     let active=true;
@@ -52,7 +57,8 @@ export default function LiveEvents({course={}, editingEventId, onClose, initialL
   function save(e) {
     e.preventDefault();
     try {
-      const body={...form,starts_at:instant(form.starts_at),ends_at:instant(form.ends_at)};
+      const {duplicate: isDuplicate, ...values} = form;
+      const body={...values,starts_at:instant(form.starts_at),ends_at:instant(form.ends_at)};
       if(new Date(body.ends_at)<=new Date(body.starts_at))throw new Error('End time must follow the start time.');
       if(new Date(body.ends_at)-new Date(body.starts_at)>86400000)throw new Error('A live event can last up to 24 hours. Ends is the end of this session, not the course end date. Please check the month and day.');
       mutate(form.id?`/live-events/${form.id}`:'/live-events',{method:form.id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -66,7 +72,7 @@ export default function LiveEvents({course={}, editingEventId, onClose, initialL
     {error && !form && <p role="alert">{error}</p>}
     {notice && !form && <p role="status">{notice}</p>}
     {!data && !error && <p role="status">Loading events...</p>}
-    {form ? <form onSubmit={save} className="event-editor"><h3>{form.id?'Edit event':'Add event'}</h3><fieldset disabled={busy}>
+    {form ? <form onSubmit={save} className="event-editor"><h3>{form.id?'Edit event':form.duplicate?'Duplicate event':'Add event'}</h3>{form.duplicate && <p>Review the date, time and live link before saving. This creates a separate event; existing registrations are not copied.</p>}<fieldset disabled={busy}>
       <label>Event title<input required maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>
       <label>Category (optional)<input placeholder="e.g. French" maxLength={100} value={form.category || ''} onChange={e=>setForm({...form,category:e.target.value})}/></label>
       <label>Level (optional)<select value={form.level || ''} onChange={e=>setForm({...form,level:e.target.value})}><option value="">All levels</option>{['Beginner','Elementary','Pre-Intermediate','Intermediate','Advanced','Proficient'].map(v=><option key={v}>{v}</option>)}</select></label>
@@ -83,7 +89,7 @@ export default function LiveEvents({course={}, editingEventId, onClose, initialL
       {data && !filtered.length && <p className="event-empty">{search || dateFilter || level || category?'No matching events.':'No upcoming events yet.'}</p>}
       {[...groups].map(([day,events])=><section key={day} className="event-day"><h3>{day}</h3>{events.map(e=>{
         const live=new Date(e.starts_at)<=now && new Date(e.ends_at)>now;
-        return <article key={e.id} className="event-row"><span className={`event-status${live?' current':''}`}>{e.cancelled?'Cancelled':live?'Live now':new Date(e.ends_at)<=now?'Ended':'Upcoming'}</span><div className="event-name">{(e.category || e.level) && <div className="event-tags">{e.category && <span>{e.category}</span>}{e.level && <span>{e.level}</span>}</div>}<h4>{e.title}</h4>{e.host_name && <span>{e.host_name}</span>}</div><time>{new Date(e.starts_at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</time><div className="event-actions">{(e.registered || e.can_edit) && <button onClick={()=>setDetail(detail?.id===e.id?null:e)}>Details</button>}{e.live_url && !e.cancelled && new Date(e.ends_at)>now && <a href={e.live_url} target="_blank" rel="noopener noreferrer">Join event</a>}{!e.registered && !e.can_edit && !e.cancelled && new Date(e.ends_at)>now && <button disabled={busy} onClick={()=>mutate(`/live-events/${e.id}/register`,{method:'POST'})}>Register</button>}{e.registered && <><span>Saved to Calendar</span></>}{e.can_edit && <><button onClick={()=>edit(e)}>Edit</button></>}</div>{detail?.id===e.id && <div className="event-description"><p>{e.description || 'No additional details.'}</p><div className="event-actions">{!e.cancelled && <button onClick={()=>downloadEventCalendar(e)}>Add to personal calendar</button>}{e.registered && <button disabled={busy} onClick={()=>mutate(`/live-events/${e.id}/register`,{method:'DELETE'})}>Cancel registration</button>}</div><p className="event-zone">Download a calendar file for Apple Calendar, Outlook or Google Calendar. Download again if the event changes.</p><p>{displayDate(e.starts_at)} – {displayDate(e.ends_at)}</p></div>}</article>;
+        return <article key={e.id} className="event-row"><span className={`event-status${live?' current':''}`}>{e.cancelled?'Cancelled':live?'Live now':new Date(e.ends_at)<=now?'Ended':'Upcoming'}</span><div className="event-name">{(e.category || e.level) && <div className="event-tags">{e.category && <span>{e.category}</span>}{e.level && <span>{e.level}</span>}</div>}<h4>{e.title}</h4>{e.host_name && <span>{e.host_name}</span>}</div><time>{new Date(e.starts_at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</time><div className="event-actions">{(e.registered || e.can_edit) && <button onClick={()=>setDetail(detail?.id===e.id?null:e)}>Details</button>}{e.live_url && !e.cancelled && new Date(e.ends_at)>now && <a href={e.live_url} target="_blank" rel="noopener noreferrer">Join event</a>}{!e.registered && !e.can_edit && !e.cancelled && new Date(e.ends_at)>now && <button disabled={busy} onClick={()=>mutate(`/live-events/${e.id}/register`,{method:'POST'})}>Register</button>}{e.registered && <><span>Saved to Calendar</span></>}{e.can_edit && <><button onClick={()=>edit(e)}>Edit</button>{data.can_create && <button onClick={()=>duplicate(e)}>Duplicate</button>}</>}</div>{detail?.id===e.id && <div className="event-description"><p>{e.description || 'No additional details.'}</p><div className="event-actions">{!e.cancelled && <button onClick={()=>downloadEventCalendar(e)}>Add to personal calendar</button>}{e.registered && <button disabled={busy} onClick={()=>mutate(`/live-events/${e.id}/register`,{method:'DELETE'})}>Cancel registration</button>}</div><p className="event-zone">Download a calendar file for Apple Calendar, Outlook or Google Calendar. Download again if the event changes.</p><p>{displayDate(e.starts_at)} – {displayDate(e.ends_at)}</p></div>}</article>;
       })}</section>)}
     </>}
   </section>;

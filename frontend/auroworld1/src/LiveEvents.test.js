@@ -11,6 +11,7 @@ test('enrolled viewer sees dated events and links but no editing controls',async
   expect(await screen.findByText('Conversation')).toBeVisible();
   expect(screen.getByRole('link',{name:'Join event'})).toHaveAttribute('href',event.live_url);
   expect(screen.queryByRole('button',{name:'Edit'})).not.toBeInTheDocument();
+  expect(screen.queryByRole('button',{name:'Duplicate'})).not.toBeInTheDocument();
   expect(screen.queryByRole('button',{name:/Add event/})).not.toBeInTheDocument();
   fireEvent.click(screen.getByText('Details'));
   expect(screen.getByText('Practice together')).toBeVisible();
@@ -127,4 +128,44 @@ test('course entry level is a removable filter, not an access restriction',async
   expect(screen.queryByText('Advanced practice')).not.toBeInTheDocument();
   fireEvent.click(screen.getByText('Show all categories and levels'));
   expect(screen.getByText('Advanced practice')).toBeVisible();
+});
+
+
+test('duplicate creates a separate editable event without copying identity, cancellation or registrations', async () => {
+  const original = {...event, can_edit:true, cancelled:true, category:'French', level:'Beginner'};
+  let events = [original];
+  quizRequest.mockImplementation(async (path, options) => {
+    if (options?.method === 'POST') {
+      const copy = {...JSON.parse(options.body), id:11, can_edit:true};
+      events = [...events, copy]; return copy;
+    }
+    return {can_create:true, events};
+  });
+  render(<LiveEvents />);
+  fireEvent.click(await screen.findByRole('button', {name:'Duplicate'}));
+  expect(screen.getByLabelText('Event title')).toHaveValue('Conversation (copy)');
+  expect(screen.getByLabelText('Live link')).toHaveValue(event.live_url);
+  expect(screen.getByLabelText('Description (optional)')).toHaveValue(event.description);
+  expect(screen.getByLabelText('Level (optional)')).toHaveValue('Beginner');
+  fireEvent.change(screen.getByLabelText('Starts'), {target:{value:'2099-11-21T10:00'}});
+  fireEvent.change(screen.getByLabelText('Ends'), {target:{value:'2099-11-21T11:00'}});
+  fireEvent.click(screen.getByRole('button', {name:'Save event'}));
+  expect(await screen.findByText('Conversation (copy)')).toBeVisible();
+  expect(screen.getByText('Conversation')).toBeVisible();
+  const [path, options] = quizRequest.mock.calls.find(([,o]) => o?.method === 'POST');
+  expect(path).toBe('/live-events');
+  const payload = JSON.parse(options.body);
+  expect(payload.id).toBeUndefined();
+  expect(payload.registered).toBeUndefined();
+  expect(payload.cancelled).toBe(false);
+  expect(original.title).toBe('Conversation');
+});
+
+test('canceling a duplicate does not create an event', async () => {
+  quizRequest.mockResolvedValue({can_create:true, events:[{...event, can_edit:true}]});
+  render(<LiveEvents />);
+  fireEvent.click(await screen.findByRole('button', {name:'Duplicate'}));
+  fireEvent.click(screen.getByRole('button', {name:'Cancel', exact:true}));
+  expect(screen.getByText('Conversation')).toBeVisible();
+  expect(quizRequest.mock.calls.some(([,o]) => o?.method)).toBe(false);
 });
