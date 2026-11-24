@@ -1268,6 +1268,52 @@ public class Database{
 
     }
 
+    public int createCourseV2(String title, String description, String instructor, 
+        String level){
+        return createCourseV2(title, description, instructor, level, 0);
+    }
+
+    public int createCourseV2(String title, String description, String instructor, 
+        String level, int unitCount){
+        return createCourseV2(title, description, instructor,level,unitCount, null);
+    }
+
+    public int createCourseV2(String title, String description, String instructor,String level, int unitCount, String thumbnail){
+        if (unitCount < 0 || unitCount > 50) return -1;
+        String sql="INSERT INTO courses (title, description, instructor,level,thumbnail) "+
+        "VALUES (?,?,?,?,?) RETURNING course_id";
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+            conn.setAutoCommit(false);
+            try {
+            ps.setString(1,title);
+            ps.setString(2,description);
+            ps.setString(3,instructor);
+            ps.setString(4,level);
+            ps.setString(5,thumbnail);
+            try(ResultSet rs = ps.executeQuery()){
+                if (!rs.next()) throw new SQLException("Course creation returned no ID");
+                int courseId = rs.getInt("course_id");
+                try (PreparedStatement units = conn.prepareStatement("INSERT INTO course_units(course_id,title,sort_order) VALUES (?,?,?)")) {
+                    for (int i = 1; i <= unitCount; i++) {
+                        units.setInt(1, courseId);
+                        units.setString(2, "Unit " + i);
+                        units.setInt(3, i);
+                        units.addBatch();
+                    }
+                    if (unitCount > 0) units.executeBatch();
+                }
+                conn.commit();
+                return courseId;
+            }
+            } catch (SQLException e) { conn.rollback(); throw e; }
+        }
+        catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
     public int createCourse(String title, String description, String instructor, String times,
         String start_date, String level, String price, String live_url, String daysOfWeek){
         return createCourse(title, description, instructor, times, start_date, level, price, live_url, daysOfWeek, 0);
@@ -1731,6 +1777,38 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
             return -1;
         }
     }
+    public int deleteProblemReport(int reportId){
+        String deleteReport = "DELETE FROM help_page WHERE report_id = ? ";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(deleteReport)){
+            ps.setInt(1,reportId);
+            return ps.executeUpdate();
+        
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+
+    }
+    public int addProblemReport(String title, String description, String filepath, String uuid){
+        String insertReport = "INSERT INTO help_page(subject, description, ss_path, uuid) "+
+        "VALUES (?, ?, ?, ?) ";
+
+        try(Connection conn = getConnection();
+            PreparedStatement ps = conn.prepareStatement(insertReport)){
+            ps.setString(1,title);
+            ps.setString(2,description);
+            ps.setString(3,filepath);
+            ps.setString(4,uuid);
+
+            return ps.executeUpdate();
+        }
+        catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
     public UserData getUserAttributes(String uuid){
         String grabUser = "SELECT username, firstname, lastname, email, role, note FROM users WHERE unique_id=?";
         try(Connection conn = getConnection();
@@ -1755,6 +1833,21 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
             return null;
         }
     }
+
+    public int changeUserRoleNoUsername(String uuid, String role){
+        String sql = "UPDATE users SET role=? WHERE unique_id =?";
+        
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setString(1,role);
+            ps.setString(2,uuid);
+            return ps.executeUpdate();
+
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
     public int changeUserRole(String username, String role, String uuid){
         String changerole = "UPDATE users SET username=?, role=? WHERE unique_id=? ";
 
@@ -1770,7 +1863,6 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
             return -1;
         }
     }
-    
     public List<UserData> grabAllInstructors(){
         String selectinstructors = "SELECT * FROM users WHERE role IN (?, ?) ";
         List<UserData> instructorList = new ArrayList<>();
@@ -2287,7 +2379,31 @@ public int addLessonVideo(int unitId, int lessonId, String title, String filepat
         }
     }
 
-            // Database.java
+    public int editCourseInfoV2(int courseId, String title, String description, String instructor, String level){
+        return editCourseInfoV2(courseId, title, description, instructor,level, false, null);
+    }
+
+    public int editCourseInfoV2(int courseId, String title, String description, String instructor,
+        String level,boolean updateThumbnail, String thumbnail){
+        String updateCourseInfo = "UPDATE courses SET title = ?, description = ?, instructor = ?, "
+        +"level = ?, thumbnail = CASE WHEN ? THEN ? ELSE thumbnail END WHERE course_id = ? ";
+
+        try(Connection conn = getConnection();
+        PreparedStatement ps = conn.prepareStatement(updateCourseInfo)){
+            ps.setString(1,title);
+            ps.setString(2,description);
+            ps.setString(3,instructor);
+            ps.setString(4,level);
+            ps.setBoolean(5,updateThumbnail);
+            ps.setString(6,thumbnail);
+            ps.setInt(7,courseId);
+            return ps.executeUpdate();
+        }catch(SQLException e){
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
     public int editCourseInfo(int courseId, String title, String description, String instructor,
         String times, String start_date, String level, String price, String live_url, String daysOfWeek){
 

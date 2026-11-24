@@ -21,10 +21,10 @@ export function CourseOverview({ course }) {
         {course.description && <section className="course-description-box"><h3>Course overview</h3><p>{course.description}</p></section>}
         <dl className="course-facts">
             {[
-                ['Instructor', course.instructor],
-                ['Class days', courseDays(course.daysOfWeek)],
-                ['Class time', course.times],
-                ['Start date', course.startDate],
+                // ['Instructor', course.instructor],
+                // ['Class days', courseDays(course.daysOfWeek)],
+                // ['Class time', course.times],
+                // ['Start date', course.startDate],
             ].filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
         </dl>
     </div>;
@@ -48,7 +48,7 @@ export default function CourseEnrollment({ course, enrolled, enrolling, onEnroll
                 {course.level && <div><dt>Level</dt><dd>{course.level}</dd></div>}
                 <div><dt>Units</dt><dd>{course.units?.length || 0}</dd></div>
                 <div><dt>Lessons</dt><dd>{lessons}</dd></div>
-                {course.startDate && <div><dt>Starts</dt><dd>{course.startDate}</dd></div>}
+                {/* {course.startDate && <div><dt>Starts</dt><dd>{course.startDate}</dd></div>} */}
             </dl>
         </div>
     </section>;

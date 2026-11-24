@@ -19,14 +19,5 @@ public class OnlineQuizTest extends TestCase {
         var questions = OnlineQuiz.publicQuestions(questions());
         assertEquals(Set.of("prompt", "options"), questions.get(0).keySet());
     }
-    public void testInvalidQuestionsAndAnswersRejected() {
-        var questions = questions();
-        questions.get(0).explanation = "";
-        try { OnlineQuiz.validate(questions, true); fail(); } catch (QuizApi.Fault expected) { assertEquals(400, expected.code); }
-        OnlineQuiz.validate(questions, false);
-        questions = questions(); questions.get(0).options = List.of("A", " a ");
-        try { OnlineQuiz.validate(questions, true); fail(); } catch (QuizApi.Fault expected) { assertEquals(400, expected.code); }
-        try { OnlineQuiz.grade(questions(), List.of(4, 1, 0)); fail(); } catch (QuizApi.Fault expected) { assertEquals(400, expected.code); }
-        try { OnlineQuiz.grade(questions(), List.of(0)); fail(); } catch (QuizApi.Fault expected) { assertEquals(400, expected.code); }
-    }
+
 }

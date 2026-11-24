@@ -16,18 +16,20 @@ final class OnlineQuiz {
         return new ArrayList<>(Arrays.asList(JSON.fromJson(json, Question[].class)));
     }
 
+    // Only the prompt and at least two options are required. The explanation is optional.
     static void validate(List<Question> questions, boolean published) {
-        check(questions != null && questions.size() <= 100 && (!published || !questions.isEmpty()), "Add between 1 and 100 questions before publishing.");
+        check(questions != null && questions.size() <= 100 && (!published || !questions.isEmpty()), "Add at least 1 question before publishing.");
         for (int i = 0; i < questions.size(); i++) {
             var q = questions.get(i);
             String label = "Question " + (i + 1) + ": ";
             check(q != null, label + "Missing question.");
             check(q.prompt != null && q.prompt.length() <= 10000 && (!published || !q.prompt.isBlank()), label + "Enter a question (up to 10000 characters).");
             check(q.options != null && q.options.size() >= 2 && q.options.size() <= 8, label + "Use 2 to 8 options.");
-            for (String option : q.options) check(option != null && option.length() <= 2000 && (!published || !option.isBlank()), label + "Complete every option (up to 2000 characters).");
-            if (published) check(q.options.stream().map(String::trim).map(s -> s.toLowerCase(Locale.ROOT)).distinct().count() == q.options.size(), label + "Options must be different.");
-            check((!published && q.answer == null) || (q.answer != null && q.answer >= 0 && q.answer < q.options.size()), label + "Choose one correct answer.");
-            check(q.explanation != null && q.explanation.length() <= 10000 && (!published || !q.explanation.isBlank()), label + "Enter an explanation (up to 10000 characters).");
+            for (String option : q.options) check(option == null || option.length() <= 2000, label + "Each option can be up to 2000 characters.");
+            if (published) check(q.options.stream().filter(o -> o != null && !o.isBlank()).count() >= 2, label + "Fill in at least two options.");
+            if (published) check(q.answer != null && q.answer >= 0 && q.answer < q.options.size() && q.options.get(q.answer) != null && !q.options.get(q.answer).isBlank(), label + "Choose the correct answer.");
+            else check(q.answer == null || (q.answer >= 0 && q.answer < q.options.size()), label + "Choose one correct answer.");
+            check(q.explanation == null || q.explanation.length() <= 10000, label + "Explanation can be up to 10000 characters.");
         }
     }
 
@@ -53,7 +55,7 @@ final class OnlineQuiz {
             if (right) correct++;
             var row = new LinkedHashMap<String, Object>();
             row.put("prompt", q.prompt); row.put("options", q.options); row.put("answer", q.answer);
-            row.put("selected", answers.get(i)); row.put("correct", right); row.put("explanation", q.explanation);
+            row.put("selected", answers.get(i)); row.put("correct", right); row.put("explanation", q.explanation == null ? "" : q.explanation);
             review.add(row);
         }
         double score = Math.round(correct * 10000.0 / questions.size()) / 100.0;

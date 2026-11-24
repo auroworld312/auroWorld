@@ -1,0 +1,9 @@
+.form-example{
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    align-self: flex-start;
+} 
+.help-page{
+    background-color:#21182f;
+}

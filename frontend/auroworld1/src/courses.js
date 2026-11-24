@@ -7,7 +7,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import { deleteFromB2, isB2, toKey } from './b2Storage';
 import "./CoursesPage.css";
-import { paymentLink } from "./CourseEnrollment";
+// import { paymentLink } from "./CourseEnrollment";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { getCourseTimeValues, isCourseTime } from "./courseSchedule";
 import {supabase} from './utils/supabaseClient.js'
@@ -17,14 +17,14 @@ const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' :
 
 
 const PURPLE = '#4A2B6B';
-const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
-    const hour = Math.floor(index / 2);
-    const minute = index % 2 === 0 ? '00' : '30';
-    return {
-        value: `${String(hour).padStart(2, '0')}:${minute}`,
-        label: `${hour % 12 || 12}:${minute} ${hour < 12 ? 'AM' : 'PM'}`,
-    };
-});
+// const COURSE_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+//     const hour = Math.floor(index / 2);
+//     const minute = index % 2 === 0 ? '00' : '30';
+//     return {
+//         value: `${String(hour).padStart(2, '0')}:${minute}`,
+//         label: `${hour % 12 || 12}:${minute} ${hour < 12 ? 'AM' : 'PM'}`,
+//     };
+// });
 //const PURPLE_LIGHT = '#EDE9FF';
 
 
@@ -53,7 +53,7 @@ function Courses() {
     const [showAddCourse, setShowAddCourse] = useState(false);
     const [editingCourse, setEditingCourse] = useState(null);
     const [courseMenu, setCourseMenu] = useState(null);
-    const [selectedDays, setSelectedDays] = useState([]);
+    // const [selectedDays, setSelectedDays] = useState([]);
     const[instructorList, setInstructorList]=useState([])
     const [userAttributes, setUserAttributes] = useState(null);
 
@@ -98,17 +98,17 @@ function Courses() {
         }
     }
 
-    function displayCourseTimes(times) {
-        const values = getCourseTimeValues(times);
-        return values.every(Boolean)
-            ? values.map(value => COURSE_TIME_OPTIONS.find(option => option.value === value).label).join(' - ')
-            : times || 'Not specified';
-    }
+    // function displayCourseTimes(times) {
+    //     const values = getCourseTimeValues(times);
+    //     return values.every(Boolean)
+    //         ? values.map(value => COURSE_TIME_OPTIONS.find(option => option.value === value).label).join(' - ')
+    //         : times || 'Not specified';
+    // }
 
-    const DAY_LABELS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    function toggleDay(idx) {
-        setSelectedDays(prev => prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx]);
-    }  
+    // const DAY_LABELS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    // function toggleDay(idx) {
+    //     setSelectedDays(prev => prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx]);
+    // }  
 
     const uuidGrabbed = useRef(false)
     useEffect(() => {
@@ -225,7 +225,7 @@ function Courses() {
         setCourseMenu(null);
         const times = getCourseTimeValues(course?.times);
         setNewCourse({ title: course?.title || '', description: course?.description || '', instructor: course?.instructor || userAttributes?.username || '', startTime: times[0] || '', endTime: times[1] || '', start_date: course?.startDate || '', level: course?.level || 'Beginner', price: course?.price || 'Free', live_url: course?.liveUrl || '', paymentUrl: course?.paymentUrl || '', unitCount: 1 });
-        setSelectedDays((course?.daysOfWeek || '').split(',').filter(day => /^[0-6]$/.test(day)).map(Number));
+        // setSelectedDays((course?.daysOfWeek || '').split(',').filter(day => /^[0-6]$/.test(day)).map(Number));
         setThumbnail(course?.thumbnail || '');
         setShowAddCourse(true);
         requestAnimationFrame(() => document.getElementById('create-course-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }));
@@ -286,35 +286,36 @@ function Courses() {
         finally { URL.revokeObjectURL(url); setImageLoading(false); }
     }
 
-    function compactDays(value) {
-        const days = [...new Set((value || '').split(',').filter(day => /^[0-6]$/.test(day)))].sort();
-        const key = days.join(',');
-        if (key === '0,1,2,3,4,5,6') return 'Every day';
-        if (key === '1,2,3,4,5') return 'Weekdays';
-        if (key === '0,6') return 'Weekend';
-        return days.map(day => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][Number(day)]).join(', ') || 'Not specified';
-    }
+    // function compactDays(value) {
+    //     const days = [...new Set((value || '').split(',').filter(day => /^[0-6]$/.test(day)))].sort();
+    //     const key = days.join(',');
+    //     if (key === '0,1,2,3,4,5,6') return 'Every day';
+    //     if (key === '1,2,3,4,5') return 'Weekdays';
+    //     if (key === '0,6') return 'Weekend';
+    //     return days.map(day => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][Number(day)]).join(', ') || 'Not specified';
+    // }
 
     async function submitNewCourse() {
         if (loadingChanges || imageLoading) return;
-        const { title, description, startTime, endTime,
-            start_date,  level, price, live_url, paymentUrl
-        } = newCourse;
-        if (paymentUrl.trim() && (!paymentLink(paymentUrl.trim()) || paymentUrl.length > 2048)) {
-            alert('Please enter a valid HTTP or HTTPS payment link.');
-            return;
-        }
-        const startOption = COURSE_TIME_OPTIONS.find(option => option.value === startTime);
-        const endOption = COURSE_TIME_OPTIONS.find(option => option.value === endTime);
-        if (!startOption || !endOption || endTime <= startTime) {
-            alert('Please select a start time and a later end time on the same day.');
-            return;
-        }
-        if (selectedDays.length === 0) {
-            alert('Please select at least one day of the week.');
-            return;
-        }
-        const times = `${startOption.label} - ${endOption.label}`;
+        // const { title, description, startTime, endTime,
+        //     start_date,  level, price, live_url, paymentUrl
+        // } = newCourse;
+        const {title, description,level} = newCourse;
+        // if (paymentUrl.trim() && (!paymentLink(paymentUrl.trim()) || paymentUrl.length > 2048)) {
+        //     alert('Please enter a valid HTTP or HTTPS payment link.');
+        //     return;
+        // }
+        // const startOption = COURSE_TIME_OPTIONS.find(option => option.value === startTime);
+        // const endOption = COURSE_TIME_OPTIONS.find(option => option.value === endTime);
+        // if (!startOption || !endOption || endTime <= startTime) {
+        //     alert('Please select a start time and a later end time on the same day.');
+        //     return;
+        // }
+        // if (selectedDays.length === 0) {
+        //     alert('Please select at least one day of the week.');
+        //     return;
+        // }
+        // const times = `${startOption.label} - ${endOption.label}`;
         // console.log("title: "+title)
         // console.log("description: "+description)
         const instructor = userAttributes?.role === 'instructor' ? userAttributes.username : newCourse.instructor;
@@ -324,33 +325,38 @@ function Courses() {
         // console.log("level: "+level)
         // console.log("price: "+price)
         // console.log("newCourse: "+newCourse)
-        if (!title || !description || !instructor || !times || !start_date || !level || !price) {
+        // if (!title || !description || !instructor || !times || !start_date || !level || !price) {
+        //     alert('Please fill out all fields'); return;
+        // }
+        if (!title || !description || !instructor || !level) {
             alert('Please fill out all fields'); return;
         }
         try {
             setLoadingChanges(true)
             const response = await authenticatedFetch(editingCourse ? `${API}/courses/edit/${editingCourse.courseId}` : `${API}/courses`, {
                 method: editingCourse ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title:title, description: description, instructor:instructor, times:times, startDate: start_date, level:level, price:price, paymentUrl:paymentUrl.trim(), live_url:live_url.trim(), thumbnail: thumbnail || null, updateThumbnail: !!editingCourse, liveUrl: live_url.trim(), unitCount: newCourse.unitCount, daysOfWeek: [...selectedDays].sort((a, b) => a - b).join(',') })
+                // body: JSON.stringify({ title:title, description: description, instructor:instructor, times:times, startDate: start_date, level:level, price:price, paymentUrl:paymentUrl.trim(), live_url:live_url.trim(), thumbnail: thumbnail || null, updateThumbnail: !!editingCourse, liveUrl: live_url.trim(), unitCount: newCourse.unitCount, daysOfWeek: [...selectedDays].sort((a, b) => a - b).join(',') })
+                body: JSON.stringify({ title:title, description: description, instructor:instructor,level:level,thumbnail: thumbnail || null, updateThumbnail: !!editingCourse, unitCount: newCourse.unitCount, })
             });
             const data = await response.json();
             if (data.mStatus !== 'ok') { setLoadingChanges(false); alert('Saving course failed: ' + data.mMessage); return; }
             const savedId = editingCourse?.courseId || data.mData;
-            if (editingCourse || thumbnail || paymentUrl.trim()) {
+            // if (editingCourse || thumbnail || paymentUrl.trim()) {
+            if (editingCourse || thumbnail) {
                 const savedResponse = await authenticatedFetch(`${API}/courses/${savedId}`);
                 const savedData = await savedResponse.json();
                 if (savedData.mStatus !== 'ok' || (savedData.mData?.thumbnail || '') !== thumbnail) {
                     throw new Error('The course image was not saved. Your selection is still here. Restart the updated backend and try again.');
                 }
-                if ((savedData.mData?.paymentUrl || '') !== paymentUrl.trim()) {
-                    throw new Error('The payment link was not saved. Restart the updated backend and try again.');
-                }
+                // if ((savedData.mData?.paymentUrl || '') !== paymentUrl.trim()) {
+                //     throw new Error('The payment link was not saved. Restart the updated backend and try again.');
+                // }
             }
             setLoadingChanges(false)
             setShowAddCourse(false)
             setEditingCourse(null)
             setNewCourse({ title: '', description: '', instructor: '', startTime: '', endTime: '', start_date: '', level: 'Beginner', price: 'Free', live_url: '', paymentUrl: '', unitCount: 1 });
-            setSelectedDays([]);
+            // setSelectedDays([]);
             setThumbnail('');
             loadCourses();
         } catch (error) { setLoadingChanges(false); alert('Could not save course: ' + error.message); }
@@ -401,9 +407,9 @@ function Courses() {
                                     </select>
                                     <p style={{ color: '#666', fontSize: '13px' }}>Units will be named Unit 1, Unit 2, and so on. You can rename or add units later.</p>
                                 </div>}
-                                {[
+                                {/* {[
                                     { label: 'Course Title', key: 'title', type: 'text' },
-                                    // { label: 'Instructor', key: 'instructor', type: 'text' },
+                                    { label: 'Instructor', key: 'instructor', type: 'text' },
                                     { label: 'Start Date', key: 'start_date', type: 'date' },
                                     { label: 'Zoom Link', key: 'live_url', type: 'text' },
                                 ].map(f => (
@@ -413,8 +419,13 @@ function Courses() {
                                             onClick={f.type === 'date' ? e => e.currentTarget.showPicker?.() : undefined}
                                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', boxSizing: 'border-box' }} />
                                     </div>
-                                ))}
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '12px' }}>
+                                ))} */}
+                                <div style={{ marginBottom: '12px' }}>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Course Title<span className="courses-required" aria-hidden="true"> *</span></label>
+                                        <input aria-required type='text' value={newCourse['title']} onChange={e => setNewCourse(p => ({ ...p, title: e.target.value }))}
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', boxSizing: 'border-box' }} />
+                                </div>
+                                {/* <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '12px' }}>
                                     {[
                                         { label: 'Start Time', key: 'startTime' },
                                         { label: 'End Time', key: 'endTime' },
@@ -443,7 +454,7 @@ function Courses() {
                                             </select>
                                         </div>
                                     ))}
-                                </div>
+                                </div> */}
                                 <div style={{ marginBottom: '12px' }}>
                                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Instructor<span className="courses-required" aria-hidden="true"> *</span></label>
                                     <select id="instructor" disabled={userAttributes?.role === 'instructor'} value={userAttributes?.role === 'instructor' ? userAttributes.username : newCourse.instructor} onChange={e => setNewCourse(p => ({ ...p, instructor: e.target.value }))} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px', width: '100%', boxSizing: 'border-box' }}>
@@ -457,7 +468,7 @@ function Courses() {
                                     <textarea value={newCourse.description} onChange={e => setNewCourse(p => ({ ...p, description: e.target.value }))}
                                         style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px', minHeight: '80px', boxSizing: 'border-box', resize: 'vertical' }} />
                                 </div>
-                                <div style={{ marginBottom: '16px' }}>
+                                {/* <div style={{ marginBottom: '16px' }}>
                                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Days of the Week<span className="courses-required" aria-hidden="true"> *</span></label>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                                         {DAY_LABELS.map((day, idx) => (
@@ -467,7 +478,7 @@ function Courses() {
                                             </label>
                                         ))}
                                     </div>
-                                </div>
+                                </div> */}
                                 <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
                                     <div style={{ flex: 1 }}>
                                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Level<span className="courses-required" aria-hidden="true"> *</span></label>
@@ -476,19 +487,19 @@ function Courses() {
                                             <option>Beginner</option><option>Intermediate</option><option>Advanced</option>
                                         </select>
                                     </div>
-                                    <div style={{ flex: 1 }}>
+                                    {/* <div style={{ flex: 1 }}>
                                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px', color: '#555' }}>Price<span className="courses-required" aria-hidden="true"> *</span></label>
                                         <select value={newCourse.price} onChange={e => setNewCourse(p => ({ ...p, price: e.target.value }))}
                                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '14px' }}>
                                             <option>Free</option><option>Priced</option>
                                         </select>
-                                    </div>
+                                    </div> */}
                                 </div>
-                                {newCourse.price !== 'Free' && <div className="courses-payment-field">
+                                {/* {newCourse.price !== 'Free' && <div className="courses-payment-field">
                                     <label htmlFor="course-payment-url">Payment link (optional)</label>
                                     <input id="course-payment-url" type="url" maxLength={2048} placeholder="https://" value={newCourse.paymentUrl} onChange={e => setNewCourse(p => ({ ...p, paymentUrl: e.target.value }))} />
                                     <small>Students will open this page to pay. Automatic payment confirmation is not available yet.</small>
-                                </div>}
+                                </div>} */}
                                 <div className="courses-image-upload">
                                     <label htmlFor="course-cover">Course image (optional)</label>
                                     <input id="course-cover" type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseThumbnail} disabled={imageLoading || loadingChanges} />
@@ -536,7 +547,7 @@ function Courses() {
                                     {/* Info */}
                                     <div className="courses-card-info">
                                         <h2>{<button className="courses-title-link" onClick={() => navigate(`/courses/${course.courseId}`)}>{course.title}</button>}</h2>
-                                        <p>{course.description}</p>
+                                        {/* <p>{course.description}</p> */}
                                     </div>
                                     {((isTeacher && course.instructor === userAttributes.username) || userAttributes?.role === "admin") && <div className="courses-menu" data-course-menu onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setCourseMenu(null); }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setCourseMenu(null); }}>
                                         <button className="courses-menu-trigger" aria-label={`Course options for ${course.title}`} aria-expanded={courseMenu === course.courseId} onClick={() => setCourseMenu(courseMenu === course.courseId ? null : course.courseId)}>&#8943;</button>
@@ -549,11 +560,12 @@ function Courses() {
                                         <i className={`${bookmarks.has(String(course.courseId)) ? 'fa-solid' : 'fa-regular'} fa-bookmark`} aria-hidden="true" />
                                     </button>
                                     <div className="courses-card-details">
-                                        <p>Instructor: {course.instructor}</p>
-                                        <p>Days: <strong>{compactDays(course.daysOfWeek) || 'Not specified'}</strong></p>
-                                        <p>Times: <strong>{displayCourseTimes(course.times)}</strong></p>
-                                        <p>Start Date: {course.startDate || 'Not specified'}</p>
-                                        <p className="courses-extra-details">Level: {course.level || 'Not specified'} &middot; Price: {course.price || 'Not specified'}</p>
+                                        {/* <p>Instructor: {course.instructor}</p> */}
+                                        {/* <p>Days: <strong>{compactDays(course.daysOfWeek) || 'Not specified'}</strong></p> */}
+                                        {/* <p>Times: <strong>{displayCourseTimes(course.times)}</strong></p> */}
+                                        {/* <p>Start Date: {course.startDate || 'Not specified'}</p> */}
+                                        {/* <p className="courses-extra-details">Level: {course.level || 'Not specified'} &middot; Price: {course.price || 'Not specified'}</p> */}
+                                        <p className="courses-extra-details">Level: {course.level || 'Not specified'} &middot;</p>
                                     </div>
 
                                     {/* Actions */}

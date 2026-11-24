@@ -101,10 +101,11 @@ export function QuizEditor({ unitId, lessonId, quiz, videos, onSaved, onCancel, 
     setError(''); setBusy(true);
     try {
       if (!title.trim()) throw new Error('Enter a quiz title.');
-      const releaseAt = dateInstant(release), dueAt = dateInstant(due), lateUntil = allowLate ? dateInstant(late) : null;
-      if (published && (!releaseAt || !dueAt)) throw new Error('Select release and due dates and times.');
-      if ((releaseAt || dueAt || lateUntil) && (!releaseAt || !dueAt || dueAt <= releaseAt)) throw new Error('Due date must be after release date.');
-      if (allowLate && (!lateUntil || !dueAt || lateUntil <= dueAt)) throw new Error('Choose a late deadline after the normal due date.');
+      // An empty release date means "release now", using the current date and time.
+      const releaseAt = dateInstant(release) || new Date().toISOString();
+      const dueAt = dateInstant(due), lateUntil = allowLate ? dateInstant(late) : null;
+      if (dueAt && dueAt <= releaseAt) throw new Error('Due date must be after release date.');
+      if (allowLate && (!dueAt || !lateUntil || lateUntil <= dueAt)) throw new Error('Late submissions need a due date and a late deadline after it.');
       if (mode === 'online') {
         if (published) validateQuestions(questions);
       } else {
@@ -156,6 +157,7 @@ export function QuizEditor({ unitId, lessonId, quiz, videos, onSaved, onCancel, 
       <p className="quiz-muted">All times shown in {localZone}.</p>
       <DateTimePicker id={`${formId}-release`} label="Release" value={release} onChange={setRelease} />
       <DateTimePicker id={`${formId}-due`} label="Due" value={due} onChange={setDue} />
+      <p className="quiz-muted">Leave the due date empty for no deadline.</p>
       <label><input type="checkbox" checked={allowLate} onChange={e => setAllowLate(e.target.checked)} /> Allow late submissions</label>
       {allowLate && <DateTimePicker id={`${formId}-late`} label="Late Submission Deadline" value={late} onChange={setLate} />}
       {error && <p role="alert" className="quiz-error">{error}</p>}

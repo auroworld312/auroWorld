@@ -1898,24 +1898,3 @@ function CourseDetail() {
 }
 
 export default CourseDetail;
-
-
-    // const userAttsGrabbed = useRef(false)
-    // useEffect(()=>{
-    //     if(userAttsGrabbed.current===false){
-    //         async function getUserAtts(){
-    //             try{
-    //                 const res= await authenticatedFetch(`${API}/userdata/${currentUserId}`)
-    //                 const data = await res.json()
-    //                 setUserAttributes(data.mData)
-    //             }catch(error){
-    //                 console.log(error.message)
-    //             }
-    //             return
-    //         }
-    //         getUserAtts()
-    //     }
-    //     return ()=>{
-    //         userAttsGrabbed.current=true
-    //     }
-    // },[currentUserId])

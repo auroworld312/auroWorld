@@ -50,7 +50,10 @@ export default function AuthPage({ signup = false }) {
         await initialize({ username: username.trim(), role });
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-        if (error) throw error;
+        if (error){ 
+          console.log('error: ',error.message)
+          throw error;
+        }
         const meta = data.user?.user_metadata || {};
         // Existing roles are always preserved by the server. Metadata is only a new-account preference.
         await initialize(['user', 'instructor'].includes(meta.signup_role) && meta.signup_username

@@ -21,7 +21,7 @@ function QuestionArea({ questions, answers, setAnswers, review = false, disabled
       </fieldset>
       {review && <div className="online-explanation">
         <strong>{q.correct ? 'Correct' : answers[current] == null ? 'Unanswered' : 'Incorrect'}</strong>
-        <h3>Explanation</h3><p>{q.explanation}</p>
+        {q.explanation && <><h3>Explanation</h3><p>{q.explanation}</p></>}
       </div>}
       <div className="quiz-row quiz-between" style={{ marginTop: 24 }}>
         <button disabled={current === 0} onClick={() => setCurrent(current - 1)}>Previous Question</button>

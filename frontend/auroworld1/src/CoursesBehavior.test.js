@@ -74,12 +74,12 @@ test('bookmarks persist across remounts and can be removed without enrolling', a
     expect(global.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
 });
 
-test('cards show creation fields and only the requested action buttons', async () => {
+test('self-paced course cards omit old schedule fields and keep navigation', async () => {
     render(<Courses />);
     expect(await screen.findByRole('heading', { name: 'French' })).toBeInTheDocument();
-    expect(screen.getByText('Mon, Fri')).toBeInTheDocument();
-    expect(screen.getByText('2:00 AM - 3:00 AM')).toBeInTheDocument();
-    expect(screen.getByText('Start Date: 2026-10-12')).toBeInTheDocument();
+    expect(screen.queryByText('Mon, Fri')).not.toBeInTheDocument();
+    expect(screen.queryByText('2:00 AM - 3:00 AM')).not.toBeInTheDocument();
+    expect(screen.queryByText('Start Date: 2026-10-12')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'More Info' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'French' }));
     expect(mockNavigate).toHaveBeenCalledWith('/courses/7');
@@ -117,13 +117,14 @@ test.each(['instructor', 'user', 'admin'])('%s sees the appropriate course list'
 
 test.each([
     ['0,1,2,3,4,5,6', 'Every day'], ['1,2,3,4,5', 'Weekdays'], ['0,6', 'Weekend'], ['1,2,3,4', 'Mon, Tue, Wed, Thu']
-])('teacher cards compact %s and omit enrollment controls', async (daysOfWeek, label) => {
+])('teacher cards omit legacy schedule %s and enrollment controls', async (daysOfWeek, label) => {
     global.fetch = jest.fn(async url => ({ json: async () => ({ mStatus: 'ok', mData:
         url.endsWith('/courses') ? [{ ...course, daysOfWeek }] :
         url.includes('/userdata/') ? { role: 'instructor', username: 'Teacher' } : []
     }) }));
     render(<Courses />);
-    expect(await screen.findByText(label)).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'French' });
+    expect(screen.queryByText(label)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'French' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'More Info' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Enroll' })).not.toBeInTheDocument();
@@ -152,7 +153,7 @@ test('teacher can open a card and edit without navigating from its menu', async 
     await waitFor(() => expect(global.fetch.mock.calls.some(([, options]) => options?.method === 'PUT')).toBe(true));
     const [url, request] = global.fetch.mock.calls.find(([, options]) => options?.method === 'PUT');
     expect(url).toMatch(/courses\/edit\/7$/);
-    expect(JSON.parse(request.body)).toMatchObject({ title: 'Updated French', daysOfWeek: '1,5', liveUrl: '', updateThumbnail: true });
+    expect(JSON.parse(request.body)).toMatchObject({ title: 'Updated French', level: 'Beginner', updateThumbnail: true });
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Save Changes' })).not.toBeInTheDocument());
 });
 
