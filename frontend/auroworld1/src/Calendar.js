@@ -13,49 +13,6 @@ import { useQuizDeadlines, QuizDeadlineBlocks, QuizDeadlineList } from './QuizCa
 //const API = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://auroworld.onrender.com';
 const COURSE_COLORS = ['#4A2B6B'];
 
-function parseCourseSchedule(timesStr, daysOfWeekStr) {
-  if (!timesStr) return null;
-  const s = timesStr.trim();
-  const timePattern = /(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/gi;
-  const matches = [...s.matchAll(timePattern)];
-  if (matches.length === 0) return null;
-  const toTime = (m) => {
-    let h = parseInt(m[1]);
-    const min = m[2] ? parseInt(m[2]) : 0;
-    const ap = m[3].toUpperCase();
-    if (ap === 'PM' && h !== 12) h += 12;
-    if (ap === 'AM' && h === 12) h = 0;
-    return { hour: h, minute: min };
-  };
-  const start = toTime(matches[0]);
-  const end = matches.length >= 2 ? toTime(matches[1]) : { hour: start.hour + 1, minute: start.minute };
-
-  let days;
-  if (daysOfWeekStr) {
-    // NEW: trust the explicit selection from the edit form
-    days = daysOfWeekStr.split(',').map(Number).filter(n => !isNaN(n));
-  } else {
-    // fallback for older courses that never had daysOfWeek set
-    const upper = s.toUpperCase();
-    const set = new Set();
-    if (upper.includes('MWF')) { set.add(1); set.add(3); set.add(5); }
-    else if (upper.includes('M/W') || upper.includes('MW')) { set.add(1); set.add(3); }
-    else if (upper.includes('T/TH') || upper.includes('TTH') || upper.includes('TUTH')) { set.add(2); set.add(4); }
-    else {
-      if (upper.includes('SU') || upper.includes('SUN')) set.add(0);
-      if (upper.includes('TH') || upper.includes('R')) set.add(4);
-      if (upper.includes('TU')) set.add(2);
-      if (upper.includes('SA') || upper.includes('SAT')) set.add(6);
-      if (upper.includes('M') && !set.has(1)) set.add(1);
-      if (upper.includes('W') && !set.has(3)) set.add(3);
-      if (upper.includes('F') && !set.has(5)) set.add(5);
-    }
-    days = [...set];
-  }
-  if (days.length === 0) return null;
-  return { days, startHour: start.hour, startMinute: start.minute, endHour: end.hour, endMinute: end.minute };
-}
-
 function Calendar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -85,29 +42,11 @@ function Calendar() {
     {
       async function loadEnrolledCourses() {
         try {
-          const [courses, legacySessions, liveEvents] = await Promise.all([quizRequest('/calendar-courses'), quizRequest('/calendar-sessions'), quizRequest('/live-events')]);
-          const sessions=[...legacySessions,...liveEvents.filter(e=>!e.cancelled).map(e=>({...e,event_id:e.id,lesson_title:e.title,teacher:e.host_name}))];
+          // Courses are self-paced. Only explicitly registered/managed events belong here.
+          const liveEvents = await quizRequest('/live-events');
+          const sessions = liveEvents.filter(e => !e.cancelled).map(e => ({...e, event_id:e.id, lesson_title:e.title, teacher:e.host_name}));
           if (!active) return;
           const events = [];
-          courses.forEach((course, index) => {
-            const schedule = parseCourseSchedule(course.times, course.daysOfWeek);
-
-            events.push({
-              courseId: course.courseId,
-              title: course.title,
-              thumbnail: course.thumbnail || '',
-              color: COURSE_COLORS[index % COURSE_COLORS.length],
-              liveUrl: course.liveUrl || null,
-              instructor: course.instructor || '',
-              times: course.times || '',
-              calendarOwner: course.calendarOwner === true,
-              days: schedule?.days || [],
-              startHour: schedule?.startHour,
-              startMinute: schedule?.startMinute,
-              endHour: schedule?.endHour,
-              endMinute: schedule?.endMinute,
-            });
-          });
           sessions.forEach(session => {
             if (!session.starts_at || !session.ends_at) return;
             const start=new Date(session.starts_at), end=new Date(session.ends_at);

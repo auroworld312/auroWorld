@@ -52,7 +52,8 @@ test('creator edits and deletes, while a failed save keeps the form',async()=>{
   fail=false;fireEvent.click(screen.getByText('Save event'));
   expect(await screen.findByText('Updated')).toBeVisible();
   const confirm=jest.spyOn(window,'confirm').mockReturnValue(true);
-  fireEvent.click(screen.getByText('Delete'));
+  fireEvent.click(screen.getByText('Edit'));
+  fireEvent.click(screen.getByText('Delete event'));
   await waitFor(()=>expect(screen.getByText('No upcoming events yet.')).toBeVisible());
   confirm.mockRestore();
 });
@@ -68,7 +69,9 @@ test('registration unlocks details and cancellation hides the link again',async(
   render(<LiveEvents/>);
   fireEvent.click(await screen.findByText('Register'));
   expect(await screen.findByRole('link',{name:'Join event'})).toHaveAttribute('href',event.live_url);
-  expect(screen.getByText('Registered')).toBeVisible();
+  expect(screen.getByText('Saved to Calendar')).toBeVisible();
+  fireEvent.click(screen.getByText('Details'));
+  expect(screen.getByText('Add to personal calendar')).toBeVisible();
   fireEvent.click(screen.getByText('Cancel registration'));
   await screen.findByText('Register');
   expect(screen.queryByRole('link',{name:'Join event'})).not.toBeInTheDocument();

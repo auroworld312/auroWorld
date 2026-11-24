@@ -10,40 +10,13 @@ jest.mock('./components/Sidebar', () => () => null);
 jest.mock('./components/Header', () => () => null);
 jest.mock('./QuizCalendar', () => ({ useQuizDeadlines: () => ({ quizzes: [], error: '' }), QuizDeadlineBlocks: () => null, QuizDeadlineList: () => null }));
 
-test('course details appear on hover and focus, and schedule cards keep course navigation', async () => {
-  const previousFetch = global.fetch;
-  quizRequest.mockResolvedValue( [{ courseId: 7, title: 'French', instructor: 'Teacher', thumbnail: '/cover.jpg', times: '2:00 PM - 3:00 PM', daysOfWeek: '1' }]);
-  try {
-    render(<Calendar />);
-    await waitFor(() => expect(screen.getAllByText('French')).toHaveLength(2));
-    expect(quizRequest).toHaveBeenCalledWith('/calendar-courses');
-    const event = screen.getAllByRole('button', { name: /French/ })[0];
-    fireEvent.mouseEnter(event);
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Instructor: Teacher');
-    expect(screen.getByRole('tooltip').querySelector('img')).toHaveAttribute('src', '/cover.jpg');
-    fireEvent.mouseLeave(event);
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-    fireEvent.focus(event);
-    expect(screen.getByRole('tooltip')).toBeInTheDocument();
-    fireEvent.keyDown(event, { key: 'Escape' });
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-    fireEvent.keyDown(screen.getAllByRole('button', { name: /French/ })[1], { key: 'Enter' });
-    expect(mockNavigate).toHaveBeenCalledWith('/courses/7', { state: { activeTab: 'video' } });
-  } finally {
-    global.fetch = previousFetch;
-  }
-});
-
-test('teacher sees all owned courses even when not scheduled on the selected day', async () => {
-  quizRequest.mockResolvedValue([
-    { courseId: 1, title: 'Tuesday class', calendarOwner: true, daysOfWeek: '2', times: '2:00 PM - 3:00 PM' },
-    { courseId: 2, title: 'Unscheduled class', calendarOwner: true }
-  ]);
+test('self-paced courses and legacy schedules are not loaded', async () => {
+  quizRequest.mockReset().mockResolvedValue([]);
   render(<Calendar />);
-  expect(await screen.findByText('My Courses')).toBeInTheDocument();
-  expect(screen.getByText('Unscheduled class')).toBeInTheDocument();
-  expect(screen.getByText('Schedule not set')).toBeInTheDocument();
-  expect(screen.getAllByText('Tuesday class')).toHaveLength(2);
+  expect(await screen.findByText('No classes on this day.')).toBeVisible();
+  expect(quizRequest).toHaveBeenCalledWith('/live-events');
+  expect(quizRequest).not.toHaveBeenCalledWith('/calendar-courses');
+  expect(quizRequest).not.toHaveBeenCalledWith('/calendar-sessions');
 });
 
 test('failed course requests show an error and can be retried', async () => {
@@ -57,9 +30,9 @@ test('failed course requests show an error and can be retried', async () => {
 });
 
  test('dated sessions appear on their exact date rather than repeating every week',async()=>{
- quizRequest.mockReset().mockImplementation(path=>Promise.resolve(path==='/calendar-sessions'?[{id:1,course_id:7,course_title:'French',lesson_title:'One-off lesson',teacher:'Teacher B',starts_at:'2026-10-26T14:00:00',ends_at:'2026-10-26T15:00:00'}]:[]));
+ quizRequest.mockReset().mockImplementation(path=>Promise.resolve(path==='/live-events'?[{id:1,course_id:7,course_title:'French',lesson_title:'One-off lesson',teacher:'Teacher B',starts_at:'2026-10-26T14:00:00',ends_at:'2026-10-26T15:00:00'}]:[]));
  render(<Calendar/>);
- await waitFor(()=>expect(quizRequest).toHaveBeenCalledWith('/calendar-sessions'));
+ await waitFor(()=>expect(quizRequest).toHaveBeenCalledWith('/live-events'));
  expect(await screen.findByText('No classes on this day.')).toBeInTheDocument();
  expect(screen.queryByText('French ? One-off lesson')).not.toBeInTheDocument();
  });
